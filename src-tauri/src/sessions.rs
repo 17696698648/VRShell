@@ -419,7 +419,10 @@ pub(crate) fn lookup_identity_file(host: &str) -> Option<String> {
         return None;
     }
     let content = fs::read_to_string(config_path).ok()?;
+    lookup_identity_file_in_config(host, &content, &home)
+}
 
+fn lookup_identity_file_in_config(host: &str, content: &str, home: &str) -> Option<String> {
     let mut current_host: Option<String> = None;
     let mut identity_file: Option<String> = None;
 
@@ -437,18 +440,12 @@ pub(crate) fn lookup_identity_file(host: &str) -> Option<String> {
 
         match keyword.as_str() {
             "host" => {
-                // When we hit a new Host block, check if the previous one matched.
                 if let Some(ref h) = current_host {
-                    if h == host || h == "*" {
-                        // Found the matching block; return its IdentityFile.
-                        if identity_file.is_some() {
-                            return identity_file;
-                        }
+                    if (h == host || h == "*") && identity_file.is_some() {
+                        return identity_file;
                     }
                 }
-                // Start tracking new block
                 let host_name = value.split(' ').next().unwrap_or(value).to_string();
-                // Only track non-wildcard hosts (wildcards are checked above)
                 if host_name.contains('*') || host_name.contains('!') || host_name.contains('?') {
                     current_host = None;
                     identity_file = None;
@@ -471,7 +468,6 @@ pub(crate) fn lookup_identity_file(host: &str) -> Option<String> {
         }
     }
 
-    // Check the last block
     if let Some(ref h) = current_host {
         if h == host && identity_file.is_some() {
             return identity_file;
@@ -479,4 +475,52 @@ pub(crate) fn lookup_identity_file(host: &str) -> Option<String> {
     }
 
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn lookup_identity_file_in_config_expands_relative_path() {
+        let config = r#"
+Host prod
+  HostName prod.example.com
+  IdentityFile id_prod
+"#;
+
+        assert_eq!(
+            lookup_identity_file_in_config("prod", config, "/home/alice"),
+            Some("/home/alice/.ssh/id_prod".to_string())
+        );
+    }
+
+    #[test]
+    fn lookup_identity_file_in_config_uses_first_identity_file() {
+        let config = r#"
+Host prod
+  IdentityFile id_first
+  IdentityFile id_second
+"#;
+
+        assert_eq!(
+            lookup_identity_file_in_config("prod", config, "/home/alice"),
+            Some("/home/alice/.ssh/id_first".to_string())
+        );
+    }
+
+    #[test]
+    fn lookup_identity_file_in_config_ignores_non_matching_hosts() {
+        let config = r#"
+Host dev
+  IdentityFile id_dev
+Host prod
+  IdentityFile id_prod
+"#;
+
+        assert_eq!(
+            lookup_identity_file_in_config("prod", config, "/home/alice"),
+            Some("/home/alice/.ssh/id_prod".to_string())
+        );
+    }
 }

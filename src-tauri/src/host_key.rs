@@ -491,3 +491,54 @@ pub async fn set_known_hosts_path(
     *guard = path.map(PathBuf::from);
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn temp_known_hosts_path(name: &str) -> PathBuf {
+        let stamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        std::env::temp_dir().join(format!("vrshell-{name}-{stamp}-known_hosts"))
+    }
+
+    #[test]
+    fn remove_known_host_entry_removes_exact_host_and_preserves_others() {
+        let path = temp_known_hosts_path("remove-exact");
+        fs::write(
+            &path,
+            "# comment\nexample.com ssh-ed25519 AAAA\nother.com ssh-ed25519 BBBB\n*.example.com ssh-ed25519 CCCC\n",
+        )
+        .unwrap();
+
+        let removed = remove_known_host_entry(&path, "example.com", 22).unwrap();
+        let retained = fs::read_to_string(&path).unwrap();
+        let _ = fs::remove_file(&path);
+
+        assert_eq!(removed, vec!["example.com ssh-ed25519 AAAA"]);
+        assert!(retained.contains("# comment"));
+        assert!(retained.contains("other.com ssh-ed25519 BBBB"));
+        assert!(retained.contains("*.example.com ssh-ed25519 CCCC"));
+        assert!(!retained.contains("example.com ssh-ed25519 AAAA"));
+    }
+
+    #[test]
+    fn remove_known_host_entry_matches_bracketed_port() {
+        let path = temp_known_hosts_path("remove-port");
+        fs::write(
+            &path,
+            "[example.com]:2222 ssh-ed25519 AAAA\n[example.com]:2200 ssh-ed25519 BBBB\n",
+        )
+        .unwrap();
+
+        let removed = remove_known_host_entry(&path, "example.com", 2222).unwrap();
+        let retained = fs::read_to_string(&path).unwrap();
+        let _ = fs::remove_file(&path);
+
+        assert_eq!(removed, vec!["[example.com]:2222 ssh-ed25519 AAAA"]);
+        assert!(retained.contains("[example.com]:2200 ssh-ed25519 BBBB"));
+    }
+}

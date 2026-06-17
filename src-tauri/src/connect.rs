@@ -1,5 +1,6 @@
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use serde::Serialize;
+use serde_json::{Map, Value};
 use std::{
     collections::VecDeque,
     fmt, fs,
@@ -50,9 +51,8 @@ pub struct SshError {
     pub code: String,
     pub message: String,
     pub recoverable: bool,
-    /// SHA256 fingerprint of the host key, present for `host_key_unknown` errors.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub host_key_fingerprint: Option<String>,
+    #[serde(skip_serializing_if = "Map::is_empty")]
+    pub details: Map<String, Value>,
 }
 
 impl SshError {
@@ -61,7 +61,7 @@ impl SshError {
             code: code.into(),
             message: message.into(),
             recoverable,
-            host_key_fingerprint: None,
+            details: Map::new(),
         }
     }
 
@@ -70,11 +70,13 @@ impl SshError {
         message: impl Into<String>,
         fingerprint: String,
     ) -> Self {
+        let mut details = Map::new();
+        details.insert("hostKeyFingerprint".to_string(), Value::String(fingerprint));
         Self {
             code: code.into(),
             message: message.into(),
             recoverable: true,
-            host_key_fingerprint: Some(fingerprint),
+            details,
         }
     }
 }
@@ -176,6 +178,45 @@ impl From<ssh2::Error> for SshError {
 /// The result of a successful SSH connection.
 pub struct SshConnection {
     pub session: ssh2::Session,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct AuthOptions<'a> {
+    pub username: &'a str,
+    pub password: Option<&'a str>,
+    pub private_key_path: Option<&'a str>,
+    pub passphrase: Option<&'a str>,
+}
+
+#[derive(Clone, Copy)]
+pub struct InteractionOptions<'a> {
+    pub context: Option<&'a InteractionContext>,
+    pub app: Option<&'a tauri::AppHandle>,
+    pub session_id: Option<&'a str>,
+    pub output_queue: Option<&'a Arc<Mutex<VecDeque<String>>>>,
+    pub interactive: bool,
+}
+
+impl<'a> InteractionOptions<'a> {
+    pub fn none() -> Self {
+        Self {
+            context: None,
+            app: None,
+            session_id: None,
+            output_queue: None,
+            interactive: false,
+        }
+    }
+}
+
+pub struct ConnectOptions<'a> {
+    pub host: &'a str,
+    pub port: u16,
+    pub auth: AuthOptions<'a>,
+    pub connect_timeout: Option<Duration>,
+    pub verify_known_hosts: bool,
+    pub host_key_cache: Option<&'a crate::sessions::HostKeyCache>,
+    pub interaction: InteractionOptions<'a>,
 }
 
 /// Verify the host key against known_hosts.
@@ -442,24 +483,23 @@ fn open_ssh_host_key_type(key_type: ssh2::HostKeyType) -> &'static str {
 /// without tearing down the TCP + SSH handshake.
 ///
 /// Returns the connected and authenticated session.
-#[allow(clippy::too_many_arguments)]
-pub fn connect_ssh_session(
-    host: &str,
-    port: u16,
-    username: &str,
-    password: Option<&str>,
-    private_key_path: Option<&str>,
-    passphrase: Option<&str>,
-    connect_timeout: Option<Duration>,
-    verify_known_hosts: bool,
-    host_key_cache: Option<&crate::sessions::HostKeyCache>,
-    // --- interactive-mode parameters (None / false = legacy non-interactive) ---
-    interaction_ctx: Option<&InteractionContext>,
-    app: Option<&tauri::AppHandle>,
-    session_id: Option<&str>,
-    output_queue: Option<&Arc<Mutex<VecDeque<String>>>>,
-    interactive: bool,
-) -> Result<SshConnection, SshError> {
+pub fn connect_ssh_session(options: ConnectOptions<'_>) -> Result<SshConnection, SshError> {
+    let ConnectOptions {
+        host,
+        port,
+        auth,
+        connect_timeout,
+        verify_known_hosts,
+        host_key_cache,
+        interaction,
+    } = options;
+    let InteractionOptions {
+        context: interaction_ctx,
+        app,
+        session_id,
+        output_queue,
+        interactive,
+    } = interaction;
     // --- resolve all A / AAAA records ---
     let addr_str = format!("{}:{}", host, port);
     let mut socket_addrs: Vec<std::net::SocketAddr> = addr_str
@@ -545,39 +585,32 @@ pub fn connect_ssh_session(
     }
 
     // --- authenticate (with optional interactive retry) ---
-    authenticate_session(
-        &sess,
-        host,
-        username,
-        password,
-        private_key_path,
-        passphrase,
-        interaction_ctx,
-        app,
-        session_id,
-        output_queue,
-        interactive,
-    )?;
+    authenticate_session(&sess, host, auth, interaction)?;
 
     Ok(SshConnection { session: sess })
 }
 
 /// Authenticate the session, optionally looping into interactive mode when
 /// all pre-configured methods fail.
-#[allow(clippy::too_many_arguments)]
 fn authenticate_session(
     sess: &ssh2::Session,
     host: &str,
-    username: &str,
-    password: Option<&str>,
-    private_key_path: Option<&str>,
-    passphrase: Option<&str>,
-    interaction_ctx: Option<&InteractionContext>,
-    app: Option<&tauri::AppHandle>,
-    session_id: Option<&str>,
-    output_queue: Option<&Arc<Mutex<VecDeque<String>>>>,
-    interactive: bool,
+    auth: AuthOptions<'_>,
+    interaction: InteractionOptions<'_>,
 ) -> Result<(), SshError> {
+    let AuthOptions {
+        username,
+        password,
+        private_key_path,
+        passphrase,
+    } = auth;
+    let InteractionOptions {
+        context: interaction_ctx,
+        app,
+        session_id,
+        output_queue,
+        interactive,
+    } = interaction;
     let mut tried: Vec<String> = Vec::new();
 
     if try_auth_chain(

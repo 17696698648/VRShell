@@ -1,4 +1,4 @@
-﻿use crate::connect;
+use crate::connect;
 use crate::sessions::{push_output_event, AppState, ControlMessage, SessionHandle, TerminalEvent};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use std::{
@@ -81,7 +81,7 @@ pub async fn connect_ssh(
                     "message": error.message,
                     "code": error.code,
                     "recoverable": error.recoverable,
-                    "hostKeyFingerprint": error.host_key_fingerprint,
+                    "details": error.details,
                 });
                 let _ = app.emit("terminal-error", payload.clone());
                 push_output_event(
@@ -104,23 +104,26 @@ pub async fn connect_ssh(
 
             'session: loop {
                 // ---------- connect ----------
-                let conn = match connect::connect_ssh_session(
-                    &host_clone,
+                let conn = match connect::connect_ssh_session(connect::ConnectOptions {
+                    host: &host_clone,
                     port,
-                    &user,
-                    pass.as_deref(),
-                    key_path.as_deref(),
-                    key_passphrase.as_deref(),
-                    Some(Duration::from_secs(15)),
-                    true,
-                    Some(&host_key_cache),
-                    // --- interactive mode ---
-                    Some(&interaction_ctx),
-                    Some(&app),
-                    Some(&thread_session_id),
-                    Some(&out_queue_for_thread),
-                    true,
-                ) {
+                    auth: connect::AuthOptions {
+                        username: &user,
+                        password: pass.as_deref(),
+                        private_key_path: key_path.as_deref(),
+                        passphrase: key_passphrase.as_deref(),
+                    },
+                    connect_timeout: Some(Duration::from_secs(15)),
+                    verify_known_hosts: true,
+                    host_key_cache: Some(&host_key_cache),
+                    interaction: connect::InteractionOptions {
+                        context: Some(&interaction_ctx),
+                        app: Some(&app),
+                        session_id: Some(&thread_session_id),
+                        output_queue: Some(&out_queue_for_thread),
+                        interactive: true,
+                    },
+                }) {
                     Ok(c) => {
                         retry_count = 0;
                         c
@@ -422,22 +425,20 @@ pub async fn test_ssh_connection(
     passphrase: Option<String>,
 ) -> Result<u64, String> {
     let start = Instant::now();
-    connect::connect_ssh_session(
-        &host,
+    connect::connect_ssh_session(connect::ConnectOptions {
+        host: &host,
         port,
-        &username,
-        password.as_deref(),
-        private_key_path.as_deref(),
-        passphrase.as_deref(),
-        Some(Duration::from_secs(5)),
-        false, // skip known_hosts check for connection test
-        None,  // no host key cache needed
-        None,  // no interaction context
-        None,  // no app handle
-        None,  // no session id
-        None,  // no output queue
-        false, // non-interactive
-    )
+        auth: connect::AuthOptions {
+            username: &username,
+            password: password.as_deref(),
+            private_key_path: private_key_path.as_deref(),
+            passphrase: passphrase.as_deref(),
+        },
+        connect_timeout: Some(Duration::from_secs(5)),
+        verify_known_hosts: false,
+        host_key_cache: None,
+        interaction: connect::InteractionOptions::none(),
+    })
     .map_err(|e| e.to_string())?;
     let latency_ms = start.elapsed().as_millis() as u64;
     Ok(latency_ms)

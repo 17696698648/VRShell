@@ -6,6 +6,7 @@ export type AppError = {
   recoverable: boolean
   severity: AppErrorSeverity
   path?: string | null
+  details?: Record<string, unknown>
   suggestion?: string
   raw?: unknown
 }
@@ -15,6 +16,7 @@ type StructuredError = {
   message?: unknown
   recoverable?: unknown
   path?: unknown
+  details?: unknown
 }
 
 const suggestions: Record<string, string> = {
@@ -40,13 +42,21 @@ export function toAppError(error: unknown, fallbackMessage = 'Operation failed')
     const code = typeof value.code === 'string' && value.code ? value.code : 'unknown'
     const message = typeof value.message === 'string' && value.message ? value.message : fallbackMessage
     const recoverable = typeof value.recoverable === 'boolean' ? value.recoverable : false
-    const path = typeof value.path === 'string' ? value.path : null
+    const details = value.details && typeof value.details === 'object'
+      ? value.details as Record<string, unknown>
+      : undefined
+    const path = typeof value.path === 'string'
+      ? value.path
+      : typeof details?.path === 'string'
+        ? details.path
+        : null
 
     return {
       code,
       message,
       recoverable,
       path,
+      details,
       severity: code === 'host_key_mismatch' ? 'warning' : 'error',
       suggestion: suggestions[code],
       raw: error,

@@ -2,6 +2,7 @@ use crate::connect;
 use crate::sessions::AppState;
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
 use std::{
     fs::File,
     io::{Cursor, Read, Write},
@@ -25,11 +26,29 @@ const SFTP_COPY_BUFFER_SIZE: usize = 64 * 1024;
 pub struct SftpError {
     code: String,
     message: String,
-    path: Option<String>,
     recoverable: bool,
+    #[serde(skip_serializing_if = "Map::is_empty")]
+    details: Map<String, Value>,
 }
 
 type SftpResult<T> = Result<T, SftpError>;
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SftpConnectionArgs {
+    host: String,
+    port: u16,
+    username: String,
+    password: Option<String>,
+    private_key_path: Option<String>,
+    passphrase: Option<String>,
+}
+
+impl SftpConnectionArgs {
+    fn session_key(&self) -> String {
+        sftp_session_key(&self.host, self.port, &self.username)
+    }
+}
 
 impl SftpError {
     fn new(
@@ -38,11 +57,15 @@ impl SftpError {
         path: Option<String>,
         recoverable: bool,
     ) -> Self {
+        let mut details = Map::new();
+        if let Some(path) = path {
+            details.insert("path".to_string(), Value::String(path));
+        }
         Self {
             code: code.into(),
             message: message.into(),
-            path,
             recoverable,
+            details,
         }
     }
 
@@ -94,96 +117,74 @@ impl From<&str> for SftpError {
 }
 
 #[tauri::command]
-#[allow(clippy::too_many_arguments)]
 pub async fn sftp_list(
     _app: tauri::AppHandle,
     state: State<'_, AppState>,
-    host: String,
-    port: u16,
-    username: String,
-    password: Option<String>,
-    private_key_path: Option<String>,
-    passphrase: Option<String>,
+    connection: SftpConnectionArgs,
     path: String,
 ) -> SftpResult<Vec<serde_json::Value>> {
     let remote_path = normalize_remote_path(&path);
-    with_sftp(
-        &state,
-        &host,
-        port,
-        &username,
-        password.as_deref(),
-        private_key_path.as_deref(),
-        passphrase.as_deref(),
-        |sftp| {
-            let entries = sftp
-                .readdir(Path::new(&remote_path))
-                .map_err(|e| format!("readdir {} err: {}", remote_path, e))?;
-            let mut out: Vec<serde_json::Value> = Vec::new();
+    with_sftp(&state, &connection, |sftp| {
+        let entries = sftp
+            .readdir(Path::new(&remote_path))
+            .map_err(|e| format!("readdir {} err: {}", remote_path, e))?;
+        let mut out: Vec<serde_json::Value> = Vec::new();
 
-            for (path, stat) in entries {
-                let name = path
-                    .file_name()
-                    .and_then(|name| name.to_str().map(|value| value.to_string()))
-                    .unwrap_or_default();
+        for (path, stat) in entries {
+            let name = path
+                .file_name()
+                .and_then(|name| name.to_str().map(|value| value.to_string()))
+                .unwrap_or_default();
 
-                if name.is_empty() || name == "." || name == ".." {
-                    continue;
-                }
-
-                let size = stat.size.unwrap_or(0);
-                let modified = stat.mtime.unwrap_or(0);
-                let is_symlink = stat.perm.is_some_and(|p| (p & 0o170000) == 0o120000);
-                let full_path = join_remote_path(&remote_path, &name);
-                out.push(serde_json::json!({
-                    "name": name,
-                    "path": full_path,
-                    "size": format!("{} bytes", size),
-                    "sizeBytes": size,
-                    "modified": modified,
-                    "isDirectory": stat.is_dir(),
-                    "isSymlink": is_symlink
-                }));
+            if name.is_empty() || name == "." || name == ".." {
+                continue;
             }
 
-            out.sort_by(|left, right| {
-                let left_dir = left["isDirectory"].as_bool().unwrap_or(false);
-                let right_dir = right["isDirectory"].as_bool().unwrap_or(false);
-                right_dir
-                    .cmp(&left_dir)
-                    .then_with(|| left["name"].as_str().cmp(&right["name"].as_str()))
-            });
+            let size = stat.size.unwrap_or(0);
+            let modified = stat.mtime.unwrap_or(0);
+            let is_symlink = stat.perm.is_some_and(|p| (p & 0o170000) == 0o120000);
+            let full_path = join_remote_path(&remote_path, &name);
+            out.push(serde_json::json!({
+                "name": name,
+                "path": full_path,
+                "size": format!("{} bytes", size),
+                "sizeBytes": size,
+                "modified": modified,
+                "isDirectory": stat.is_dir(),
+                "isSymlink": is_symlink
+            }));
+        }
 
-            Ok(out)
-        },
-    )
+        out.sort_by(|left, right| {
+            let left_dir = left["isDirectory"].as_bool().unwrap_or(false);
+            let right_dir = right["isDirectory"].as_bool().unwrap_or(false);
+            right_dir
+                .cmp(&left_dir)
+                .then_with(|| left["name"].as_str().cmp(&right["name"].as_str()))
+        });
+
+        Ok(out)
+    })
 }
 
 fn connect_sftp(
-    host: &str,
-    port: u16,
-    username: &str,
-    password: Option<&str>,
-    private_key_path: Option<&str>,
-    passphrase: Option<&str>,
+    connection: &SftpConnectionArgs,
     host_key_cache: Option<&crate::sessions::HostKeyCache>,
 ) -> Result<ssh2::Session, String> {
-    connect::connect_ssh_session(
-        host,
-        port,
-        username,
-        password,
-        private_key_path,
-        passphrase,
-        Some(SFTP_CONNECT_TIMEOUT),
-        true, // verify known_hosts for SFTP sessions
+    connect::connect_ssh_session(connect::ConnectOptions {
+        host: &connection.host,
+        port: connection.port,
+        auth: connect::AuthOptions {
+            username: &connection.username,
+            password: connection.password.as_deref(),
+            private_key_path: connection.private_key_path.as_deref(),
+            passphrase: connection.passphrase.as_deref(),
+        },
+        connect_timeout: Some(SFTP_CONNECT_TIMEOUT),
+        verify_known_hosts: true,
         host_key_cache,
-        None,  // no interaction context (SFTP is non-interactive)
-        None,  // no app handle
-        None,  // no session id
-        None,  // no output queue
-        false, // non-interactive
-    )
+        interaction: connect::InteractionOptions::none(),
+    })
     .map(|conn| conn.session)
     .map_err(|e| e.to_string())
 }
@@ -261,18 +262,12 @@ pub async fn cancel_sftp_task(state: State<'_, AppState>, task_id: String) -> Sf
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
 fn with_sftp<T>(
     state: &State<'_, AppState>,
-    host: &str,
-    port: u16,
-    username: &str,
-    password: Option<&str>,
-    private_key_path: Option<&str>,
-    passphrase: Option<&str>,
+    connection: &SftpConnectionArgs,
     operation: impl FnOnce(&ssh2::Sftp) -> SftpResult<T>,
 ) -> SftpResult<T> {
-    let key = sftp_session_key(host, port, username);
+    let key = connection.session_key();
     let mut sessions = state
         .sftp_sessions
         .lock()
@@ -292,15 +287,7 @@ fn with_sftp<T>(
         sessions.insert(
             key.clone(),
             crate::sessions::SftpSessionHandle {
-                session: connect_sftp(
-                    host,
-                    port,
-                    username,
-                    password,
-                    private_key_path,
-                    passphrase,
-                    Some(&state.pending_host_keys),
-                )?,
+                session: connect_sftp(connection, Some(&state.pending_host_keys))?,
                 last_used: now,
             },
         );
@@ -575,22 +562,16 @@ fn copy_with_progress<R: Read, W: Write>(
 }
 
 #[tauri::command]
-#[allow(clippy::too_many_arguments)]
 pub async fn sftp_upload(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
-    host: String,
-    port: u16,
-    username: String,
-    password: Option<String>,
-    private_key_path: Option<String>,
-    passphrase: Option<String>,
+    connection: SftpConnectionArgs,
     remote_path: String,
     data_base64: String,
     task_id: String,
 ) -> SftpResult<()> {
     let remote_path = normalize_remote_path(&remote_path);
-    let session_key = sftp_session_key(&host, port, &username);
+    let session_key = connection.session_key();
     let cancel_flag = register_sftp_task(&state, &task_id)?;
     let queue = get_sftp_task_queue(&state, &session_key)?;
     let result = (|| -> SftpResult<()> {
@@ -598,86 +579,71 @@ pub async fn sftp_upload(
             .lock()
             .map_err(|e| format!("sftp task queue lock err: {}", e))?;
         check_sftp_task_cancelled(&cancel_flag)?;
-        with_sftp(
-            &state,
-            &host,
-            port,
-            &username,
-            password.as_deref(),
-            private_key_path.as_deref(),
-            passphrase.as_deref(),
-            |sftp| {
-                ensure_sftp_directory(sftp, &parent_remote_path(&remote_path))?;
-                let bytes = STANDARD
-                    .decode(&data_base64)
-                    .map_err(|e| format!("base64 decode err: {}", e))?;
-                let total = bytes.len() as u64;
-                let mut reader = Cursor::new(bytes);
-                let mut remote_file = sftp
-                    .create(Path::new(&remote_path))
-                    .map_err(|e| format!("create remote file err: {}", e))?;
-                emit_sftp_progress(
-                    &app,
-                    &task_id,
-                    &session_key,
-                    "upload",
-                    &remote_path,
-                    0,
-                    total,
-                    0,
-                );
-                let transferred = copy_with_progress(
-                    &mut reader,
-                    &mut remote_file,
-                    total,
-                    &cancel_flag,
-                    |transferred| {
-                        emit_sftp_progress(
-                            &app,
-                            &task_id,
-                            &session_key,
-                            "upload",
-                            &remote_path,
-                            transferred,
-                            total,
-                            0,
-                        );
-                    },
-                    SFTP_COPY_BUFFER_SIZE,
-                )
-                .map_err(|e| format!("stream upload {} err: {}", remote_path, e))?;
-                verify_transfer_size(&remote_path, total, transferred)?;
-                drop(remote_file);
-                if let Some(remote_size) = sftp
-                    .stat(Path::new(&remote_path))
-                    .ok()
-                    .and_then(|stat| stat.size)
-                {
-                    verify_transfer_size(&remote_path, total, remote_size)?;
-                }
-                Ok(())
-            },
-        )
+        with_sftp(&state, &connection, |sftp| {
+            ensure_sftp_directory(sftp, &parent_remote_path(&remote_path))?;
+            let bytes = STANDARD
+                .decode(&data_base64)
+                .map_err(|e| format!("base64 decode err: {}", e))?;
+            let total = bytes.len() as u64;
+            let mut reader = Cursor::new(bytes);
+            let mut remote_file = sftp
+                .create(Path::new(&remote_path))
+                .map_err(|e| format!("create remote file err: {}", e))?;
+            emit_sftp_progress(
+                &app,
+                &task_id,
+                &session_key,
+                "upload",
+                &remote_path,
+                0,
+                total,
+                0,
+            );
+            let transferred = copy_with_progress(
+                &mut reader,
+                &mut remote_file,
+                total,
+                &cancel_flag,
+                |transferred| {
+                    emit_sftp_progress(
+                        &app,
+                        &task_id,
+                        &session_key,
+                        "upload",
+                        &remote_path,
+                        transferred,
+                        total,
+                        0,
+                    );
+                },
+                SFTP_COPY_BUFFER_SIZE,
+            )
+            .map_err(|e| format!("stream upload {} err: {}", remote_path, e))?;
+            verify_transfer_size(&remote_path, total, transferred)?;
+            drop(remote_file);
+            if let Some(remote_size) = sftp
+                .stat(Path::new(&remote_path))
+                .ok()
+                .and_then(|stat| stat.size)
+            {
+                verify_transfer_size(&remote_path, total, remote_size)?;
+            }
+            Ok(())
+        })
     })();
     finish_sftp_task(&state, &task_id);
     result
 }
 
 #[tauri::command]
-#[allow(clippy::too_many_arguments)]
 pub async fn sftp_upload_many(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
-    host: String,
-    port: u16,
-    username: String,
-    password: Option<String>,
-    private_key_path: Option<String>,
-    passphrase: Option<String>,
+    connection: SftpConnectionArgs,
     files: Vec<SftpUploadItem>,
     task_id: String,
 ) -> SftpResult<SftpUploadSummary> {
-    let session_key = sftp_session_key(&host, port, &username);
+    let session_key = connection.session_key();
     let cancel_flag = register_sftp_task(&state, &task_id)?;
     let queue = get_sftp_task_queue(&state, &session_key)?;
     let result = (|| -> SftpResult<SftpUploadSummary> {
@@ -685,106 +651,91 @@ pub async fn sftp_upload_many(
             .lock()
             .map_err(|e| format!("sftp task queue lock err: {}", e))?;
         check_sftp_task_cancelled(&cancel_flag)?;
-        with_sftp(
-            &state,
-            &host,
-            port,
-            &username,
-            password.as_deref(),
-            private_key_path.as_deref(),
-            passphrase.as_deref(),
-            |sftp| {
-                let mut uploaded = 0usize;
-                let mut failed = Vec::new();
+        with_sftp(&state, &connection, |sftp| {
+            let mut uploaded = 0usize;
+            let mut failed = Vec::new();
 
-                for file in files {
-                    check_sftp_task_cancelled(&cancel_flag)?;
-                    let remote_path = normalize_remote_path(&file.remote_path);
-                    let result = (|| -> SftpResult<()> {
-                        ensure_sftp_directory(sftp, &parent_remote_path(&remote_path))?;
-                        let bytes = STANDARD
-                            .decode(&file.data_base64)
-                            .map_err(|e| format!("base64 decode err: {}", e))?;
-                        let total = bytes.len() as u64;
-                        let mut reader = Cursor::new(bytes);
-                        let mut remote_file = sftp
-                            .create(Path::new(&remote_path))
-                            .map_err(|e| format!("create err: {}", e))?;
-                        emit_sftp_progress(
-                            &app,
-                            &task_id,
-                            &session_key,
-                            "upload",
-                            &remote_path,
-                            0,
-                            total,
-                            0,
-                        );
-                        let transferred = copy_with_progress(
-                            &mut reader,
-                            &mut remote_file,
-                            total,
-                            &cancel_flag,
-                            |transferred| {
-                                emit_sftp_progress(
-                                    &app,
-                                    &task_id,
-                                    &session_key,
-                                    "upload",
-                                    &remote_path,
-                                    transferred,
-                                    total,
-                                    0,
-                                );
-                            },
-                            SFTP_COPY_BUFFER_SIZE,
-                        )
-                        .map_err(|e| format!("stream upload {} err: {}", remote_path, e))?;
-                        verify_transfer_size(&remote_path, total, transferred)?;
-                        drop(remote_file);
-                        if let Some(remote_size) = sftp
-                            .stat(Path::new(&remote_path))
-                            .ok()
-                            .and_then(|stat| stat.size)
-                        {
-                            verify_transfer_size(&remote_path, total, remote_size)?;
-                        }
-                        Ok(())
-                    })();
-
-                    match result {
-                        Ok(()) => uploaded += 1,
-                        Err(error) if error.code == "canceled" => return Err(error),
-                        Err(error) => failed.push(SftpUploadFailure {
-                            remote_path,
-                            error: error.message,
-                        }),
+            for file in files {
+                check_sftp_task_cancelled(&cancel_flag)?;
+                let remote_path = normalize_remote_path(&file.remote_path);
+                let result = (|| -> SftpResult<()> {
+                    ensure_sftp_directory(sftp, &parent_remote_path(&remote_path))?;
+                    let bytes = STANDARD
+                        .decode(&file.data_base64)
+                        .map_err(|e| format!("base64 decode err: {}", e))?;
+                    let total = bytes.len() as u64;
+                    let mut reader = Cursor::new(bytes);
+                    let mut remote_file = sftp
+                        .create(Path::new(&remote_path))
+                        .map_err(|e| format!("create err: {}", e))?;
+                    emit_sftp_progress(
+                        &app,
+                        &task_id,
+                        &session_key,
+                        "upload",
+                        &remote_path,
+                        0,
+                        total,
+                        0,
+                    );
+                    let transferred = copy_with_progress(
+                        &mut reader,
+                        &mut remote_file,
+                        total,
+                        &cancel_flag,
+                        |transferred| {
+                            emit_sftp_progress(
+                                &app,
+                                &task_id,
+                                &session_key,
+                                "upload",
+                                &remote_path,
+                                transferred,
+                                total,
+                                0,
+                            );
+                        },
+                        SFTP_COPY_BUFFER_SIZE,
+                    )
+                    .map_err(|e| format!("stream upload {} err: {}", remote_path, e))?;
+                    verify_transfer_size(&remote_path, total, transferred)?;
+                    drop(remote_file);
+                    if let Some(remote_size) = sftp
+                        .stat(Path::new(&remote_path))
+                        .ok()
+                        .and_then(|stat| stat.size)
+                    {
+                        verify_transfer_size(&remote_path, total, remote_size)?;
                     }
-                }
+                    Ok(())
+                })();
 
-                Ok(SftpUploadSummary { uploaded, failed })
-            },
-        )
+                match result {
+                    Ok(()) => uploaded += 1,
+                    Err(error) if error.code == "canceled" => return Err(error),
+                    Err(error) => failed.push(SftpUploadFailure {
+                        remote_path,
+                        error: error.message,
+                    }),
+                }
+            }
+
+            Ok(SftpUploadSummary { uploaded, failed })
+        })
     })();
     finish_sftp_task(&state, &task_id);
     result
 }
 
 #[tauri::command]
-#[allow(clippy::too_many_arguments)]
 pub async fn sftp_upload_paths(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
-    host: String,
-    port: u16,
-    username: String,
-    password: Option<String>,
-    private_key_path: Option<String>,
-    passphrase: Option<String>,
+    connection: SftpConnectionArgs,
     files: Vec<SftpPathUploadItem>,
     task_id: String,
 ) -> SftpResult<SftpUploadSummary> {
-    let session_key = sftp_session_key(&host, port, &username);
+    let session_key = connection.session_key();
     let cancel_flag = register_sftp_task(&state, &task_id)?;
     let queue = get_sftp_task_queue(&state, &session_key)?;
     let result = (|| -> SftpResult<SftpUploadSummary> {
@@ -792,110 +743,93 @@ pub async fn sftp_upload_paths(
             .lock()
             .map_err(|e| format!("sftp task queue lock err: {}", e))?;
         check_sftp_task_cancelled(&cancel_flag)?;
-        with_sftp(
-            &state,
-            &host,
-            port,
-            &username,
-            password.as_deref(),
-            private_key_path.as_deref(),
-            passphrase.as_deref(),
-            |sftp| {
-                let mut uploaded = 0usize;
-                let mut failed = Vec::new();
+        with_sftp(&state, &connection, |sftp| {
+            let mut uploaded = 0usize;
+            let mut failed = Vec::new();
 
-                for file in files {
-                    check_sftp_task_cancelled(&cancel_flag)?;
-                    let remote_path = normalize_remote_path(&file.remote_path);
-                    let result = (|| -> SftpResult<()> {
-                        ensure_sftp_directory(sftp, &parent_remote_path(&remote_path))?;
-                        let mut local_file = File::open(&file.local_path).map_err(|e| {
-                            format!("open local file {} err: {}", file.local_path, e)
-                        })?;
-                        let total = local_file
-                            .metadata()
-                            .map(|metadata| metadata.len())
-                            .unwrap_or(0);
-                        let mut remote_file =
-                            sftp.create(Path::new(&remote_path)).map_err(|e| {
-                                format!("create remote file {} err: {}", remote_path, e)
-                            })?;
-                        emit_sftp_progress(
-                            &app,
-                            &task_id,
-                            &session_key,
-                            "upload",
-                            &remote_path,
-                            0,
-                            total,
-                            0,
-                        );
-                        let transferred = copy_with_progress(
-                            &mut local_file,
-                            &mut remote_file,
-                            total,
-                            &cancel_flag,
-                            |transferred| {
-                                emit_sftp_progress(
-                                    &app,
-                                    &task_id,
-                                    &session_key,
-                                    "upload",
-                                    &remote_path,
-                                    transferred,
-                                    total,
-                                    0,
-                                );
-                            },
-                            SFTP_COPY_BUFFER_SIZE,
-                        )
-                        .map_err(|e| format!("stream upload {} err: {}", remote_path, e))?;
-                        verify_transfer_size(&remote_path, total, transferred)?;
-                        drop(remote_file);
-                        if let Some(remote_size) = sftp
-                            .stat(Path::new(&remote_path))
-                            .ok()
-                            .and_then(|stat| stat.size)
-                        {
-                            verify_transfer_size(&remote_path, total, remote_size)?;
-                        }
-                        Ok(())
-                    })();
-
-                    match result {
-                        Ok(()) => uploaded += 1,
-                        Err(error) if error.code == "canceled" => return Err(error),
-                        Err(error) => failed.push(SftpUploadFailure {
-                            remote_path,
-                            error: error.message,
-                        }),
+            for file in files {
+                check_sftp_task_cancelled(&cancel_flag)?;
+                let remote_path = normalize_remote_path(&file.remote_path);
+                let result = (|| -> SftpResult<()> {
+                    ensure_sftp_directory(sftp, &parent_remote_path(&remote_path))?;
+                    let mut local_file = File::open(&file.local_path)
+                        .map_err(|e| format!("open local file {} err: {}", file.local_path, e))?;
+                    let total = local_file
+                        .metadata()
+                        .map(|metadata| metadata.len())
+                        .unwrap_or(0);
+                    let mut remote_file = sftp
+                        .create(Path::new(&remote_path))
+                        .map_err(|e| format!("create remote file {} err: {}", remote_path, e))?;
+                    emit_sftp_progress(
+                        &app,
+                        &task_id,
+                        &session_key,
+                        "upload",
+                        &remote_path,
+                        0,
+                        total,
+                        0,
+                    );
+                    let transferred = copy_with_progress(
+                        &mut local_file,
+                        &mut remote_file,
+                        total,
+                        &cancel_flag,
+                        |transferred| {
+                            emit_sftp_progress(
+                                &app,
+                                &task_id,
+                                &session_key,
+                                "upload",
+                                &remote_path,
+                                transferred,
+                                total,
+                                0,
+                            );
+                        },
+                        SFTP_COPY_BUFFER_SIZE,
+                    )
+                    .map_err(|e| format!("stream upload {} err: {}", remote_path, e))?;
+                    verify_transfer_size(&remote_path, total, transferred)?;
+                    drop(remote_file);
+                    if let Some(remote_size) = sftp
+                        .stat(Path::new(&remote_path))
+                        .ok()
+                        .and_then(|stat| stat.size)
+                    {
+                        verify_transfer_size(&remote_path, total, remote_size)?;
                     }
-                }
+                    Ok(())
+                })();
 
-                Ok(SftpUploadSummary { uploaded, failed })
-            },
-        )
+                match result {
+                    Ok(()) => uploaded += 1,
+                    Err(error) if error.code == "canceled" => return Err(error),
+                    Err(error) => failed.push(SftpUploadFailure {
+                        remote_path,
+                        error: error.message,
+                    }),
+                }
+            }
+
+            Ok(SftpUploadSummary { uploaded, failed })
+        })
     })();
     finish_sftp_task(&state, &task_id);
     result
 }
 
 #[tauri::command]
-#[allow(clippy::too_many_arguments)]
 pub async fn sftp_download(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
-    host: String,
-    port: u16,
-    username: String,
-    password: Option<String>,
-    private_key_path: Option<String>,
-    passphrase: Option<String>,
+    connection: SftpConnectionArgs,
     remote_path: String,
     task_id: String,
 ) -> SftpResult<String> {
     let remote_path = normalize_remote_path(&remote_path);
-    let session_key = sftp_session_key(&host, port, &username);
+    let session_key = connection.session_key();
     let cancel_flag = register_sftp_task(&state, &task_id)?;
     let queue = get_sftp_task_queue(&state, &session_key)?;
     let result = (|| -> SftpResult<String> {
@@ -903,81 +837,66 @@ pub async fn sftp_download(
             .lock()
             .map_err(|e| format!("sftp task queue lock err: {}", e))?;
         check_sftp_task_cancelled(&cancel_flag)?;
-        with_sftp(
-            &state,
-            &host,
-            port,
-            &username,
-            password.as_deref(),
-            private_key_path.as_deref(),
-            passphrase.as_deref(),
-            |sftp| {
-                let mut remote_file = sftp
-                    .open(Path::new(&remote_path))
-                    .map_err(|e| format!("open remote file err: {}", e))?;
-                let total = sftp
-                    .stat(Path::new(&remote_path))
-                    .ok()
-                    .and_then(|stat| stat.size)
-                    .unwrap_or(0);
-                let mut buf = Vec::new();
-                emit_sftp_progress(
-                    &app,
-                    &task_id,
-                    &session_key,
-                    "download",
-                    &remote_path,
-                    0,
-                    total,
-                    0,
-                );
-                let transferred = copy_with_progress(
-                    &mut remote_file,
-                    &mut buf,
-                    total,
-                    &cancel_flag,
-                    |transferred| {
-                        emit_sftp_progress(
-                            &app,
-                            &task_id,
-                            &session_key,
-                            "download",
-                            &remote_path,
-                            transferred,
-                            total,
-                            0,
-                        );
-                    },
-                    SFTP_COPY_BUFFER_SIZE,
-                )
-                .map_err(|e| format!("stream download {} err: {}", remote_path, e))?;
-                verify_transfer_size(&remote_path, total, transferred)?;
-                verify_transfer_size(&remote_path, total, buf.len() as u64)?;
-                Ok(STANDARD.encode(&buf))
-            },
-        )
+        with_sftp(&state, &connection, |sftp| {
+            let mut remote_file = sftp
+                .open(Path::new(&remote_path))
+                .map_err(|e| format!("open remote file err: {}", e))?;
+            let total = sftp
+                .stat(Path::new(&remote_path))
+                .ok()
+                .and_then(|stat| stat.size)
+                .unwrap_or(0);
+            let mut buf = Vec::new();
+            emit_sftp_progress(
+                &app,
+                &task_id,
+                &session_key,
+                "download",
+                &remote_path,
+                0,
+                total,
+                0,
+            );
+            let transferred = copy_with_progress(
+                &mut remote_file,
+                &mut buf,
+                total,
+                &cancel_flag,
+                |transferred| {
+                    emit_sftp_progress(
+                        &app,
+                        &task_id,
+                        &session_key,
+                        "download",
+                        &remote_path,
+                        transferred,
+                        total,
+                        0,
+                    );
+                },
+                SFTP_COPY_BUFFER_SIZE,
+            )
+            .map_err(|e| format!("stream download {} err: {}", remote_path, e))?;
+            verify_transfer_size(&remote_path, total, transferred)?;
+            verify_transfer_size(&remote_path, total, buf.len() as u64)?;
+            Ok(STANDARD.encode(&buf))
+        })
     })();
     finish_sftp_task(&state, &task_id);
     result
 }
 
 #[tauri::command]
-#[allow(clippy::too_many_arguments)]
 pub async fn sftp_download_to_path(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
-    host: String,
-    port: u16,
-    username: String,
-    password: Option<String>,
-    private_key_path: Option<String>,
-    passphrase: Option<String>,
+    connection: SftpConnectionArgs,
     remote_path: String,
     local_path: String,
     task_id: String,
 ) -> SftpResult<()> {
     let remote_path = normalize_remote_path(&remote_path);
-    let session_key = sftp_session_key(&host, port, &username);
+    let session_key = connection.session_key();
     let cancel_flag = register_sftp_task(&state, &task_id)?;
     let queue = get_sftp_task_queue(&state, &session_key)?;
     let result = (|| -> SftpResult<()> {
@@ -985,210 +904,137 @@ pub async fn sftp_download_to_path(
             .lock()
             .map_err(|e| format!("sftp task queue lock err: {}", e))?;
         check_sftp_task_cancelled(&cancel_flag)?;
-        with_sftp(
-            &state,
-            &host,
-            port,
-            &username,
-            password.as_deref(),
-            private_key_path.as_deref(),
-            passphrase.as_deref(),
-            |sftp| {
-                let mut remote_file = sftp
-                    .open(Path::new(&remote_path))
-                    .map_err(|e| format!("open remote file err: {}", e))?;
-                let total = sftp
-                    .stat(Path::new(&remote_path))
-                    .ok()
-                    .and_then(|stat| stat.size)
-                    .unwrap_or(0);
-                let mut local_file = File::create(&local_path)
-                    .map_err(|e| format!("create local file {} err: {}", local_path, e))?;
-                emit_sftp_progress(
-                    &app,
-                    &task_id,
-                    &session_key,
-                    "download",
-                    &remote_path,
-                    0,
-                    total,
-                    0,
-                );
-                let transferred = copy_with_progress(
-                    &mut remote_file,
-                    &mut local_file,
-                    total,
-                    &cancel_flag,
-                    |transferred| {
-                        emit_sftp_progress(
-                            &app,
-                            &task_id,
-                            &session_key,
-                            "download",
-                            &remote_path,
-                            transferred,
-                            total,
-                            0,
-                        );
-                    },
-                    SFTP_COPY_BUFFER_SIZE,
-                )
-                .map_err(|e| format!("stream download {} err: {}", remote_path, e))?;
-                verify_transfer_size(&remote_path, total, transferred)?;
-                drop(local_file);
-                let local_size = std::fs::metadata(&local_path)
-                    .map_err(|e| format!("stat local file {} err: {}", local_path, e))?
-                    .len();
-                verify_transfer_size(&remote_path, total, local_size)?;
-                Ok(())
-            },
-        )
+        with_sftp(&state, &connection, |sftp| {
+            let mut remote_file = sftp
+                .open(Path::new(&remote_path))
+                .map_err(|e| format!("open remote file err: {}", e))?;
+            let total = sftp
+                .stat(Path::new(&remote_path))
+                .ok()
+                .and_then(|stat| stat.size)
+                .unwrap_or(0);
+            let mut local_file = File::create(&local_path)
+                .map_err(|e| format!("create local file {} err: {}", local_path, e))?;
+            emit_sftp_progress(
+                &app,
+                &task_id,
+                &session_key,
+                "download",
+                &remote_path,
+                0,
+                total,
+                0,
+            );
+            let transferred = copy_with_progress(
+                &mut remote_file,
+                &mut local_file,
+                total,
+                &cancel_flag,
+                |transferred| {
+                    emit_sftp_progress(
+                        &app,
+                        &task_id,
+                        &session_key,
+                        "download",
+                        &remote_path,
+                        transferred,
+                        total,
+                        0,
+                    );
+                },
+                SFTP_COPY_BUFFER_SIZE,
+            )
+            .map_err(|e| format!("stream download {} err: {}", remote_path, e))?;
+            verify_transfer_size(&remote_path, total, transferred)?;
+            drop(local_file);
+            let local_size = std::fs::metadata(&local_path)
+                .map_err(|e| format!("stat local file {} err: {}", local_path, e))?
+                .len();
+            verify_transfer_size(&remote_path, total, local_size)?;
+            Ok(())
+        })
     })();
     finish_sftp_task(&state, &task_id);
     result
 }
 
 #[tauri::command]
-#[allow(clippy::too_many_arguments)]
 pub async fn sftp_mkdir(
     _app: tauri::AppHandle,
     state: State<'_, AppState>,
-    host: String,
-    port: u16,
-    username: String,
-    password: Option<String>,
-    private_key_path: Option<String>,
-    passphrase: Option<String>,
+    connection: SftpConnectionArgs,
     remote_path: String,
 ) -> SftpResult<()> {
     let remote_path = normalize_remote_path(&remote_path);
-    with_sftp(
-        &state,
-        &host,
-        port,
-        &username,
-        password.as_deref(),
-        private_key_path.as_deref(),
-        passphrase.as_deref(),
-        |sftp| {
-            sftp.mkdir(Path::new(&remote_path), 0o755)
-                .map_err(|e| format!("mkdir {} err: {}", remote_path, e))?;
-            Ok(())
-        },
-    )
+    with_sftp(&state, &connection, |sftp| {
+        sftp.mkdir(Path::new(&remote_path), 0o755)
+            .map_err(|e| format!("mkdir {} err: {}", remote_path, e))?;
+        Ok(())
+    })
 }
 
 #[tauri::command]
-#[allow(clippy::too_many_arguments)]
 pub async fn sftp_mkdir_p(
     _app: tauri::AppHandle,
     state: State<'_, AppState>,
-    host: String,
-    port: u16,
-    username: String,
-    password: Option<String>,
-    private_key_path: Option<String>,
-    passphrase: Option<String>,
+    connection: SftpConnectionArgs,
     remote_path: String,
 ) -> SftpResult<()> {
     let remote_path = normalize_remote_path(&remote_path);
-    with_sftp(
-        &state,
-        &host,
-        port,
-        &username,
-        password.as_deref(),
-        private_key_path.as_deref(),
-        passphrase.as_deref(),
-        |sftp| ensure_sftp_directory(sftp, &remote_path),
-    )
+    with_sftp(&state, &connection, |sftp| {
+        ensure_sftp_directory(sftp, &remote_path)
+    })
 }
 
 #[tauri::command]
-#[allow(clippy::too_many_arguments)]
 pub async fn sftp_rename(
     _app: tauri::AppHandle,
     state: State<'_, AppState>,
-    host: String,
-    port: u16,
-    username: String,
-    password: Option<String>,
-    private_key_path: Option<String>,
-    passphrase: Option<String>,
+    connection: SftpConnectionArgs,
     old_path: String,
     new_path: String,
 ) -> SftpResult<()> {
     let old_path = normalize_remote_path(&old_path);
     let new_path = normalize_remote_path(&new_path);
-    with_sftp(
-        &state,
-        &host,
-        port,
-        &username,
-        password.as_deref(),
-        private_key_path.as_deref(),
-        passphrase.as_deref(),
-        |sftp| {
-            ensure_sftp_directory(sftp, &parent_remote_path(&new_path))?;
-            sftp.rename(Path::new(&old_path), Path::new(&new_path), None)
-                .map_err(|e| format!("rename {} to {} err: {}", old_path, new_path, e))?;
-            Ok(())
-        },
-    )
+    with_sftp(&state, &connection, |sftp| {
+        ensure_sftp_directory(sftp, &parent_remote_path(&new_path))?;
+        sftp.rename(Path::new(&old_path), Path::new(&new_path), None)
+            .map_err(|e| format!("rename {} to {} err: {}", old_path, new_path, e))?;
+        Ok(())
+    })
 }
 
 #[tauri::command]
-#[allow(clippy::too_many_arguments)]
 pub async fn sftp_delete(
     _app: tauri::AppHandle,
     state: State<'_, AppState>,
-    host: String,
-    port: u16,
-    username: String,
-    password: Option<String>,
-    private_key_path: Option<String>,
-    passphrase: Option<String>,
+    connection: SftpConnectionArgs,
     remote_path: String,
     is_directory: Option<bool>,
 ) -> SftpResult<()> {
     let remote_path = normalize_remote_path(&remote_path);
-    with_sftp(
-        &state,
-        &host,
-        port,
-        &username,
-        password.as_deref(),
-        private_key_path.as_deref(),
-        passphrase.as_deref(),
-        |sftp| {
-            if is_directory.unwrap_or(false) {
-                sftp.rmdir(Path::new(&remote_path))
-                    .map_err(|e| format!("rmdir {} err: {}", remote_path, e))?;
-            } else {
-                sftp.unlink(Path::new(&remote_path))
-                    .map_err(|e| format!("unlink {} err: {}", remote_path, e))?;
-            }
-            Ok(())
-        },
-    )
+    with_sftp(&state, &connection, |sftp| {
+        if is_directory.unwrap_or(false) {
+            sftp.rmdir(Path::new(&remote_path))
+                .map_err(|e| format!("rmdir {} err: {}", remote_path, e))?;
+        } else {
+            sftp.unlink(Path::new(&remote_path))
+                .map_err(|e| format!("unlink {} err: {}", remote_path, e))?;
+        }
+        Ok(())
+    })
 }
 
 #[tauri::command]
-#[allow(clippy::too_many_arguments)]
 pub async fn sftp_delete_recursive(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
-    host: String,
-    port: u16,
-    username: String,
-    password: Option<String>,
-    private_key_path: Option<String>,
-    passphrase: Option<String>,
+    connection: SftpConnectionArgs,
     remote_path: String,
     task_id: String,
 ) -> SftpResult<()> {
     let remote_path = normalize_remote_path(&remote_path);
-    let session_key = sftp_session_key(&host, port, &username);
+    let session_key = connection.session_key();
     let cancel_flag = register_sftp_task(&state, &task_id)?;
     let queue = get_sftp_task_queue(&state, &session_key)?;
     let result = (|| -> SftpResult<()> {
@@ -1196,46 +1042,28 @@ pub async fn sftp_delete_recursive(
             .lock()
             .map_err(|e| format!("sftp task queue lock err: {}", e))?;
         check_sftp_task_cancelled(&cancel_flag)?;
-        with_sftp(
-            &state,
-            &host,
-            port,
-            &username,
-            password.as_deref(),
-            private_key_path.as_deref(),
-            passphrase.as_deref(),
-            |sftp| {
-                let mut deleted = 0u64;
-                emit_sftp_progress(
-                    &app,
-                    &task_id,
-                    &session_key,
-                    "delete",
-                    &remote_path,
-                    0,
-                    0,
-                    deleted,
-                );
-                delete_recursive(
-                    sftp,
-                    &remote_path,
-                    &cancel_flag,
-                    &mut deleted,
-                    &mut |path, count| {
-                        emit_sftp_progress(
-                            &app,
-                            &task_id,
-                            &session_key,
-                            "delete",
-                            path,
-                            0,
-                            0,
-                            count,
-                        );
-                    },
-                )
-            },
-        )
+        with_sftp(&state, &connection, |sftp| {
+            let mut deleted = 0u64;
+            emit_sftp_progress(
+                &app,
+                &task_id,
+                &session_key,
+                "delete",
+                &remote_path,
+                0,
+                0,
+                deleted,
+            );
+            delete_recursive(
+                sftp,
+                &remote_path,
+                &cancel_flag,
+                &mut deleted,
+                &mut |path, count| {
+                    emit_sftp_progress(&app, &task_id, &session_key, "delete", path, 0, 0, count);
+                },
+            )
+        })
     })();
     finish_sftp_task(&state, &task_id);
     result
@@ -1336,5 +1164,27 @@ mod tests {
         let err: SftpError = "task canceled by user".to_string().into();
         assert_eq!(err.code, "canceled");
         assert!(err.recoverable);
+    }
+
+    #[test]
+    fn sftp_error_details_contains_path() {
+        let err = SftpError::size_mismatch("/tmp/file.txt", 10, 8);
+        assert_eq!(
+            err.details.get("path").and_then(|value| value.as_str()),
+            Some("/tmp/file.txt")
+        );
+    }
+
+    #[test]
+    fn sftp_connection_args_session_key() {
+        let connection = SftpConnectionArgs {
+            host: "example.com".to_string(),
+            port: 2222,
+            username: "admin".to_string(),
+            password: None,
+            private_key_path: None,
+            passphrase: None,
+        };
+        assert_eq!(connection.session_key(), "admin@example.com:2222");
     }
 }

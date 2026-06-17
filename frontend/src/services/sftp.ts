@@ -19,6 +19,7 @@ export type SftpError = {
   code: string
   message: string
   path?: string | null
+  details?: Record<string, unknown>
   recoverable: boolean
 }
 
@@ -51,7 +52,7 @@ function getSftpInvokeConnection(connection: SftpConnection): SftpConnection | S
 
 async function invokeSftp<T>(command: string, connection: SftpConnection, args: Record<string, unknown> = {}) {
   const invokeConnection = getSftpInvokeConnection(connection)
-  const result = await invoke<T>(command, {...invokeConnection, ...args})
+  const result = await invoke<T>(command, {connection: invokeConnection, ...args})
   establishedSftpSessions.add(getSftpSessionKey(connection))
   return result
 }
