@@ -1,0 +1,39 @@
+{
+  "$schema": "https://tauri.app/v1/tauri.schema.json",
+  "productName": "VRShell",
+  "version": "0.1.0",
+  "identifier": "com.vrshell.app",
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 600,
+        "center": true,
+        "resizable": true,
+        "maximizable": true,
+        "minimizable": true,
+        "closable": true,
+        "decorations": false,
+        "theme": "Dark",
+        "devtools": false
+      }
+    ],
+    "security": {
+      "capabilities": ["event-capabilities", "dialog-capabilities"]
+    }
+  },
+  "build": {
+    "beforeDevCommand": "npm.cmd --prefix frontend run dev",
+    "devUrl": "http://localhost:5173",
+    "beforeBuildCommand": "npm.cmd --prefix frontend run build",
+    "frontendDist": "../frontend/dist"
+  },
+  "bundle": {
+    "icon": ["icons/icon.ico", "icons/icon.png"]
+  },
+  "plugins": {}
+}

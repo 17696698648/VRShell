@@ -1,0 +1,10 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "dialog-capabilities",
+  "description": "允许 SFTP 上传/下载选择本地文件路径",
+  "windows": ["main"],
+  "permissions": [
+    "dialog:allow-open",
+    "dialog:allow-save"
+  ]
+}

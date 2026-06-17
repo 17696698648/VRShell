@@ -1,0 +1,26 @@
+[package]
+name = "vrshell-api"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tauri = { version = "2.11", features = [] }
+tauri-plugin-dialog = "2"
+ssh2 = "0.9"
+base64 = "0.21"
+serde_json = "1.0"
+uuid = { version = "1.4", features = ["v4"] }
+serde = { version = "1.0", features = ["derive"] }
+keyring = "1.0"
+socket2 = "0.5"
+hmac = "0.12"
+sha1 = "0.10"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+strip = true
+
+[build-dependencies]
+tauri-build = { version = "2.6", features = [] }
