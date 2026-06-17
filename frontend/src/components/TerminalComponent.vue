@@ -124,7 +124,7 @@
     </div>
 
     <div ref="termContainer" class="terminal" tabindex="0">
-      <div v-if="embedded && !connected && status !== 'connecting'" class="terminal-empty-overlay">
+      <div v-if="embedded && hasAttemptedConnection && !connected && status !== 'connecting'" class="terminal-empty-overlay">
         <div class="terminal-empty-card">
           <span class="terminal-empty-icon">⌁</span>
           <strong>Terminal is idle</strong>
@@ -264,6 +264,7 @@ const autoReconnectSetting = ref(false)
 const idleTimeoutSecsSetting = ref(0)
 const sessionId = ref<string | null>(null)
 const connected = ref(false)
+const hasAttemptedConnection = ref(false)
 const status = ref('idle')
 const connectionLog = ref('')
 let connectionLogTimer: number | null = null
@@ -507,6 +508,7 @@ async function watchEarlyTerminalEvents() {
 }
 
 async function connect() {
+  hasAttemptedConnection.value = true
   setTerminalStatus('connecting')
   // Start the interaction listener BEFORE invoking connect_ssh to avoid a
   // race where the backend sends interaction-required before we're listening.
@@ -597,7 +599,8 @@ async function connect() {
     connectRetryCount++
     if (connectRetryCount < CONNECT_MAX_RETRIES) {
       const delay = Math.min(1000 * Math.pow(2, connectRetryCount - 1), 5000)
-      writeTerminalLine(`[VRShell] Retry ${connectRetryCount}/${CONNECT_MAX_RETRIES} in ${delay / 1000}s...`)
+      writeTerminalLine(`[VRShell] Connection retry ${connectRetryCount}/${CONNECT_MAX_RETRIES} in ${delay / 1000}s...`)
+      setTerminalStatus('connecting')
       setTimeout(() => connect(), delay)
       return
     }

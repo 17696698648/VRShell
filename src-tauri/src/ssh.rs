@@ -101,6 +101,7 @@ pub async fn connect_ssh(
 
             let mut retry_count: u32 = 0;
             let mut intentional_close = false;
+            let mut connected_once = false;
 
             'session: loop {
                 // ---------- connect ----------
@@ -143,9 +144,14 @@ pub async fn connect_ssh(
                             }
                         } else if retry_count < max_retries {
                             retry_count += 1;
+                            let retry_label = if connected_once {
+                                "Reconnecting"
+                            } else {
+                                "Retrying connection"
+                            };
                             emit_terminal_info(format!(
-                                "Reconnecting ({}/{})…",
-                                retry_count, max_retries
+                                "{} ({}/{})…",
+                                retry_label, retry_count, max_retries
                             ));
                             thread::sleep(Duration::from_secs(1 << retry_count));
                             continue 'session;
@@ -183,6 +189,7 @@ pub async fn connect_ssh(
                 }
 
                 sess.set_blocking(false);
+                connected_once = true;
 
                 if retry_count > 0 {
                     emit_terminal_info("Reconnected.".to_string());
