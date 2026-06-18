@@ -11,9 +11,9 @@
       <!-- Theme selector for design variants -->
       <label style="margin-left:12px">Style:
         <select v-model="theme">
-          <option value="minimal">鏋佺畝</option>
+          <option value="minimal">Minimal</option>
           <option value="professional">Professional</option>
-          <option value="colorful">褰╄壊</option>
+          <option value="colorful">Colorful</option>
         </select>
       </label>
     </div>
@@ -23,23 +23,14 @@
       <span>{{ connectionLog }}</span>
     </div>
 
-    <div
-      v-if="searchVisible"
-      class="terminal-search-bar"
-      @keydown.escape="closeSearch"
-    >
-      <input
-        ref="searchInputRef"
-        v-model="searchQuery"
-        type="text"
-        placeholder="Find..."
-        @input="doSearch"
-        @keydown.enter="findNext"
-      />
-      <button title="Previous match" @click="findPrev">Prev</button>
-      <button title="Next match" @click="findNext">Next</button>
-      <button title="Close" @click="closeSearch">Close</button>
-    </div>
+    <TerminalSearchBar
+      :visible="searchVisible"
+      :query="searchQuery"
+      @update:query="(value) => { searchQuery = value; doSearch() }"
+      @previous="findPrev"
+      @next="findNext"
+      @close="closeSearch"
+    />
 
     <TerminalInteractionDialog
       :interaction="activeInteraction"
@@ -51,15 +42,10 @@
     />
 
     <div ref="termContainer" class="terminal" tabindex="0">
-      <div v-if="embedded && hasAttemptedConnection && !connected && status !== 'connecting'" class="terminal-empty-overlay">
-        <div class="terminal-empty-card">
-          <span class="terminal-empty-icon">&gt;</span>
-          <strong>Terminal is idle</strong>
-          <small>Reconnect this terminal when you are ready to continue the SSH session.</small>
-          <UiButton title="Reconnect terminal" aria-label="Reconnect terminal" @click.stop="connect">Reconnect
-          </UiButton>
-        </div>
-      </div>
+      <TerminalEmptyOverlay
+        :visible="Boolean(embedded) && hasAttemptedConnection && !connected && status !== 'connecting'"
+        @reconnect="connect"
+      />
     </div>
   </div>
 </template>
@@ -71,15 +57,18 @@ import {FitAddon} from 'xterm-addon-fit'
 import {SearchAddon} from 'xterm-addon-search'
 import 'xterm/css/xterm.css'
 import {invoke} from '@tauri-apps/api/core'
-import UiButton from './ui/UiButton.vue'
-// @ts-ignore vue-tsc occasionally misses this SFC default export after path-only refactors.
 import TerminalInteractionDialog from './TerminalInteractionDialog.vue'
+import TerminalSearchBar from './terminal/TerminalSearchBar.vue'
+import TerminalEmptyOverlay from './terminal/TerminalEmptyOverlay.vue'
 import {formatAppError} from '../services/errors'
 import {useInteractionManager} from '../composables/interaction/useInteractionManager'
 import {base64ToString, uint8ToBase64} from '../composables/terminal/useTerminalEncoding'
 import {useTerminalResize} from '../composables/terminal/useTerminalResize'
 import {useTerminalSearch} from '../composables/terminal/useTerminalSearch'
 import {useTerminalConnectionState} from '../composables/terminal/useTerminalConnectionState'
+import {useTerminalInputQueue} from '../composables/terminal/useTerminalInputQueue'
+import {isCurrentTerminalMessage, normalizeTerminalMessage} from '../composables/terminal/terminalMessages'
+import {useManagedTimeouts} from '../composables/ui/useManagedTimeouts'
 import {
   connectSsh,
   disconnectSshSession,
@@ -193,12 +182,11 @@ const emit = defineEmits<{
 
 const terminalConnection = useTerminalConnectionState((nextStatus, error) => emit('status-change', nextStatus, error))
 const {sessionId, connected, hasAttemptedConnection, status} = terminalConnection
+const {setManagedTimeout, clearManagedTimeouts} = useManagedTimeouts()
 
 let unlistenFns: Array<() => void> = []
 let pollTimer: number | null = null
 let resizeObserver: ResizeObserver | null = null
-let inputFlushTimer: number | null = null
-let pendingInput = ''
 
 const terminalResize = useTerminalResize({
   getSessionId: () => sessionId.value,
@@ -285,73 +273,25 @@ async function sendInputToSession(targetSessionId: string, text: string) {
   await sendTerminalInput(targetSessionId, b64)
 }
 
-async function flushPendingInput() {
-  inputFlushTimer = null
-  if (!sessionId.value || !pendingInput) return
-
-  const text = pendingInput
-  pendingInput = ''
-
-  try {
-    await sendInputToSession(sessionId.value, text)
-    if (props.broadcastSessionIds && props.broadcastSessionIds.length > 0) {
-      for (const sid of props.broadcastSessionIds) {
-        sendInputToSession(sid, text).catch((error) => {
-          logTerminalDebug('broadcast input failed', error)
-        })
-      }
-    }
-  } catch (e) {
-    terminalConnection.markError(`send error: ${e}`)
-  }
-}
-
-function queueTerminalInput(data: string) {
-  if (!sessionId.value) return
-  pendingInput += data
-  if (inputFlushTimer === null) {
-    inputFlushTimer = window.setTimeout(() => {
-      void flushPendingInput()
-    }, 8)
-  }
-}
+const {queueTerminalInput, clearInputQueue} = useTerminalInputQueue({
+  getSessionId: () => sessionId.value,
+  getBroadcastSessionIds: () => props.broadcastSessionIds ?? [],
+  sendInput: sendInputToSession,
+  onError: (message) => terminalConnection.markError(message),
+  onDebug: logTerminalDebug,
+})
 
 function showConnectionError(message: string) {
   connectionLog.value = message
   if (connectionLogTimer) window.clearTimeout(connectionLogTimer)
-  connectionLogTimer = window.setTimeout(() => {
+  connectionLogTimer = setManagedTimeout(() => {
     connectionLog.value = ''
     connectionLogTimer = null
   }, 5000)
 }
 
-function normalizeTerminalMessage(payload: unknown) {
-  if (payload && typeof payload === 'object') {
-    const value = payload as {
-      session_id?: string;
-      sessionId?: string;
-      message?: string;
-      code?: string;
-      hostKeyFingerprint?: string
-    }
-    return {
-      sessionId: value.session_id ?? value.sessionId ?? '',
-      message: value.message ?? String(payload),
-      code: value.code,
-      hostKeyFingerprint: value.hostKeyFingerprint,
-    }
-  }
-
-  return {sessionId: '', message: String(payload)}
-}
-
-function isCurrentTerminalMessage(payload: unknown) {
-  const message = normalizeTerminalMessage(payload)
-  return !message.sessionId || message.sessionId === sessionId.value
-}
-
 async function handleTerminalErrorPayload(payload: unknown) {
-  if (!isCurrentTerminalMessage(payload)) return
+  if (!isCurrentTerminalMessage(payload, sessionId.value)) return
 
   // If there's an active interaction, the backend is waiting for a response -
   // don't clobber it with a generic error message.
@@ -401,7 +341,7 @@ async function handleQueuedTerminalEvent(queuedEvent: string) {
   } else if (event.event === 'terminal-error') {
     await handleTerminalErrorPayload(payload)
   } else if (event.event === 'terminal-info') {
-    if (!isCurrentTerminalMessage(payload)) return
+    if (!isCurrentTerminalMessage(payload, sessionId.value)) return
     terminalConnection.setInfo(`${normalizeTerminalMessage(payload).message}`)
   } else if (event.event === 'terminal-closed' && payload === sessionId.value) {
     terminalConnection.markDisconnected()
@@ -515,7 +455,7 @@ async function connect() {
         await handleTerminalErrorPayload(e.payload)
       })
       const l3 = await listenTerminalEvent(TERMINAL_EVENTS.info, (e) => {
-        if (!isCurrentTerminalMessage(e.payload)) return
+        if (!isCurrentTerminalMessage(e.payload, sessionId.value)) return
         const msg = normalizeTerminalMessage(e.payload).message
         terminalConnection.setInfo(`${msg}`)
       })
@@ -596,7 +536,7 @@ onMounted(() => {
   term.writeln('[VRShell] Terminal initialized.')
   term.focus()
   scheduleFitAndResize()
-  window.setTimeout(() => term?.writeln('[VRShell] Waiting for connection...'), 80)
+  setManagedTimeout(() => term?.writeln('[VRShell] Waiting for connection...'), 80)
   resizeObserver = new ResizeObserver(() => scheduleFitAndResize())
   if (termContainer.value) {
     resizeObserver.observe(termContainer.value)
@@ -661,7 +601,7 @@ onMounted(() => {
   })
 
   // apply initial theme
-  setTimeout(() => {
+  setManagedTimeout(() => {
     applyThemeToRoot(theme.value);
     syncXtermWithCssVars()
   }, 20)
@@ -681,7 +621,7 @@ onMounted(() => {
     }
     if (props.initialConfig.autoConnect) {
       // small delay to let terminal initialize
-      setTimeout(() => {
+      setManagedTimeout(() => {
         try {
           connect()
         } catch (error) {
@@ -710,16 +650,12 @@ onBeforeUnmount(() => {
   } catch {
   }
   terminalResize.clearResizeTimer()
-  if (inputFlushTimer !== null) {
-    window.clearTimeout(inputFlushTimer)
-    inputFlushTimer = null
-  }
-  pendingInput = ''
+  clearManagedTimeouts()
+  clearInputQueue()
   disconnect()
   interactionMgr.stopListening()
   if (connectionLogTimer) {
-    window.clearTimeout(connectionLogTimer);
-    connectionLogTimer = null
+      connectionLogTimer = null
   }
   try {
     term?.dispose()
@@ -729,7 +665,7 @@ onBeforeUnmount(() => {
 
 watch(connected, (v) => {
   if (v) {
-    setTimeout(() => {
+    setManagedTimeout(() => {
       termContainer.value?.focus()
       term?.focus()
     }, 50)
@@ -954,48 +890,6 @@ defineExpose({disconnect, reconnect, scheduleFitAndResize})
   border-radius: 0
 }
 
-.terminal-empty-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 3;
-  display: grid;
-  place-items: center;
-  pointer-events: none;
-  background: radial-gradient(circle at center, rgba(15, 23, 42, 0.52), transparent 58%);
-}
-
-.terminal-empty-card {
-  display: grid;
-  justify-items: center;
-  gap: 8px;
-  max-width: 320px;
-  padding: 18px;
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  border-radius: 14px;
-  background: rgba(15, 23, 42, 0.72);
-  color: #dbeafe;
-  text-align: center;
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
-  pointer-events: auto;
-  backdrop-filter: blur(12px);
-}
-
-.terminal-empty-icon {
-  display: grid;
-  width: 42px;
-  height: 42px;
-  place-items: center;
-  border-radius: 14px;
-  background: rgba(56, 189, 248, 0.12);
-  color: #7dd3fc;
-  font-size: 20px;
-}
-
-.terminal-empty-card small {
-  color: #94a3b8;
-  line-height: 1.5;
-}
-
 .terminal :deep(.xterm),
 .terminal :deep(.xterm-viewport),
 .terminal :deep(.xterm-screen),
@@ -1024,68 +918,6 @@ defineExpose({disconnect, reconnect, scheduleFitAndResize})
 }
 
 /* --- Search bar --- */
-.terminal-search-bar {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 6px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
-  background: rgba(15, 23, 42, 0.92);
-  animation: searchSlideIn 0.16s ease;
-}
-
-@keyframes searchSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.terminal-search-bar input {
-  flex: 1 1 auto;
-  min-width: 0;
-  padding: 4px 8px;
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  border-radius: 4px;
-  background: rgba(2, 6, 23, 0.7);
-  color: #e2e8f0;
-  font-size: 12px;
-  outline: none;
-}
-
-.terminal-search-bar input:focus {
-  border-color: rgba(56, 189, 248, 0.5);
-}
-
-.terminal-search-bar .search-count {
-  font-size: 11px;
-  color: #94a3b8;
-  min-width: 32px;
-  text-align: center;
-}
-
-.terminal-search-bar button {
-  display: grid;
-  width: 22px;
-  height: 22px;
-  place-items: center;
-  border: 0;
-  border-radius: 4px;
-  background: transparent;
-  color: #94a3b8;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.terminal-search-bar button:hover {
-  background: rgba(56, 189, 248, 0.14);
-  color: #e2e8f0;
-}
-
 /* Theme presets applied via the .terminal-wrap style attribute (css vars set dynamically) */
 .theme-minimal {
 }
