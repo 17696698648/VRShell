@@ -1,5 +1,5 @@
 <template>
-  <div :class="['terminal-wrap', `theme-${theme}`, { embedded }]">
+  <div ref="terminalRoot" :class="['terminal-wrap', `theme-${theme}`, { embedded }]">
     <div v-if="!embedded" class="controls">
       <label>Host: <input v-model="host" placeholder="example.com"/></label>
       <label>Port: <input v-model.number="port" type="number" style="width:80px"/></label>
@@ -90,6 +90,7 @@ import {
 } from '../services/terminal'
 
 const termContainer = ref<HTMLElement | null>(null)
+const terminalRoot = ref<HTMLElement | null>(null)
 let term: Terminal | null = null
 let fit: FitAddon | null = null
 let searchAddon: SearchAddon | null = null
@@ -187,7 +188,7 @@ const emit = defineEmits<{
 }>()
 
 let unlistenFns: Array<() => void> = []
-let pollInterval: number | null = null
+let pollTimer: number | null = null
 let usePolling = false
 let resizeObserver: ResizeObserver | null = null
 let inputFlushTimer: number | null = null
@@ -226,13 +227,10 @@ const THEME_DEFINITIONS: Record<string, any> = {
 
 function applyThemeToRoot(t: string) {
   const def = THEME_DEFINITIONS[t] || THEME_DEFINITIONS.professional
-  // apply CSS variables to the component root via style on document for preview and exported HTML
-  if (typeof document !== 'undefined') {
-    const root = document.querySelector('.terminal-wrap')
-    if (root) {
-      for (const [k, v] of Object.entries(def.css)) {
-        (root as HTMLElement).style.setProperty(k, String(v))
-      }
+  const root = terminalRoot.value
+  if (root) {
+    for (const [k, v] of Object.entries(def.css)) {
+      root.style.setProperty(k, String(v))
     }
   }
   // apply to xterm if initialized
@@ -247,7 +245,7 @@ function applyThemeToRoot(t: string) {
 
 function syncXtermWithCssVars() {
   try {
-    const cs = getComputedStyle(document.documentElement)
+    const cs = getComputedStyle(terminalRoot.value ?? document.documentElement)
     const bg = cs.getPropertyValue('--terminal-bg') || ''
     const fg = cs.getPropertyValue('--text') || ''
     const cursor = cs.getPropertyValue('--accent') || ''
@@ -436,6 +434,47 @@ async function watchEarlyTerminalEvents() {
   }
 }
 
+function clearPollTimer() {
+  if (pollTimer !== null) {
+    window.clearTimeout(pollTimer)
+    pollTimer = null
+  }
+}
+
+function startPollingFallback() {
+  usePolling = true
+  let idlePollDelay = 250
+
+  const poll = async () => {
+    if (!usePolling || !sessionId.value) return
+
+    let hadEvents = false
+    try {
+      const msgs = await pollTerminalEvents(sessionId.value)
+      hadEvents = msgs.length > 0
+      for (const message of msgs) {
+        try {
+          await handleQueuedTerminalEvent(message)
+        } catch (error) {
+          logTerminalDebug('handle polled terminal event failed', error)
+        }
+      }
+    } catch (error) {
+      logTerminalDebug('poll terminal events failed', error)
+    }
+
+    idlePollDelay = hadEvents ? 100 : Math.min(idlePollDelay + 250, 2000)
+    pollTimer = window.setTimeout(() => {
+      void poll()
+    }, idlePollDelay)
+  }
+
+  clearPollTimer()
+  pollTimer = window.setTimeout(() => {
+    void poll()
+  }, 100)
+}
+
 async function connect() {
   hasAttemptedConnection.value = true
   setTerminalStatus('connecting')
@@ -507,24 +546,8 @@ async function connect() {
       void watchEarlyTerminalEvents()
     } catch (e: any) {
       // Permission denied for event.listen (or similar); enable polling fallback
-      usePolling = true
       status.value = 'connected (polling mode)'
-      // start polling periodically
-      pollInterval = window.setInterval(async () => {
-        try {
-          if (!sessionId.value) return
-          const msgs = await pollTerminalEvents(sessionId.value)
-          for (const message of msgs) {
-            try {
-              await handleQueuedTerminalEvent(message)
-            } catch (error) {
-              logTerminalDebug('handle polled terminal event failed', error)
-            }
-          }
-        } catch (error) {
-          logTerminalDebug('poll terminal events failed', error)
-        }
-      }, 250)
+      startPollingFallback()
     }
   } catch (err: any) {
     const error = `connect error: ${formatAppError(err, 'SSH connection failed')}`
@@ -567,13 +590,7 @@ async function disconnect(updateStatus = true) {
   }
   unlistenFns = []
   // stop polling if enabled
-  try {
-    if (pollInterval) {
-      clearInterval(pollInterval);
-      pollInterval = null
-    }
-  } catch {
-  }
+  clearPollTimer()
   if (connectionLogTimer) {
     window.clearTimeout(connectionLogTimer);
     connectionLogTimer = null

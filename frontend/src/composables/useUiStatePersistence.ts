@@ -6,6 +6,8 @@ export type PersistedUiState = {
   activeTheme?: string
   showEditorArea?: boolean
   editorPaneHeight?: number
+  drawerWidth?: number
+  activeDrawer?: string | null
 }
 
 export function readPersistedUiState(): PersistedUiState | null {
@@ -25,22 +27,28 @@ export type UiStatePersistenceRefs<ThemeName extends string> = {
   showEditorArea: Ref<boolean>
   editorPaneHeight: Ref<number>
   drawerWidth: Ref<number>
+  activeDrawer: Ref<string | null>
   minDrawerWidth: number
+  maxDrawerWidth: number
 }
 
 export function useUiStatePersistence<ThemeName extends string>({
                                                                   activeTheme,
-                                                                  showEditorArea,
-                                                                  editorPaneHeight,
-                                                                  drawerWidth,
-                                                                  minDrawerWidth,
-                                                                }: UiStatePersistenceRefs<ThemeName>) {
+                                                                   showEditorArea,
+                                                                   editorPaneHeight,
+                                                                   drawerWidth,
+                                                                   activeDrawer,
+                                                                   minDrawerWidth,
+                                                                   maxDrawerWidth,
+                                                                 }: UiStatePersistenceRefs<ThemeName>) {
   function saveUiState() {
     try {
       localStorage.setItem(UI_STATE_KEY, JSON.stringify({
         activeTheme: activeTheme.value,
         showEditorArea: showEditorArea.value,
         editorPaneHeight: editorPaneHeight.value,
+        drawerWidth: drawerWidth.value,
+        activeDrawer: activeDrawer.value,
       }))
     } catch {
     }
@@ -49,8 +57,6 @@ export function useUiStatePersistence<ThemeName extends string>({
   function restoreUiState() {
     const state = readPersistedUiState()
     if (!state) return
-
-    drawerWidth.value = minDrawerWidth
 
     if (typeof state.activeTheme === 'string') {
       activeTheme.value = state.activeTheme as ThemeName
@@ -61,9 +67,17 @@ export function useUiStatePersistence<ThemeName extends string>({
     if (typeof state.editorPaneHeight === 'number') {
       editorPaneHeight.value = state.editorPaneHeight
     }
+    if (typeof state.drawerWidth === 'number') {
+      drawerWidth.value = Math.min(maxDrawerWidth, Math.max(minDrawerWidth, state.drawerWidth))
+    } else {
+      drawerWidth.value = minDrawerWidth
+    }
+    if (state.activeDrawer === null || state.activeDrawer === 'sessions' || state.activeDrawer === 'sftp') {
+      activeDrawer.value = state.activeDrawer
+    }
   }
 
-  watch([activeTheme, showEditorArea, editorPaneHeight], saveUiState)
+  watch([activeTheme, showEditorArea, editorPaneHeight, drawerWidth, activeDrawer], saveUiState)
 
   return {
     saveUiState,

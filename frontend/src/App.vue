@@ -1053,7 +1053,9 @@ const {restoreUiState} = useUiStatePersistence({
   showEditorArea,
   editorPaneHeight,
   drawerWidth,
+  activeDrawer,
   minDrawerWidth,
+  maxDrawerWidth,
 })
 
 onMounted(async () => {
