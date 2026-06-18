@@ -127,7 +127,7 @@
 <script setup lang="ts">
 import {computed} from 'vue'
 import {ChevronDown, ChevronRight, Folder, FolderOpen} from '@lucide/vue'
-import {useSessionTreeDrag} from '../composables/useSessionTreeDrag'
+import {useSessionTreeDrag} from '../composables/session/useSessionTreeDrag'
 
 export type ContextMenuType = 'group' | 'session'
 

@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <main
     class="app-shell"
     :class="['theme-' + activeTheme, { 'drawer-closed': activeDrawer === null, 'no-session': !hasActiveSession }]"
@@ -362,42 +362,42 @@ import ToastStack from './components/ToastStack.vue'
 import WorkspaceTabs from './components/WorkspaceTabs.vue'
 import WindowChrome from './components/window/WindowChrome.vue'
 import {SFTP_TREE_OVERSCAN, SFTP_TREE_ROW_HEIGHT} from './constants'
-import {collapseSftpTree, createSftpTreeNode} from './composables/useSftpTree'
-import {useConfirmDialog} from './composables/useConfirmDialog'
-import {usePromptDialog} from './composables/usePromptDialog'
-import {useContextMenu} from './composables/useContextMenu'
-import {useEditorTabs} from './composables/useEditorTabs'
-import {useSessionCleanup} from './composables/useSessionCleanup'
-import {useSessionTreeAccess} from './composables/useSessionTreeAccess'
-import {useSessionTreeDragState} from './composables/useSessionTreeDragState'
-import {useSessionForm} from './composables/useSessionForm'
+import {collapseSftpTree, createSftpTreeNode} from './composables/sftp/useSftpTree'
+import {useConfirmDialog} from './composables/dialog/useConfirmDialog'
+import {usePromptDialog} from './composables/dialog/usePromptDialog'
+import {useContextMenu} from './composables/interaction/useContextMenu'
+import {useEditorTabs} from './composables/ui/useEditorTabs'
+import {useSessionCleanup} from './composables/session/useSessionCleanup'
+import {useSessionTreeAccess} from './composables/session/useSessionTreeAccess'
+import {useSessionTreeDragState} from './composables/session/useSessionTreeDragState'
+import {useSessionForm} from './composables/session/useSessionForm'
 import {
   ALL_SESSIONS_GROUP_ID,
   ALL_SESSIONS_GROUP_NAME,
   useSessionPersistence
-} from './composables/useSessionPersistence'
-import {useGlobalShortcuts} from './composables/useGlobalShortcuts'
-import {useHomeDashboardState} from './composables/useHomeDashboardState'
-import {useQuickOpen} from './composables/useQuickOpen'
-import {useResizablePane} from './composables/useResizablePane'
-import {useSftpActions} from './composables/useSftpActions'
-import {useSftpBookmarks} from './composables/useSftpBookmarks'
-import {useSftpDropUpload} from './composables/useSftpDropUpload'
-import {useSftpInfoPopover} from './composables/useSftpInfoPopover'
-import {useSftpItemOpen} from './composables/useSftpItemOpen'
-import {useSftpNavigation} from './composables/useSftpNavigation'
-import {useSftpTask} from './composables/useSftpTask'
-import {useSftpTreeLoader} from './composables/useSftpTreeLoader'
-import {useSftpViewState} from './composables/useSftpViewState'
-import {copyText, useTerminalCommands} from './composables/useTerminalCommands'
-import {useTerminalActivity} from './composables/useTerminalActivity'
-import {useTerminalRegistry} from './composables/useTerminalRegistry'
-import {useTerminalViewState} from './composables/useTerminalViewState'
-import {useThemeState, type ThemeName} from './composables/useThemeState'
-import {useToasts} from './composables/useToasts'
-import {useUiStatePersistence} from './composables/useUiStatePersistence'
-import {useWindowControls} from './composables/useWindowControls'
-import {useWindowMenuState} from './composables/useWindowMenuState'
+} from './composables/session/useSessionPersistence'
+import {useGlobalShortcuts} from './composables/interaction/useGlobalShortcuts'
+import {useHomeDashboardState} from './composables/ui/useHomeDashboardState'
+import {useQuickOpen} from './composables/ui/useQuickOpen'
+import {useResizablePane} from './composables/ui/useResizablePane'
+import {useSftpActions} from './composables/sftp/useSftpActions'
+import {useSftpBookmarks} from './composables/sftp/useSftpBookmarks'
+import {useSftpDropUpload} from './composables/sftp/useSftpDropUpload'
+import {useSftpInfoPopover} from './composables/sftp/useSftpInfoPopover'
+import {useSftpItemOpen} from './composables/sftp/useSftpItemOpen'
+import {useSftpNavigation} from './composables/sftp/useSftpNavigation'
+import {useSftpTask} from './composables/sftp/useSftpTask'
+import {useSftpTreeLoader} from './composables/sftp/useSftpTreeLoader'
+import {useSftpViewState} from './composables/sftp/useSftpViewState'
+import {copyText, useTerminalCommands} from './composables/terminal/useTerminalCommands'
+import {useTerminalActivity} from './composables/terminal/useTerminalActivity'
+import {useTerminalRegistry} from './composables/terminal/useTerminalRegistry'
+import {useTerminalViewState} from './composables/terminal/useTerminalViewState'
+import {useThemeState, type ThemeName} from './composables/ui/useThemeState'
+import {useToasts} from './composables/ui/useToasts'
+import {useUiStatePersistence} from './composables/ui/useUiStatePersistence'
+import {useWindowControls} from './composables/window/useWindowControls'
+import {useWindowMenuState} from './composables/window/useWindowMenuState'
 import {
   addTerminalTab,
   applyTerminalTabAction as dispatchTerminalTabAction,
@@ -408,8 +408,8 @@ import {
   selectTerminalTab as selectTerminalTabState,
   updateTerminalSessionId as updateTerminalTabSessionId,
   updateTerminalStatus as updateTerminalTabStatus,
-} from './composables/useTerminalTabs'
-import {resetWorkspaceState, useWorkspaceStore} from './composables/useWorkspaceStore'
+} from './composables/terminal/useTerminalTabs'
+import {resetWorkspaceState, useWorkspaceStore} from './composables/ui/useWorkspaceStore'
 import type {ContextMenuScope} from './menuTypes'
 import {
   disconnectSftpConnection,
@@ -952,19 +952,18 @@ const allGroupNames = computed(() => {
 })
 
 function handlePaletteAction(action: string, payload?: string) {
-  // SSH settings — handled directly since they call invoke
+  // SSH settings are handled directly since they call invoke.
   if (action === 'ssh_hash_known_hosts') {
     invoke<boolean>('get_hash_known_hosts').then((enabled) => {
       invoke('set_hash_known_hosts', {enabled: !enabled}).then(() => {
-        showToast(`主机名哈希已${!enabled ? '开启' : '关闭'}`, 'success')
+        showToast(`HashKnownHosts ${!enabled ? 'enabled' : 'disabled'}`, 'success')
       })
     })
     return
   }
   if (action === 'ssh_auto_reconnect') {
-    // Toggle a stored frontend preference (default false)
     autoReconnectEnabled.value = !autoReconnectEnabled.value
-    showToast(`自动重连已${autoReconnectEnabled.value ? '开启' : '关闭'}`, 'success')
+    showToast(`Auto reconnect ${autoReconnectEnabled.value ? 'enabled' : 'disabled'}`, 'success')
     return
   }
 

@@ -3,7 +3,7 @@
     <div class="host-key-prompt" role="dialog" aria-modal="true">
       <template v-if="interaction.request.type === 'host_key_verification'">
         <span class="host-key-prompt-kicker">SSH Host Key</span>
-        <strong>{{ interaction.request.is_mismatch ? '⚠ Host key changed' : 'Unknown host key' }}</strong>
+        <strong>{{ interaction.request.is_mismatch ? 'Host key changed' : 'Unknown host key' }}</strong>
         <p>
           {{
             interaction.request.is_mismatch
@@ -63,7 +63,7 @@
             <input
               v-model="kbAnswers[idx]"
               :type="prompt.echo ? 'text' : 'password'"
-              :placeholder="prompt.echo ? '' : '••••••'"
+              :placeholder="prompt.echo ? '' : '******'"
               @keydown.enter="submitKbAnswers"
             />
           </label>
@@ -79,7 +79,7 @@
 
 <script setup lang="ts">
 import {ref, watch} from 'vue'
-import type {ActiveInteraction} from '../composables/useInteractionManager'
+import type {ActiveInteraction} from '../composables/interaction/useInteractionManager'
 
 const props = defineProps<{
   interaction: ActiveInteraction | null

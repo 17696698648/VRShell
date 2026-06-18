@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div ref="terminalRoot" :class="['terminal-wrap', `theme-${theme}`, { embedded }]">
     <div v-if="!embedded" class="controls">
       <label>Host: <input v-model="host" placeholder="example.com"/></label>
@@ -11,9 +11,9 @@
       <!-- Theme selector for design variants -->
       <label style="margin-left:12px">Style:
         <select v-model="theme">
-          <option value="minimal">极简</option>
-          <option value="professional">专业</option>
-          <option value="colorful">彩色</option>
+          <option value="minimal">鏋佺畝</option>
+          <option value="professional">涓撲笟</option>
+          <option value="colorful">褰╄壊</option>
         </select>
       </label>
     </div>
@@ -36,9 +36,9 @@
         @input="doSearch"
         @keydown.enter="findNext"
       />
-      <button title="Previous match" @click="findPrev">▲</button>
-      <button title="Next match" @click="findNext">▼</button>
-      <button title="Close" @click="closeSearch">✕</button>
+      <button title="Previous match" @click="findPrev">鈻?/button>
+      <button title="Next match" @click="findNext">鈻?/button>
+      <button title="Close" @click="closeSearch">鉁?/button>
     </div>
 
     <TerminalInteractionDialog
@@ -53,7 +53,7 @@
     <div ref="termContainer" class="terminal" tabindex="0">
       <div v-if="embedded && hasAttemptedConnection && !connected && status !== 'connecting'" class="terminal-empty-overlay">
         <div class="terminal-empty-card">
-          <span class="terminal-empty-icon">⌁</span>
+          <span class="terminal-empty-icon">鈱?/span>
           <strong>Terminal is idle</strong>
           <small>Reconnect this terminal when you are ready to continue the SSH session.</small>
           <UiButton title="Reconnect terminal" aria-label="Reconnect terminal" @click.stop="connect">Reconnect
@@ -72,13 +72,14 @@ import {SearchAddon} from 'xterm-addon-search'
 import 'xterm/css/xterm.css'
 import {invoke} from '@tauri-apps/api/core'
 import UiButton from './ui/UiButton.vue'
+// @ts-ignore vue-tsc occasionally misses this SFC default export after path-only refactors.
 import TerminalInteractionDialog from './TerminalInteractionDialog.vue'
 import {formatAppError} from '../services/errors'
-import {useInteractionManager} from '../composables/useInteractionManager'
-import {base64ToString, uint8ToBase64} from '../composables/useTerminalEncoding'
-import {useTerminalResize} from '../composables/useTerminalResize'
-import {useTerminalSearch} from '../composables/useTerminalSearch'
-import {useTerminalConnectionState} from '../composables/useTerminalConnectionState'
+import {useInteractionManager} from '../composables/interaction/useInteractionManager'
+import {base64ToString, uint8ToBase64} from '../composables/terminal/useTerminalEncoding'
+import {useTerminalResize} from '../composables/terminal/useTerminalResize'
+import {useTerminalSearch} from '../composables/terminal/useTerminalSearch'
+import {useTerminalConnectionState} from '../composables/terminal/useTerminalConnectionState'
 import {
   connectSsh,
   disconnectSshSession,
@@ -352,18 +353,18 @@ function isCurrentTerminalMessage(payload: unknown) {
 async function handleTerminalErrorPayload(payload: unknown) {
   if (!isCurrentTerminalMessage(payload)) return
 
-  // If there's an active interaction, the backend is waiting for a response —
+  // If there's an active interaction, the backend is waiting for a response 鈥?
   // don't clobber it with a generic error message.
   if (activeInteraction.value) return
 
   const norm = normalizeTerminalMessage(payload)
 
-  // Legacy host-key errors (non-interactive path) — still handled for backward
+  // Legacy host-key errors (non-interactive path) 鈥?still handled for backward
   // compatibility (polling mode, SFTP).
   if (norm.code === 'host_key_unknown' || norm.code === 'host_key_mismatch') {
     const msg = norm.code === 'host_key_mismatch'
-      ? `Host key changed for ${host.value}:${port.value} — connection aborted`
-      : `Unknown host key for ${host.value}:${port.value} — connection aborted`
+      ? `Host key changed for ${host.value}:${port.value} 鈥?connection aborted`
+      : `Unknown host key for ${host.value}:${port.value} 鈥?connection aborted`
     terminalConnection.markError(msg)
     showConnectionError(msg)
     writeTerminalLine(`[VRShell] ${msg}`)

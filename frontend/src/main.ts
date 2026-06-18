@@ -4,7 +4,7 @@ import './styles/ide-vars.css'
 import './styles/base.css'
 import './styles/element-plus'
 import {tooltipDirective} from './directives/tooltip'
-import {applyInitialThemeToDocument} from './composables/useThemeState'
+import {applyInitialThemeToDocument} from './composables/ui/useThemeState'
 
 applyInitialThemeToDocument()
 
