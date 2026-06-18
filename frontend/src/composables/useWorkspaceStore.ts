@@ -1,9 +1,6 @@
 import { computed, reactive } from 'vue'
 import type { WorkspaceState } from '../types'
-
-function createId(prefix: string) {
-  return `${prefix}-${Math.random().toString(36).slice(2, 8)}-${Date.now().toString(36)}`
-}
+import { createId } from '../utils/id'
 
 export function createDefaultWorkspaceState(): WorkspaceState {
   return {

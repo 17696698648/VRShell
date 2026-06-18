@@ -89,6 +89,10 @@ import {
   type TerminalDataPayload,
 } from '../services/terminal'
 
+type XtermTheme = Record<string, string>
+type TerminalWithSetOptions = Terminal & { setOptions?: (options: { theme?: XtermTheme }) => void }
+type ResizeAckPayload = string | number
+
 const termContainer = ref<HTMLElement | null>(null)
 const terminalRoot = ref<HTMLElement | null>(null)
 let term: Terminal | null = null
@@ -129,7 +133,9 @@ function resetZoom() {
 }
 
 function applyFontSize() {
-  term?.options && ((term.options as any).fontSize = terminalFontSize.value)
+  if (term) {
+    term.options.fontSize = terminalFontSize.value
+  }
   scheduleFitAndResize()
 }
 
@@ -204,7 +210,7 @@ const terminalResize = useTerminalResize({
 })
 
 
-const THEME_DEFINITIONS: Record<string, any> = {
+const THEME_DEFINITIONS: Record<string, { css: Record<string, string>; xterm: XtermTheme }> = {
   minimal: {
     css: {
       '--bg': '#FFFFFF', '--panel': '#F5F7FA', '--accent': '#2563EB', '--text': '#0F172A', '--terminal-bg': '#F8FAFC'
@@ -235,10 +241,7 @@ function applyThemeToRoot(t: string) {
   }
   // apply to xterm if initialized
   try {
-    if (term && def.xterm) {
-      // use setOptions but cast to any to satisfy TS across xterm versions
-      ;(term as any).setOptions({theme: def.xterm})
-    }
+    ;(term as TerminalWithSetOptions | null)?.setOptions?.({theme: def.xterm})
   } catch (e) {
   }
 }
@@ -249,12 +252,12 @@ function syncXtermWithCssVars() {
     const bg = cs.getPropertyValue('--terminal-bg') || ''
     const fg = cs.getPropertyValue('--text') || ''
     const cursor = cs.getPropertyValue('--accent') || ''
-    const themeObj: any = {}
+    const themeObj: XtermTheme = {}
     if (bg) themeObj.background = String(bg).trim()
     if (fg) themeObj.foreground = String(fg).trim()
     if (cursor) themeObj.cursor = String(cursor).trim()
     if (term) try {
-      (term as any).setOptions({theme: themeObj})
+      ;(term as TerminalWithSetOptions).setOptions?.({theme: themeObj})
     } catch (e) {
     }
   } catch (e) {
@@ -527,7 +530,7 @@ async function connect() {
         status.value = `${msg}`
       })
       const l4 = await listenTerminalEvent<string>(TERMINAL_EVENTS.closed, (e) => {
-        const sidClosed: any = e.payload
+        const sidClosed = e.payload
         if (sidClosed === sessionId.value) {
           setTerminalStatus('disconnected')
           connected.value = false
@@ -535,8 +538,8 @@ async function connect() {
           emit('closed')
         }
       })
-      const l5 = await listenTerminalEvent(TERMINAL_EVENTS.ptyResizeAck, (e) => {
-        const payload: any = e.payload
+      const l5 = await listenTerminalEvent<ResizeAckPayload>(TERMINAL_EVENTS.ptyResizeAck, (e) => {
+        const payload = e.payload
         if (sessionId.value && String(payload).startsWith(sessionId.value)) {
           status.value = `resized: ${String(payload)}`
         }
@@ -544,12 +547,12 @@ async function connect() {
       unlistenFns.push(l1, l2, l3, l4)
       unlistenFns.push(l5)
       void watchEarlyTerminalEvents()
-    } catch (e: any) {
+    } catch (e: unknown) {
       // Permission denied for event.listen (or similar); enable polling fallback
       status.value = 'connected (polling mode)'
       startPollingFallback()
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     const error = `connect error: ${formatAppError(err, 'SSH connection failed')}`
     setTerminalStatus('error', error)
     showConnectionError(error)

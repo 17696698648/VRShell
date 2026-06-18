@@ -22,6 +22,12 @@ export function readPersistedUiState(): PersistedUiState | null {
   }
 }
 
+function clampNumber(value: unknown, min: number, max: number, fallback: number) {
+  return typeof value === 'number' && Number.isFinite(value)
+    ? Math.min(max, Math.max(min, value))
+    : fallback
+}
+
 export type UiStatePersistenceRefs<ThemeName extends string> = {
   activeTheme: Ref<ThemeName>
   showEditorArea: Ref<boolean>
@@ -30,6 +36,8 @@ export type UiStatePersistenceRefs<ThemeName extends string> = {
   activeDrawer: Ref<string | null>
   minDrawerWidth: number
   maxDrawerWidth: number
+  minEditorPaneHeight: number
+  maxEditorPaneHeight: number
 }
 
 export function useUiStatePersistence<ThemeName extends string>({
@@ -37,10 +45,12 @@ export function useUiStatePersistence<ThemeName extends string>({
                                                                    showEditorArea,
                                                                    editorPaneHeight,
                                                                    drawerWidth,
-                                                                   activeDrawer,
-                                                                   minDrawerWidth,
-                                                                   maxDrawerWidth,
-                                                                 }: UiStatePersistenceRefs<ThemeName>) {
+                                                                    activeDrawer,
+                                                                    minDrawerWidth,
+                                                                    maxDrawerWidth,
+                                                                    minEditorPaneHeight,
+                                                                    maxEditorPaneHeight,
+                                                                  }: UiStatePersistenceRefs<ThemeName>) {
   function saveUiState() {
     try {
       localStorage.setItem(UI_STATE_KEY, JSON.stringify({
@@ -64,14 +74,8 @@ export function useUiStatePersistence<ThemeName extends string>({
     if (typeof state.showEditorArea === 'boolean') {
       showEditorArea.value = state.showEditorArea
     }
-    if (typeof state.editorPaneHeight === 'number') {
-      editorPaneHeight.value = state.editorPaneHeight
-    }
-    if (typeof state.drawerWidth === 'number') {
-      drawerWidth.value = Math.min(maxDrawerWidth, Math.max(minDrawerWidth, state.drawerWidth))
-    } else {
-      drawerWidth.value = minDrawerWidth
-    }
+    editorPaneHeight.value = clampNumber(state.editorPaneHeight, minEditorPaneHeight, maxEditorPaneHeight, editorPaneHeight.value)
+    drawerWidth.value = clampNumber(state.drawerWidth, minDrawerWidth, maxDrawerWidth, minDrawerWidth)
     if (state.activeDrawer === null || state.activeDrawer === 'sessions' || state.activeDrawer === 'sftp') {
       activeDrawer.value = state.activeDrawer
     }

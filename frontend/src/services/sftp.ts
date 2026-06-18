@@ -1,6 +1,7 @@
 import {invoke} from '@tauri-apps/api/core'
 import type {SftpUploadSummary} from '../types'
 import {formatAppError} from './errors'
+import {createId} from '../utils/id'
 
 export type SftpConnection = {
   host: string
@@ -37,7 +38,7 @@ export type SftpEntry = {
 }
 
 export function createSftpTaskId(operation: string) {
-  return `${operation}-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  return createId(operation)
 }
 
 export function getSftpSessionKey(connection: SftpSessionRef) {

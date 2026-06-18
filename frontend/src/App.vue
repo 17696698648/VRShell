@@ -495,6 +495,8 @@ type DrawerName = 'sessions' | 'sftp'
 const activityBarWidth = 48
 const minDrawerWidth = 280
 const maxDrawerWidth = 420
+const minEditorPaneHeight = 120
+const maxEditorPaneHeight = 420
 
 const {
   isWindowMaximized,
@@ -534,8 +536,8 @@ const editorPaneHeight = computed({
 })
 const {startResize: startWorkbenchResize} = useResizablePane({
   initialSize: 230,
-  minSize: 120,
-  maxSize: 420,
+  minSize: minEditorPaneHeight,
+  maxSize: maxEditorPaneHeight,
   axis: 'y',
   sizeRef: editorPaneHeight,
   onResize: () => scheduleActiveTerminalFit(),
@@ -1057,6 +1059,8 @@ const {restoreUiState, saveUiState, stopPersistence} = useUiStatePersistence({
   activeDrawer,
   minDrawerWidth,
   maxDrawerWidth,
+  minEditorPaneHeight,
+  maxEditorPaneHeight,
 })
 let unlistenSftpProgress: (() => void) | null = null
 
