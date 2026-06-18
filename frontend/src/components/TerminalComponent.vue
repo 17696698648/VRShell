@@ -53,7 +53,7 @@
     <div ref="termContainer" class="terminal" tabindex="0">
       <div v-if="embedded && hasAttemptedConnection && !connected && status !== 'connecting'" class="terminal-empty-overlay">
         <div class="terminal-empty-card">
-          <span class="terminal-empty-icon">鈱?/span>
+          <span class="terminal-empty-icon">&gt;</span>
           <strong>Terminal is idle</strong>
           <small>Reconnect this terminal when you are ready to continue the SSH session.</small>
           <UiButton title="Reconnect terminal" aria-label="Reconnect terminal" @click.stop="connect">Reconnect
