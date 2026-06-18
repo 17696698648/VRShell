@@ -78,6 +78,7 @@ import {useInteractionManager} from '../composables/useInteractionManager'
 import {base64ToString, uint8ToBase64} from '../composables/useTerminalEncoding'
 import {useTerminalResize} from '../composables/useTerminalResize'
 import {useTerminalSearch} from '../composables/useTerminalSearch'
+import {useTerminalConnectionState} from '../composables/useTerminalConnectionState'
 import {
   connectSsh,
   disconnectSshSession,
@@ -160,10 +161,6 @@ const autoCopySelection = ref(false)
 const rightClickPaste = ref(true)
 const autoReconnectSetting = ref(false)
 const idleTimeoutSecsSetting = ref(0)
-const sessionId = ref<string | null>(null)
-const connected = ref(false)
-const hasAttemptedConnection = ref(false)
-const status = ref('idle')
 const connectionLog = ref('')
 let connectionLogTimer: number | null = null
 // theme: minimal | professional | colorful
@@ -192,6 +189,9 @@ const emit = defineEmits<{
   (e: 'closed'): void
   (e: 'activity'): void
 }>()
+
+const terminalConnection = useTerminalConnectionState((nextStatus, error) => emit('status-change', nextStatus, error))
+const {sessionId, connected, hasAttemptedConnection, status} = terminalConnection
 
 let unlistenFns: Array<() => void> = []
 let pollTimer: number | null = null
@@ -301,7 +301,7 @@ async function flushPendingInput() {
       }
     }
   } catch (e) {
-    status.value = `send error: ${e}`
+    terminalConnection.markError(`send error: ${e}`)
   }
 }
 
@@ -349,11 +349,6 @@ function isCurrentTerminalMessage(payload: unknown) {
   return !message.sessionId || message.sessionId === sessionId.value
 }
 
-function setTerminalStatus(nextStatus: 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'disconnected' | 'error', error = '') {
-  status.value = error || nextStatus
-  emit('status-change', nextStatus, error)
-}
-
 async function handleTerminalErrorPayload(payload: unknown) {
   if (!isCurrentTerminalMessage(payload)) return
 
@@ -369,7 +364,7 @@ async function handleTerminalErrorPayload(payload: unknown) {
     const msg = norm.code === 'host_key_mismatch'
       ? `Host key changed for ${host.value}:${port.value} — connection aborted`
       : `Unknown host key for ${host.value}:${port.value} — connection aborted`
-    setTerminalStatus('error', msg)
+    terminalConnection.markError(msg)
     showConnectionError(msg)
     writeTerminalLine(`[VRShell] ${msg}`)
     return
@@ -377,13 +372,13 @@ async function handleTerminalErrorPayload(payload: unknown) {
 
   // Cancelled by user via interaction dialog.
   if (norm.code === 'cancelled') {
-    setTerminalStatus('disconnected', norm.message)
+    terminalConnection.markDisconnected(norm.message)
     writeTerminalLine(`[VRShell] ${norm.message}`)
     return
   }
 
   const error = `error: ${norm.message}`
-  setTerminalStatus('error', error)
+  terminalConnection.markError(error)
   showConnectionError(error)
   writeTerminalLine(`[VRShell] ${error}`)
 }
@@ -406,11 +401,9 @@ async function handleQueuedTerminalEvent(queuedEvent: string) {
     await handleTerminalErrorPayload(payload)
   } else if (event.event === 'terminal-info') {
     if (!isCurrentTerminalMessage(payload)) return
-    status.value = `${normalizeTerminalMessage(payload).message}`
+    terminalConnection.setInfo(`${normalizeTerminalMessage(payload).message}`)
   } else if (event.event === 'terminal-closed' && payload === sessionId.value) {
-    setTerminalStatus('disconnected')
-    connected.value = false
-    sessionId.value = null
+    terminalConnection.markDisconnected()
     emit('closed')
   }
 }
@@ -477,14 +470,13 @@ function startPollingFallback() {
 }
 
 async function connect() {
-  hasAttemptedConnection.value = true
-  setTerminalStatus('connecting')
+  terminalConnection.markConnecting()
   // Start the interaction listener BEFORE invoking connect_ssh to avoid a
   // race where the backend sends interaction-required before we're listening.
   await interactionMgr.startListening()
   writeTerminalLine(`[VRShell] Connecting to ${username.value}@${host.value}:${port.value} ...`)
   try {
-    sessionId.value = await connectSsh({
+    const nextSessionId = await connectSsh({
       host: host.value,
       port: port.value,
       username: username.value,
@@ -494,10 +486,9 @@ async function connect() {
       autoReconnect: autoReconnectSetting.value,
       idleTimeoutSecs: idleTimeoutSecsSetting.value,
     })
-    connected.value = true
+    terminalConnection.markConnected(nextSessionId)
     clearSensitiveAuthFields()
     terminalResize.resetLastSize()
-    setTerminalStatus('connected')
     connectionLog.value = ''
     writeTerminalLine('[VRShell] SSH session connected.')
     if (sessionId.value) emit('connected', sessionId.value)
@@ -525,21 +516,19 @@ async function connect() {
       const l3 = await listenTerminalEvent(TERMINAL_EVENTS.info, (e) => {
         if (!isCurrentTerminalMessage(e.payload)) return
         const msg = normalizeTerminalMessage(e.payload).message
-        status.value = `${msg}`
+        terminalConnection.setInfo(`${msg}`)
       })
       const l4 = await listenTerminalEvent<string>(TERMINAL_EVENTS.closed, (e) => {
         const sidClosed = e.payload
         if (sidClosed === sessionId.value) {
-          setTerminalStatus('disconnected')
-          connected.value = false
-          sessionId.value = null
+          terminalConnection.markDisconnected()
           emit('closed')
         }
       })
       const l5 = await listenTerminalEvent<ResizeAckPayload>(TERMINAL_EVENTS.ptyResizeAck, (e) => {
         const payload = e.payload
         if (sessionId.value && String(payload).startsWith(sessionId.value)) {
-          status.value = `resized: ${String(payload)}`
+          terminalConnection.setInfo(`resized: ${String(payload)}`)
         }
       })
       unlistenFns.push(l1, l2, l3, l4)
@@ -547,21 +536,20 @@ async function connect() {
       void watchEarlyTerminalEvents()
     } catch (e: unknown) {
       // Permission denied for event.listen (or similar); enable polling fallback
-      status.value = 'connected (polling mode)'
+      terminalConnection.setInfo('connected (polling mode)')
       startPollingFallback()
     }
   } catch (err: unknown) {
     const error = `connect error: ${formatAppError(err, 'SSH connection failed')}`
-    setTerminalStatus('error', error)
+    terminalConnection.markError(error)
     showConnectionError(error)
     writeTerminalLine(`[VRShell] ${error}`)
     clearSensitiveAuthFields()
-    connected.value = false
   }
 }
 
 async function reconnect() {
-  setTerminalStatus('reconnecting')
+  terminalConnection.markReconnecting()
   await disconnect(false)
   await connect()
 }
@@ -575,12 +563,11 @@ async function disconnect(updateStatus = true) {
     }
   }
   // cleanup
-  sessionId.value = null
-  connected.value = false
+  terminalConnection.markDisconnected()
   interactionMgr.clear()        // clear any active interaction
   interactionMgr.stopListening() // stop the interaction listener
   if (updateStatus) {
-    setTerminalStatus('disconnected')
+    terminalConnection.setStatus('disconnected')
   }
   // unlisten
   for (const u of unlistenFns) {

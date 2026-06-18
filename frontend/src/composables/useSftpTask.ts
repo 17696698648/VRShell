@@ -14,6 +14,23 @@ export function useSftpTask(getConnection: () => SftpConnection, setStatus?: (me
     sessionKey: '',
     deleted: 0,
   })
+  const taskHistory = reactive<SftpTask[]>([])
+
+  function snapshotCurrentTask(): SftpTask {
+    return {...currentTask}
+  }
+
+  function upsertCurrentTaskHistory() {
+    if (!currentTask.id) return
+    const index = taskHistory.findIndex((task) => task.id === currentTask.id)
+    const snapshot = snapshotCurrentTask()
+    if (index >= 0) {
+      taskHistory[index] = snapshot
+    } else {
+      taskHistory.unshift(snapshot)
+      if (taskHistory.length > 20) taskHistory.pop()
+    }
+  }
 
   const progressView = computed(() => ({
     active: currentTask.status === 'queued' || currentTask.status === 'running' || currentTask.status === 'canceling',
@@ -39,6 +56,7 @@ export function useSftpTask(getConnection: () => SftpConnection, setStatus?: (me
     currentTask.cancelable = true
     currentTask.sessionKey = getSftpSessionKey(connection)
     currentTask.deleted = 0
+    upsertCurrentTaskHistory()
     return currentTask.id
   }
 
@@ -55,6 +73,7 @@ export function useSftpTask(getConnection: () => SftpConnection, setStatus?: (me
     currentTask.progress = payload.operation === 'delete'
       ? 0
       : total > 0 ? Math.min(100, Math.round((payload.transferred / total) * 100)) : 0
+    upsertCurrentTaskHistory()
     return true
   }
 
@@ -62,6 +81,7 @@ export function useSftpTask(getConnection: () => SftpConnection, setStatus?: (me
     currentTask.status = 'success'
     currentTask.progress = currentTask.type === 'delete' ? currentTask.progress : 100
     currentTask.cancelable = false
+    upsertCurrentTaskHistory()
     window.setTimeout(() => {
       if (currentTask.status === 'success') {
         currentTask.status = 'idle'
@@ -74,6 +94,7 @@ export function useSftpTask(getConnection: () => SftpConnection, setStatus?: (me
     currentTask.status = message.toLowerCase().includes('canceled') ? 'canceled' : 'error'
     currentTask.error = message
     currentTask.cancelable = false
+    upsertCurrentTaskHistory()
   }
 
   async function cancelCurrentTask() {
@@ -82,17 +103,24 @@ export function useSftpTask(getConnection: () => SftpConnection, setStatus?: (me
     }
 
     currentTask.status = 'canceling'
+    upsertCurrentTaskHistory()
     setStatus?.('Canceling SFTP task...')
     await cancelSftpTask(currentTask.id)
   }
 
+  function clearTaskHistory() {
+    taskHistory.splice(0, taskHistory.length)
+  }
+
   return {
     currentTask,
+    taskHistory,
     progressView,
     beginTask,
     applyProgress,
     finishTask,
     failTask,
     cancelCurrentTask,
+    clearTaskHistory,
   }
 }

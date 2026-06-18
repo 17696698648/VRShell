@@ -6,6 +6,7 @@
     "install:frontend": "npm --prefix frontend install",
     "dev": "npm --prefix frontend run dev",
     "typecheck": "npm --prefix frontend run typecheck",
+    "test:frontend": "npm --prefix frontend run test",
     "build": "npm --prefix frontend run build",
     "preview": "npm --prefix frontend run preview",
     "check:json": "node scripts/check-json.mjs",
@@ -13,7 +14,7 @@
     "rust:check": "cargo check --manifest-path src-tauri/Cargo.toml",
     "rust:fmt": "cargo fmt --manifest-path src-tauri/Cargo.toml",
     "rust:clippy": "cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings",
-    "check": "npm run check:json && npm run check:utf8 && npm run typecheck && npm run rust:check && npm run rust:test && npm run rust:clippy",
+    "check": "npm run check:json && npm run check:utf8 && npm run typecheck && npm run test:frontend && npm run rust:check && npm run rust:test && npm run rust:clippy",
     "tauri:dev": "npm --prefix frontend run tauri",
     "tauri:build": "npm --prefix frontend run tauri:build",
     "rust:test": "cargo test --manifest-path src-tauri/Cargo.toml"

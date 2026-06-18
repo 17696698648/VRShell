@@ -251,54 +251,19 @@
           :class="{ 'editor-hidden': !showEditorArea }"
           :style="{ '--editor-height': editorPaneHeight + 'px' }"
         >
-          <section v-if="showEditorArea" class="editor-pane">
-            <div class="pane-tabs editor-tabs">
-              <button v-for="file in editorTabs" :key="file.path" class="pane-tab editor-file-tab"
-                      :class="{ selected: file.selected, dirty: file.dirty }" :title="file.path"
-                      @click="selectEditorFile(file.path)" @contextmenu="openEditorTabContextMenu($event, file.path)">
-                <span class="pane-tab-title">{{ file.name }}</span>
-                <span v-if="file.dirty" class="dirty-dot" title="Unsaved changes"></span>
-                <span class="pane-tab-close" title="Close" @click.stop="closeEditorTab(file.path)"><X
-                  :size="12"/></span>
-              </button>
-              <select v-if="editorTabs.length > 1" class="tab-more-select" title="More editor tabs"
-                      @change="handleEditorMoreSelect">
-                <option value="">More ?</option>
-                <option v-for="file in editorTabs" :key="'more-' + file.path" :value="file.path">
-                  {{ file.dirty ? '* ' : '' }}{{ file.name }}
-                </option>
-              </select>
-
-            </div>
-
-            <div class="editor-surface">
-              <CodeMirrorEditor
-                v-if="activeEditorFile"
-                :key="activeEditorFile.path"
-                v-model="activeEditorFile.content"
-                :language="activeEditorFile.language"
-                :path="activeEditorFile.path"
-                @update:model-value="markActiveEditorDirty"
-                @save="saveActiveEditorFile"
-              />
-              <div v-else class="editor-empty">
-                <EmptyState
-                  title="No file selected"
-                  description="Double-click a file in SFTP to open it here, or use the command palette to start a workflow."
-                >
-                  <template #icon>?</template>
-                  <template #actions>
-                    <UiButton title="Open command palette" v-tooltip="'Open command palette'"
-                              aria-label="Open command palette" @click="openQuickOpen">Quick open
-                    </UiButton>
-                    <UiButton title="Show SFTP drawer" v-tooltip="'Show SFTP drawer'" aria-label="Show SFTP drawer"
-                              @click="activeDrawer = 'sftp'">Show SFTP
-                    </UiButton>
-                  </template>
-                </EmptyState>
-              </div>
-            </div>
-          </section>
+          <EditorWorkbench
+            :show-editor-area="showEditorArea"
+            :editor-tabs="editorTabs"
+            :active-editor-file="activeEditorFile"
+            @select-file="selectEditorFile"
+            @open-tab-menu="openEditorTabContextMenu"
+            @close-file="closeEditorTab"
+            @more-select="handleEditorMoreSelect"
+            @update-active-file="markActiveEditorDirty"
+            @save-active-file="saveActiveEditorFile"
+            @open-quick-open="openQuickOpen"
+            @show-sftp="activeDrawer = 'sftp'"
+          />
 
           <div
             v-if="showEditorArea"
@@ -363,6 +328,7 @@
       :active-session-address="activeSessionAddress"
       :sftp-status="sftpStatus"
       :sftp-task="sftpTask"
+      :sftp-tasks="sftpTaskHistory"
       :terminal-status-text="terminalStatusText"
       :editor-status-text="editorStatusText"
       :current-theme-name="currentThemeName"
@@ -374,12 +340,11 @@
 import {invoke} from '@tauri-apps/api/core'
 import {listen} from '@tauri-apps/api/event'
 import {computed, defineAsyncComponent, nextTick, onMounted, onUnmounted, ref, watch} from 'vue'
-import {X} from '@lucide/vue'
-import CodeMirrorEditor from './components/CodeMirrorEditor.vue'
 import ActivityBar from './components/ActivityBar.vue'
 import CommandPalette from './components/CommandPalette.vue'
 import {ConfirmDialog, PromptDialog} from './components/dialog'
 import {EmptyState, StatusBar, UiButton} from './components/ui'
+import EditorWorkbench from './components/EditorWorkbench.vue'
 import HomeDashboard from './components/HomeDashboard.vue'
 import SessionDrawer from './components/SessionDrawer.vue'
 import SessionDialog from './components/session/SessionDialog.vue'
@@ -705,6 +670,7 @@ const sftpCancelRemoteSearch = ref(false)
 const sftpSearchResultMode = ref(false)
 const {
   currentTask: sftpTask,
+  taskHistory: sftpTaskHistory,
   progressView: sftpTransferProgress,
   beginTask: beginSftpTask,
   applyProgress: applySftpTaskProgress,

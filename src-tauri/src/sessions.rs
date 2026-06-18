@@ -189,21 +189,43 @@ fn restore_host_password(host: &mut PersistedSessionHost) {
     if host.password_keyring_id.is_none() && host.password.is_empty() {
         return;
     }
-    let keyring_id = host.password_keyring_id.as_deref().unwrap_or(&host.name);
-    let entry = ::keyring::Entry::new(KEYRING_SERVICE, keyring_id);
+    let keyring_id = host
+        .password_keyring_id
+        .clone()
+        .unwrap_or_else(|| host.name.clone());
+    let entry = ::keyring::Entry::new(KEYRING_SERVICE, &keyring_id);
     if let Ok(pw) = entry.get_password() {
         host.password = pw;
-        host.password_keyring_id = Some(keyring_id.to_string());
+        host.password_keyring_id = Some(keyring_id.clone());
+    } else if host.password_keyring_id.is_some() {
+        migrate_legacy_host_password(host, &keyring_id);
     }
     // If keyring lookup fails, keep whatever is in the password field (could be
     // a legacy plaintext password that will be migrated on next save)
+}
+
+fn migrate_legacy_host_password(host: &mut PersistedSessionHost, keyring_id: &str) {
+    if keyring_id == host.name {
+        return;
+    }
+
+    let legacy_entry = ::keyring::Entry::new(KEYRING_SERVICE, &host.name);
+    let Ok(password) = legacy_entry.get_password() else {
+        return;
+    };
+
+    let new_entry = ::keyring::Entry::new(KEYRING_SERVICE, keyring_id);
+    if new_entry.set_password(&password).is_ok() {
+        host.password = password;
+        let _ = legacy_entry.delete_password();
+    }
 }
 
 fn strip_host_passwords_for_save(groups: &mut [PersistedSessionGroup]) {
     for group in groups.iter_mut() {
         for host in group.hosts.iter_mut() {
             if !host.password.is_empty() {
-                // Ensure keyring ID is set (use host name as default)
+                // Ensure keyring ID is set (legacy records use host name as default)
                 if host.password_keyring_id.is_none() {
                     host.password_keyring_id = Some(host.name.clone());
                 }

@@ -18,6 +18,9 @@
           sftpTask.currentFile || sftpTask.status
         }} {{ sftpTask.type === 'delete' ? sftpTask.deleted : `${sftpTask.progress}%` }}</span>
       <span v-else-if="sftpStatus" class="status-chip">SFTP: {{ sftpStatus }}</span>
+      <span v-if="sftpTasks.length > 0" class="status-chip" :title="latestTaskTitle">
+        Tasks: {{ sftpTasks.length }}{{ failedTaskCount ? ` / ${failedTaskCount} failed` : '' }}
+      </span>
       <span v-if="terminalStatusText" class="status-chip">Terminal: {{ terminalStatusText }}</span>
     </div>
 
@@ -31,17 +34,22 @@
 </template>
 
 <script setup lang="ts">
+import {computed} from 'vue'
 import type {SftpTask} from '../../types'
 
-defineProps<{
+const props = defineProps<{
   hasActiveSession: boolean
   activeSessionAddress: string
   sftpStatus: string
   sftpTask: SftpTask
+  sftpTasks: SftpTask[]
   terminalStatusText: string
   editorStatusText: string
   currentThemeName: string
 }>()
+
+const failedTaskCount = computed(() => props.sftpTasks.filter((task) => task.status === 'error').length)
+const latestTaskTitle = computed(() => props.sftpTasks.slice(0, 5).map((task) => `${task.type}: ${task.currentFile || task.status}`).join('\n'))
 </script>
 
 <style scoped>
