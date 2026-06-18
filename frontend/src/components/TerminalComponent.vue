@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div ref="terminalRoot" :class="['terminal-wrap', `theme-${theme}`, { embedded }]">
     <div v-if="!embedded" class="controls">
       <label>Host: <input v-model="host" placeholder="example.com"/></label>
@@ -12,7 +12,7 @@
       <label style="margin-left:12px">Style:
         <select v-model="theme">
           <option value="minimal">鏋佺畝</option>
-          <option value="professional">涓撲笟</option>
+          <option value="professional">Professional</option>
           <option value="colorful">褰╄壊</option>
         </select>
       </label>
@@ -36,9 +36,9 @@
         @input="doSearch"
         @keydown.enter="findNext"
       />
-      <button title="Previous match" @click="findPrev">鈻?/button>
-      <button title="Next match" @click="findNext">鈻?/button>
-      <button title="Close" @click="closeSearch">鉁?/button>
+      <button title="Previous match" @click="findPrev">Prev</button>
+      <button title="Next match" @click="findNext">Next</button>
+      <button title="Close" @click="closeSearch">Close</button>
     </div>
 
     <TerminalInteractionDialog
@@ -353,18 +353,18 @@ function isCurrentTerminalMessage(payload: unknown) {
 async function handleTerminalErrorPayload(payload: unknown) {
   if (!isCurrentTerminalMessage(payload)) return
 
-  // If there's an active interaction, the backend is waiting for a response 鈥?
+  // If there's an active interaction, the backend is waiting for a response -
   // don't clobber it with a generic error message.
   if (activeInteraction.value) return
 
   const norm = normalizeTerminalMessage(payload)
 
-  // Legacy host-key errors (non-interactive path) 鈥?still handled for backward
+  // Legacy host-key errors (non-interactive path) - still handled for backward
   // compatibility (polling mode, SFTP).
   if (norm.code === 'host_key_unknown' || norm.code === 'host_key_mismatch') {
     const msg = norm.code === 'host_key_mismatch'
-      ? `Host key changed for ${host.value}:${port.value} 鈥?connection aborted`
-      : `Unknown host key for ${host.value}:${port.value} 鈥?connection aborted`
+      ? `Host key changed for ${host.value}:${port.value} - connection aborted`
+      : `Unknown host key for ${host.value}:${port.value} - connection aborted`
     terminalConnection.markError(msg)
     showConnectionError(msg)
     writeTerminalLine(`[VRShell] ${msg}`)
