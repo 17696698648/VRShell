@@ -1,5 +1,5 @@
 <template>
-  <button class="ui-button" :class="variant" :type="type">
+  <button class="ui-button" :class="variant" :type="type" v-bind="$attrs">
     <span v-if="$slots.icon" class="ui-button-icon"><slot name="icon" /></span>
     <slot />
   </button>

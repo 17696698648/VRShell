@@ -8,6 +8,7 @@ export type SessionFormModel = {
   authMethod: string
   user: string
   password: string
+  passwordKeyringId?: string
   privateKeyPath: string
   passphrase: string
   remark: string

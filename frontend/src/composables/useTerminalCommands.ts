@@ -1,7 +1,7 @@
-import { invoke } from '@tauri-apps/api/core'
 import type { SessionHost } from '../components/SessionTreeGroup.vue'
 import type { TerminalTab, ToastMessage } from '../types'
 import type { TerminalComponentHandle } from './useTerminalRegistry'
+import { sendTerminalInput } from '../services/terminal'
 
 export function useTerminalCommands({
   getActiveSession,
@@ -33,10 +33,7 @@ export function useTerminalCommands({
     const encoded = new TextEncoder().encode(command)
 
     try {
-      await invoke('send_input', {
-        sessionId: terminal.sessionId || '',
-        dataBase64: btoa(String.fromCharCode(...encoded)),
-      })
+      await sendTerminalInput(terminal.sessionId || '', btoa(String.fromCharCode(...encoded)))
       showToast(`cd ${path}`, 'info')
     } catch {
       showToast('Failed to send command', 'error')

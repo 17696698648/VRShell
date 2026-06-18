@@ -138,6 +138,7 @@ export type SessionHost = {
   port: number
   authMethod: string
   password: string
+  passwordKeyringId?: string
   privateKeyPath?: string
   passphrase?: string
   remark: string

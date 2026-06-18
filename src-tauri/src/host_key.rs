@@ -541,4 +541,41 @@ mod tests {
         assert_eq!(removed, vec!["[example.com]:2222 ssh-ed25519 AAAA"]);
         assert!(retained.contains("[example.com]:2200 ssh-ed25519 BBBB"));
     }
+
+    #[test]
+    fn hashed_known_hosts_line_matches_host() {
+        let line = format_known_hosts_line("example.com", 22, "ssh-ed25519", "AAAA", true);
+        let pattern = line.split_whitespace().next().unwrap();
+
+        assert!(pattern.starts_with("|1|"));
+        assert!(matches_single_pattern(pattern, "example.com", 22, false));
+        assert!(!matches_single_pattern(pattern, "other.com", 22, false));
+    }
+
+    #[test]
+    fn hashed_known_hosts_line_matches_non_standard_port() {
+        let line = format_known_hosts_line("example.com", 2222, "ssh-ed25519", "AAAA", true);
+        let pattern = line.split_whitespace().next().unwrap();
+
+        assert!(matches_single_pattern(pattern, "example.com", 2222, false));
+        assert!(!matches_single_pattern(pattern, "example.com", 22, false));
+    }
+
+    #[test]
+    fn remove_known_host_entry_keeps_wildcards_when_removing_exact_host() {
+        let path = temp_known_hosts_path("keep-wildcard");
+        fs::write(
+            &path,
+            "*.example.com ssh-ed25519 AAAA\napi.example.com ssh-ed25519 BBBB\n",
+        )
+        .unwrap();
+
+        let removed = remove_known_host_entry(&path, "api.example.com", 22).unwrap();
+        let retained = fs::read_to_string(&path).unwrap();
+        let _ = fs::remove_file(&path);
+
+        assert_eq!(removed, vec!["api.example.com ssh-ed25519 BBBB"]);
+        assert!(retained.contains("*.example.com ssh-ed25519 AAAA"));
+        assert!(!retained.contains("api.example.com ssh-ed25519 BBBB"));
+    }
 }

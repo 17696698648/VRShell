@@ -41,87 +41,14 @@
       <button title="Close" @click="closeSearch">✕</button>
     </div>
 
-    <!-- Interaction dialog: host key, auth retry, keyboard-interactive -->
-    <div v-if="activeInteraction" class="host-key-prompt-backdrop">
-      <div class="host-key-prompt" role="dialog" aria-modal="true">
-
-        <!-- Host Key Verification -->
-        <template v-if="activeInteraction.request.type === 'host_key_verification'">
-          <span class="host-key-prompt-kicker">SSH Host Key</span>
-          <strong>{{ activeInteraction.request.is_mismatch ? '⚠ Host key changed' : 'Unknown host key' }}</strong>
-          <p>
-            {{
-              activeInteraction.request.is_mismatch
-                ? `WARNING: The host key for ${activeInteraction.request.host}:${activeInteraction.request.port} has changed! Possible MITM attack!`
-                : `The authenticity of host '${activeInteraction.request.host}:${activeInteraction.request.port}' can't be established.`
-            }}
-          </p>
-          <code>Fingerprint: {{ activeInteraction.request.fingerprint }} ({{ activeInteraction.request.key_type }})</code>
-          <small>
-            {{
-              activeInteraction.request.is_mismatch
-                ? 'Only continue if you intentionally changed or reinstalled this server and verified the fingerprint.'
-                : 'Only trust this host if the fingerprint matches the server you expect.'
-            }}
-          </small>
-          <div class="host-key-prompt-actions">
-            <button @click="interactionMgr.rejectHostKey()">Cancel</button>
-            <button class="trust" @click="interactionMgr.acceptHostKey()">Trust and save</button>
-          </div>
-        </template>
-
-        <!-- Authentication Needed -->
-        <template v-else-if="activeInteraction.request.type === 'authentication_needed'">
-          <span class="host-key-prompt-kicker">Authentication Failed</span>
-          <strong>Login to {{ activeInteraction.request.host }}</strong>
-          <p>
-            Authentication as <em>{{ activeInteraction.request.username }}</em> failed.
-            <span v-if="activeInteraction.request.error_hint">Server: {{ activeInteraction.request.error_hint }}</span>
-          </p>
-          <small>Tried: {{ activeInteraction.request.tried_methods.join(', ') }}</small>
-          <div class="auth-fields">
-            <label>
-              <span>Password</span>
-              <input v-model="authForm.password" type="password" placeholder="Enter password" @keydown.enter="submitCredentials" />
-            </label>
-            <label>
-              <span>Private key path (optional)</span>
-              <input v-model="authForm.privateKeyPath" type="text" placeholder="~/.ssh/id_ed25519" />
-            </label>
-            <label v-if="authForm.privateKeyPath">
-              <span>Passphrase (optional)</span>
-              <input v-model="authForm.passphrase" type="password" placeholder="Key passphrase" />
-            </label>
-          </div>
-          <div class="host-key-prompt-actions">
-            <button @click="interactionMgr.cancel()">Cancel</button>
-            <button class="trust" @click="submitCredentials">Retry</button>
-          </div>
-        </template>
-
-        <!-- Keyboard-Interactive -->
-        <template v-else-if="activeInteraction.request.type === 'keyboard_interactive'">
-          <span class="host-key-prompt-kicker">Verification Required</span>
-          <strong>{{ activeInteraction.request.name || 'Keyboard-Interactive' }}</strong>
-          <p v-if="activeInteraction.request.instruction">{{ activeInteraction.request.instruction }}</p>
-          <div class="auth-fields">
-            <label v-for="(prompt, idx) in activeInteraction.request.prompts" :key="idx">
-              <span>{{ prompt.prompt }}</span>
-              <input
-                v-model="kbAnswers[idx]"
-                :type="prompt.echo ? 'text' : 'password'"
-                :placeholder="prompt.echo ? '' : '••••••'"
-                @keydown.enter="submitKbAnswers"
-              />
-            </label>
-          </div>
-          <div class="host-key-prompt-actions">
-            <button @click="interactionMgr.cancel()">Cancel</button>
-            <button class="trust" @click="submitKbAnswers">Submit</button>
-          </div>
-        </template>
-      </div>
-    </div>
+    <TerminalInteractionDialog
+      :interaction="activeInteraction"
+      @accept-host-key="interactionMgr.acceptHostKey()"
+      @reject-host-key="interactionMgr.rejectHostKey()"
+      @credentials="interactionMgr.provideCredentials"
+      @keyboard-answers="interactionMgr.provideKbAnswers"
+      @cancel="interactionMgr.cancel()"
+    />
 
     <div ref="termContainer" class="terminal" tabindex="0">
       <div v-if="embedded && hasAttemptedConnection && !connected && status !== 'connecting'" class="terminal-empty-overlay">
@@ -144,10 +71,23 @@ import {FitAddon} from 'xterm-addon-fit'
 import {SearchAddon} from 'xterm-addon-search'
 import 'xterm/css/xterm.css'
 import {invoke} from '@tauri-apps/api/core'
-import {listen} from '@tauri-apps/api/event'
 import UiButton from './ui/UiButton.vue'
+import TerminalInteractionDialog from './TerminalInteractionDialog.vue'
 import {formatAppError} from '../services/errors'
 import {useInteractionManager} from '../composables/useInteractionManager'
+import {base64ToString, uint8ToBase64} from '../composables/useTerminalEncoding'
+import {useTerminalResize} from '../composables/useTerminalResize'
+import {useTerminalSearch} from '../composables/useTerminalSearch'
+import {
+  connectSsh,
+  disconnectSshSession,
+  listenTerminalEvent,
+  pollTerminalEvents,
+  resizePty,
+  sendTerminalInput,
+  TERMINAL_EVENTS,
+  type TerminalDataPayload,
+} from '../services/terminal'
 
 const termContainer = ref<HTMLElement | null>(null)
 let term: Terminal | null = null
@@ -155,38 +95,19 @@ let fit: FitAddon | null = null
 let searchAddon: SearchAddon | null = null
 
 // --- Search ---
-const searchVisible = ref(false)
-const searchQuery = ref('')
-const searchInputRef = ref<HTMLInputElement | null>(null)
-
-function openSearch() {
-  searchVisible.value = true
-  setTimeout(() => {
-    searchInputRef.value?.focus()
-    searchInputRef.value?.select()
-  }, 50)
-}
-
-function closeSearch() {
-  searchVisible.value = false
-  searchQuery.value = ''
-  term?.focus()
-}
-
-function doSearch() {
-  if (!searchAddon || !searchQuery.value) return
-  searchAddon.findNext(searchQuery.value, {incremental: true})
-}
-
-function findNext() {
-  if (!searchAddon || !searchQuery.value) return
-  searchAddon.findNext(searchQuery.value)
-}
-
-function findPrev() {
-  if (!searchAddon || !searchQuery.value) return
-  searchAddon.findPrevious(searchQuery.value)
-}
+const {
+  closeSearch,
+  doSearch,
+  findNext,
+  findPrev,
+  openSearch,
+  searchInputRef,
+  searchQuery,
+  searchVisible,
+} = useTerminalSearch({
+  getSearchAddon: () => searchAddon,
+  getTerminal: () => term,
+})
 
 // --- Font zoom ---
 const terminalFontSize = ref(13)
@@ -222,44 +143,14 @@ function handleTerminalWheel(e: WheelEvent) {
 // --- Interaction manager (replaces old host-key prompt flow) ---
 const interactionMgr = useInteractionManager()
 const activeInteraction = computed(() => interactionMgr.active.value)
-// Auth retry form fields
-const authForm = ref({ password: '', privateKeyPath: '', passphrase: '' })
-// Keyboard-interactive answer array
-const kbAnswers = ref<string[]>([])
-
-function submitCredentials() {
-  interactionMgr.provideCredentials(
-    authForm.value.password || undefined,
-    authForm.value.privateKeyPath || undefined,
-    authForm.value.passphrase || undefined,
-  )
-  authForm.value = { password: '', privateKeyPath: '', passphrase: '' }
-}
-
-function submitKbAnswers() {
-  interactionMgr.provideKbAnswers([...kbAnswers.value])
-  kbAnswers.value = []
-}
-
-// Watch for keyboard-interactive prompts to init the answers array.
-watch(activeInteraction, (val) => {
-  if (val?.request.type === 'keyboard_interactive') {
-    kbAnswers.value = val.request.prompts.map(() => '')
-  } else if (val?.request.type === 'authentication_needed') {
-    authForm.value = { password: '', privateKeyPath: '', passphrase: '' }
-  }
-})
-
-// --- Connection retry ---
-const CONNECT_MAX_RETRIES = 3
-let connectRetryCount = 0
-
 const host = ref('localhost')
 const port = ref(22)
 const username = ref('')
 const password = ref('')
 const privateKeyPath = ref('')
 const passphrase = ref('')
+const autoCopySelection = ref(false)
+const rightClickPaste = ref(true)
 const autoReconnectSetting = ref(false)
 const idleTimeoutSecsSetting = ref(0)
 const sessionId = ref<string | null>(null)
@@ -299,28 +190,18 @@ let unlistenFns: Array<() => void> = []
 let pollInterval: number | null = null
 let usePolling = false
 let resizeObserver: ResizeObserver | null = null
-let fitAndResizeTimer: number | null = null
+let inputFlushTimer: number | null = null
+let pendingInput = ''
 
+const terminalResize = useTerminalResize({
+  getSessionId: () => sessionId.value,
+  getTerminal: () => term,
+  getFitAddon: () => fit,
+  sendResize: async (cols, rows) => {
+    await resizePty(sessionId.value, cols, rows)
+  },
+})
 
-function uint8ToBase64(u8: Uint8Array) {
-  let binary = ''
-  const chunk = 0x8000
-  for (let i = 0; i < u8.length; i += chunk) {
-    binary += String.fromCharCode.apply(null, Array.from(u8.subarray(i, i + chunk)))
-  }
-  return btoa(binary)
-}
-
-function base64ToString(b64: string) {
-  const bin = atob(b64)
-  // convert binary string to utf-8 string
-  try {
-    // most data from SSH is utf-8-compatible
-    return decodeURIComponent(escape(bin))
-  } catch (e) {
-    return bin
-  }
-}
 
 const THEME_DEFINITIONS: Record<string, any> = {
   minimal: {
@@ -384,6 +265,54 @@ function syncXtermWithCssVars() {
 
 function writeTerminalLine(message: string) {
   term?.writeln(`\r\n${message}`)
+}
+
+function clearSensitiveAuthFields() {
+  password.value = ''
+  passphrase.value = ''
+}
+
+function logTerminalDebug(context: string, error: unknown) {
+  if (import.meta.env.DEV) {
+    console.debug(`[VRShell] ${context}`, error)
+  }
+}
+
+async function sendInputToSession(targetSessionId: string, text: string) {
+  const enc = new TextEncoder().encode(text)
+  const b64 = uint8ToBase64(enc)
+  await sendTerminalInput(targetSessionId, b64)
+}
+
+async function flushPendingInput() {
+  inputFlushTimer = null
+  if (!sessionId.value || !pendingInput) return
+
+  const text = pendingInput
+  pendingInput = ''
+
+  try {
+    await sendInputToSession(sessionId.value, text)
+    if (props.broadcastSessionIds && props.broadcastSessionIds.length > 0) {
+      for (const sid of props.broadcastSessionIds) {
+        sendInputToSession(sid, text).catch((error) => {
+          logTerminalDebug('broadcast input failed', error)
+        })
+      }
+    }
+  } catch (e) {
+    status.value = `send error: ${e}`
+  }
+}
+
+function queueTerminalInput(data: string) {
+  if (!sessionId.value) return
+  pendingInput += data
+  if (inputFlushTimer === null) {
+    inputFlushTimer = window.setTimeout(() => {
+      void flushPendingInput()
+    }, 8)
+  }
 }
 
 function showConnectionError(message: string) {
@@ -489,7 +418,7 @@ async function handleQueuedTerminalEvent(queuedEvent: string) {
 async function drainQueuedTerminalEvents() {
   if (!sessionId.value) return false
 
-  const queuedEvents: string[] = await invoke('poll_events', {sessionId: sessionId.value})
+  const queuedEvents = await pollTerminalEvents(sessionId.value)
   for (const queuedEvent of queuedEvents) {
     try {
       await handleQueuedTerminalEvent(queuedEvent)
@@ -515,7 +444,7 @@ async function connect() {
   await interactionMgr.startListening()
   writeTerminalLine(`[VRShell] Connecting to ${username.value}@${host.value}:${port.value} ...`)
   try {
-    sessionId.value = await invoke<string>('connect_ssh', {
+    sessionId.value = await connectSsh({
       host: host.value,
       port: port.value,
       username: username.value,
@@ -526,7 +455,8 @@ async function connect() {
       idleTimeoutSecs: idleTimeoutSecsSetting.value,
     })
     connected.value = true
-    connectRetryCount = 0
+    clearSensitiveAuthFields()
+    terminalResize.resetLastSize()
     setTerminalStatus('connected')
     connectionLog.value = ''
     writeTerminalLine('[VRShell] SSH session connected.')
@@ -535,28 +465,29 @@ async function connect() {
     // send initial resize for the newly created session
     try {
       await sendResize()
-    } catch {
+    } catch (error) {
+      logTerminalDebug('send initial resize failed', error)
     }
 
     // Try to set up event listeners. If permission denied for event.listen,
     // fall back to polling via the `poll_events` invoke command.
     try {
-      const l1 = await listen('terminal-data', (e) => {
-        const payload: any = e.payload
+      const l1 = await listenTerminalEvent<TerminalDataPayload>(TERMINAL_EVENTS.data, (e) => {
+        const payload = e.payload
         if (payload.session_id !== sessionId.value) return
         const s = base64ToString(payload.data_base64)
         term?.write(s)
         emit('activity')
       })
-      const l2 = await listen('terminal-error', async (e) => {
+      const l2 = await listenTerminalEvent(TERMINAL_EVENTS.error, async (e) => {
         await handleTerminalErrorPayload(e.payload)
       })
-      const l3 = await listen('terminal-info', (e) => {
+      const l3 = await listenTerminalEvent(TERMINAL_EVENTS.info, (e) => {
         if (!isCurrentTerminalMessage(e.payload)) return
         const msg = normalizeTerminalMessage(e.payload).message
         status.value = `${msg}`
       })
-      const l4 = await listen('terminal-closed', (e) => {
+      const l4 = await listenTerminalEvent<string>(TERMINAL_EVENTS.closed, (e) => {
         const sidClosed: any = e.payload
         if (sidClosed === sessionId.value) {
           setTerminalStatus('disconnected')
@@ -565,7 +496,7 @@ async function connect() {
           emit('closed')
         }
       })
-      const l5 = await listen('terminal-pty-resize-ack', (e) => {
+      const l5 = await listenTerminalEvent(TERMINAL_EVENTS.ptyResizeAck, (e) => {
         const payload: any = e.payload
         if (sessionId.value && String(payload).startsWith(sessionId.value)) {
           status.value = `resized: ${String(payload)}`
@@ -582,34 +513,26 @@ async function connect() {
       pollInterval = window.setInterval(async () => {
         try {
           if (!sessionId.value) return
-          const msgs: string[] = await invoke('poll_events', {sessionId: sessionId.value})
+          const msgs = await pollTerminalEvents(sessionId.value)
           for (const message of msgs) {
             try {
               await handleQueuedTerminalEvent(message)
-            } catch (e2) {
-              // ignore parse errors
+            } catch (error) {
+              logTerminalDebug('handle polled terminal event failed', error)
             }
           }
-        } catch (e3) {
-          // ignore polling errors for now
+        } catch (error) {
+          logTerminalDebug('poll terminal events failed', error)
         }
       }, 250)
     }
   } catch (err: any) {
-    connectRetryCount++
-    if (connectRetryCount < CONNECT_MAX_RETRIES) {
-      const delay = Math.min(1000 * Math.pow(2, connectRetryCount - 1), 5000)
-      writeTerminalLine(`[VRShell] Connection retry ${connectRetryCount}/${CONNECT_MAX_RETRIES} in ${delay / 1000}s...`)
-      setTerminalStatus('connecting')
-      setTimeout(() => connect(), delay)
-      return
-    }
     const error = `connect error: ${formatAppError(err, 'SSH connection failed')}`
     setTerminalStatus('error', error)
     showConnectionError(error)
     writeTerminalLine(`[VRShell] ${error}`)
+    clearSensitiveAuthFields()
     connected.value = false
-    connectRetryCount = 0
   }
 }
 
@@ -622,7 +545,7 @@ async function reconnect() {
 async function disconnect(updateStatus = true) {
   if (sessionId.value) {
     try {
-      await invoke('disconnect_session', {sessionId: sessionId.value})
+      await disconnectSshSession(sessionId.value)
     } catch (e) {
       // ignore
     }
@@ -702,45 +625,33 @@ onMounted(() => {
   })
 
   term.onData(async (data) => {
-    if (!sessionId.value) return
-    const enc = new TextEncoder().encode(data)
-    const b64 = uint8ToBase64(enc)
-    try {
-      await invoke('send_input', {sessionId: sessionId.value, dataBase64: b64})
-      // Broadcast to other terminals in the same session
-      if (props.broadcastSessionIds && props.broadcastSessionIds.length > 0) {
-        for (const sid of props.broadcastSessionIds) {
-          invoke('send_input', {sessionId: sid, dataBase64: b64}).catch(() => {
-          })
-        }
-      }
-    } catch (e) {
-      status.value = `send error: ${e}`
-    }
+    queueTerminalInput(data)
   })
 
   window.addEventListener('resize', scheduleFitAndResize)
 
-  // Auto-copy selected text to clipboard (like modern terminals)
+  // Auto-copy is opt-in to avoid accidentally copying secrets from terminal output.
   term.onSelectionChange(() => {
+    if (!autoCopySelection.value) return
     const selected = term?.getSelection()
     if (selected) {
-      navigator.clipboard?.writeText(selected).catch(() => {
+      navigator.clipboard?.writeText(selected).catch((error) => {
+        logTerminalDebug('auto-copy selection failed', error)
       })
     }
   })
 
-  // Right-click paste from clipboard
+  // Right-click paste from clipboard can be disabled by settings later.
   termContainer.value?.addEventListener('contextmenu', async (e) => {
+    if (!rightClickPaste.value) return
     e.preventDefault()
     try {
       const text = await navigator.clipboard.readText()
       if (text && sessionId.value) {
-        const enc = new TextEncoder().encode(text)
-        const b64 = uint8ToBase64(enc)
-        await invoke('send_input', {sessionId: sessionId.value, dataBase64: b64})
+        queueTerminalInput(text)
       }
-    } catch {
+    } catch (error) {
+      logTerminalDebug('right-click paste failed', error)
     }
   })
 
@@ -768,7 +679,8 @@ onMounted(() => {
       setTimeout(() => {
         try {
           connect()
-        } catch {
+        } catch (error) {
+          logTerminalDebug('auto-connect failed', error)
         }
       }, 120)
     }
@@ -776,28 +688,13 @@ onMounted(() => {
 })
 
 function scheduleFitAndResize() {
-  if (fitAndResizeTimer) {
-    window.clearTimeout(fitAndResizeTimer)
-  }
-  fitAndResizeTimer = window.setTimeout(() => {
-    fitAndResizeTimer = null
-    try {
-      fit?.fit()
-      term?.refresh(0, term.rows - 1)
-      sendResize()
-    } catch {
-    }
-  }, 60)
+  terminalResize.scheduleFitAndResize()
 }
 
 async function sendResize() {
-  if (!sessionId.value) return
   try {
-    const cols = term?.cols ?? 80
-    const rows = term?.rows ?? 24
-    await invoke('resize_pty', {sessionId: sessionId.value, cols, rows})
-  } catch (e) {
-    // ignore
+    await terminalResize.sendCurrentSize()
+  } catch {
   }
 }
 
@@ -807,10 +704,12 @@ onBeforeUnmount(() => {
     resizeObserver?.disconnect()
   } catch {
   }
-  if (fitAndResizeTimer) {
-    window.clearTimeout(fitAndResizeTimer);
-    fitAndResizeTimer = null
+  terminalResize.clearResizeTimer()
+  if (inputFlushTimer !== null) {
+    window.clearTimeout(inputFlushTimer)
+    inputFlushTimer = null
   }
+  pendingInput = ''
   disconnect()
   interactionMgr.stopListening()
   if (connectionLogTimer) {

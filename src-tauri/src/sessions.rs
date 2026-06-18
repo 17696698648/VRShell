@@ -53,7 +53,7 @@ pub(crate) struct SftpSessionHandle {
     pub(crate) session: ssh2::Session,
     pub(crate) last_used: Instant,
 }
-pub(crate) type SftpSessionMap = Arc<Mutex<HashMap<String, SftpSessionHandle>>>;
+pub(crate) type SftpSessionMap = Arc<Mutex<HashMap<String, Arc<Mutex<SftpSessionHandle>>>>>;
 pub(crate) type SftpTaskMap = Arc<Mutex<HashMap<String, Arc<AtomicBool>>>>;
 pub(crate) type SftpTaskQueueMap = Arc<Mutex<HashMap<String, Arc<Mutex<()>>>>>;
 
@@ -110,6 +110,7 @@ pub(crate) struct PersistedSessionHost {
     #[serde(default)]
     password: String,
     #[serde(default)]
+    #[serde(alias = "passwordKeyringId")]
     password_keyring_id: Option<String>,
     remark: String,
     #[serde(default)]
@@ -215,6 +216,22 @@ fn strip_host_passwords_for_save(groups: &mut [PersistedSessionGroup]) {
     }
 }
 
+fn write_session_tree_atomically(path: &std::path::Path, content: &str) -> Result<(), String> {
+    let temp_path = path.with_extension("json.tmp");
+    let backup_path = path.with_extension("json.bak");
+
+    fs::write(&temp_path, content).map_err(|e| format!("write session tree temp err: {}", e))?;
+
+    if path.exists() {
+        let _ = fs::copy(path, &backup_path);
+    }
+
+    fs::rename(&temp_path, path).map_err(|e| {
+        let _ = fs::remove_file(&temp_path);
+        format!("replace session tree err: {}", e)
+    })
+}
+
 fn restore_host_passwords_after_load(groups: &mut [PersistedSessionGroup]) {
     for group in groups.iter_mut() {
         for host in group.hosts.iter_mut() {
@@ -239,7 +256,7 @@ pub async fn save_session_tree(
     let path = session_tree_file_path(&app_handle)?;
     let content = serde_json::to_string_pretty(&groups)
         .map_err(|e| format!("serialize session tree err: {}", e))?;
-    fs::write(&path, content).map_err(|e| format!("write session tree err: {}", e))
+    write_session_tree_atomically(&path, &content)
 }
 
 #[tauri::command]

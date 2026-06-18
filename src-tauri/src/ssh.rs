@@ -197,12 +197,33 @@ pub async fn connect_ssh(
 
                 // ---------- I/O loop ----------
                 let mut buf = [0u8; 16384];
+                let mut pending_output = Vec::with_capacity(32768);
+                let mut last_output_flush = Instant::now();
+                let output_flush_interval = Duration::from_millis(12);
+                let max_pending_output = 65536;
                 let mut last_keepalive = Instant::now();
                 let mut keepalive_failures: u32 = 0;
                 let mut last_activity = Instant::now();
 
+                let flush_terminal_output = |pending_output: &mut Vec<u8>| {
+                    if pending_output.is_empty() {
+                        return;
+                    }
+                    let b64 = STANDARD.encode(&pending_output);
+                    pending_output.clear();
+                    let evt = TerminalEvent {
+                        session_id: thread_session_id.clone(),
+                        data_base64: b64.clone(),
+                    };
+                    let _ = app.emit("terminal-data", evt);
+                    push_output_event(
+                        &out_queue_for_thread,
+                        serde_json::json!({"event":"terminal-data","payload": {"session_id": thread_session_id.clone(), "data_base64": b64}}).to_string(),
+                    );
+                };
+
                 loop {
-                    match rx.recv_timeout(Duration::from_millis(100)) {
+                    match rx.recv_timeout(Duration::from_millis(25)) {
                         Ok(msg) => match msg {
                             ControlMessage::Input(input_bytes) => {
                                 last_activity = Instant::now();
@@ -261,17 +282,13 @@ pub async fn connect_ssh(
                     match channel.read(&mut buf) {
                         Ok(n) if n > 0 => {
                             last_activity = Instant::now();
-                            let bytes = &buf[..n];
-                            let b64 = STANDARD.encode(bytes);
-                            let evt = TerminalEvent {
-                                session_id: thread_session_id.clone(),
-                                data_base64: b64.clone(),
-                            };
-                            let _ = app.emit("terminal-data", evt.clone());
-                            push_output_event(
-                                &out_queue_for_thread,
-                                serde_json::json!({"event":"terminal-data","payload": {"session_id": thread_session_id.clone(), "data_base64": b64}}).to_string(),
-                            );
+                            pending_output.extend_from_slice(&buf[..n]);
+                            if pending_output.len() >= max_pending_output
+                                || last_output_flush.elapsed() >= output_flush_interval
+                            {
+                                flush_terminal_output(&mut pending_output);
+                                last_output_flush = Instant::now();
+                            }
                         }
                         Ok(_) => {
                             if channel.eof() {
@@ -287,6 +304,8 @@ pub async fn connect_ssh(
                         }
                     }
                 }
+
+                flush_terminal_output(&mut pending_output);
 
                 // ---------- cleanup ----------
                 let _ = channel.close();
@@ -369,10 +388,10 @@ pub async fn disconnect_session(
         if let Ok(mut sftp_sessions) = state.sftp_sessions.lock() {
             sftp_sessions.remove(&sftp_key);
         }
-        // Wait for the thread to finish
-        if let Some(thread) = handle.thread {
-            let _ = thread.join();
-        }
+        // Do not join here: a blocked SSH read/write could freeze the Tauri command
+        // and make the UI feel hung. The worker observes ControlMessage::Close and
+        // emits terminal-closed when it exits.
+        drop(handle.thread);
     }
     Ok(())
 }

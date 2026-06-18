@@ -268,44 +268,61 @@ fn with_sftp<T>(
     operation: impl FnOnce(&ssh2::Sftp) -> SftpResult<T>,
 ) -> SftpResult<T> {
     let key = connection.session_key();
-    let mut sessions = state
-        .sftp_sessions
-        .lock()
-        .map_err(|e| format!("sftp session cache lock err: {}", e))?;
     let now = Instant::now();
     let idle_timeout =
         Duration::from_secs(state.sftp_idle_timeout_secs.load(Ordering::Relaxed).max(1));
-    sessions.retain(|_, handle| now.duration_since(handle.last_used) < idle_timeout);
 
-    if let Some(handle) = sessions.get(&key) {
-        if !is_sftp_session_healthy(&handle.session) {
-            sessions.remove(&key);
-        }
-    }
+    let handle = {
+        let mut sessions = state
+            .sftp_sessions
+            .lock()
+            .map_err(|e| format!("sftp session cache lock err: {}", e))?;
+        sessions.retain(|_, handle| {
+            handle
+                .lock()
+                .map(|handle| now.duration_since(handle.last_used) < idle_timeout)
+                .unwrap_or(false)
+        });
 
-    if !sessions.contains_key(&key) {
-        sessions.insert(
-            key.clone(),
-            crate::sessions::SftpSessionHandle {
+        if let Some(handle) = sessions.get(&key) {
+            handle.clone()
+        } else {
+            let handle = Arc::new(Mutex::new(crate::sessions::SftpSessionHandle {
                 session: connect_sftp(connection, Some(&state.pending_host_keys))?,
                 last_used: now,
-            },
-        );
+            }));
+            sessions.insert(key.clone(), handle.clone());
+            handle
+        }
+    };
+
+    let mut handle = handle
+        .lock()
+        .map_err(|e| format!("sftp session lock err: {}", e))?;
+
+    if !is_sftp_session_healthy(&handle.session) {
+        drop(handle);
+        if let Ok(mut sessions) = state.sftp_sessions.lock() {
+            sessions.remove(&key);
+        }
+        return with_sftp(state, connection, operation);
     }
 
-    let handle = sessions
-        .get_mut(&key)
-        .ok_or_else(|| "sftp session cache miss".to_string())?;
     handle.last_used = now;
     let sftp = handle.session.sftp().map_err(|e| {
-        sessions.remove(&key);
+        drop(handle);
+        if let Ok(mut sessions) = state.sftp_sessions.lock() {
+            sessions.remove(&key);
+        }
         format!("sftp init err: {}", e)
     })?;
 
     match operation(&sftp) {
         Ok(value) => Ok(value),
         Err(error) => {
-            sessions.remove(&key);
+            if let Ok(mut sessions) = state.sftp_sessions.lock() {
+                sessions.remove(&key);
+            }
             Err(error)
         }
     }

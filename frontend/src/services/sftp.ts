@@ -52,9 +52,32 @@ function getSftpInvokeConnection(connection: SftpConnection): SftpConnection | S
 
 async function invokeSftp<T>(command: string, connection: SftpConnection, args: Record<string, unknown> = {}) {
   const invokeConnection = getSftpInvokeConnection(connection)
-  const result = await invoke<T>(command, {connection: invokeConnection, ...args})
-  establishedSftpSessions.add(getSftpSessionKey(connection))
-  return result
+  const sessionKey = getSftpSessionKey(connection)
+  try {
+    const result = await invoke<T>(command, {connection: invokeConnection, ...args})
+    establishedSftpSessions.add(sessionKey)
+    return result
+  } catch (error) {
+    if (establishedSftpSessions.has(sessionKey) && isRecoverableSftpSessionError(error)) {
+      establishedSftpSessions.delete(sessionKey)
+      const result = await invoke<T>(command, {connection, ...args})
+      establishedSftpSessions.add(sessionKey)
+      return result
+    }
+
+    throw error
+  }
+}
+
+function isRecoverableSftpSessionError(error: unknown) {
+  const code = typeof error === 'object' && error && 'code' in error ? String((error as SftpError).code) : ''
+  const message = formatSftpError(error).toLowerCase()
+  return code === 'connection'
+    || code === 'sftp_error'
+    || code === 'session'
+    || message.includes('session')
+    || message.includes('connection')
+    || message.includes('sftp init')
 }
 
 export async function listSftpDirectory(connection: SftpConnection, path: string) {

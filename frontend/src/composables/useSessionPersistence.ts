@@ -44,6 +44,7 @@ function fromPersistedGroup(group: PersistedSessionGroup): SessionGroup {
       port: host.port,
       authMethod: host.authMethod,
       password: host.password,
+      passwordKeyringId: host.passwordKeyringId,
       privateKeyPath: host.privateKeyPath ?? '',
       passphrase: host.passphrase ?? '',
       remark: host.remark,
@@ -67,6 +68,7 @@ function toPersistedGroup(group: SessionGroup): PersistedSessionGroup {
       port: host.port,
       authMethod: host.authMethod,
       password: host.password,
+      passwordKeyringId: host.passwordKeyringId,
       privateKeyPath: host.privateKeyPath ?? '',
       passphrase: host.passphrase ?? '',
       remark: host.remark,
@@ -104,6 +106,7 @@ export function useSessionPersistence() {
   // O(1) lookup indexes, rebuilt on tree change
   const hostMap = reactive<Map<string, SessionHost>>(new Map())
   const groupMap = reactive<Map<string, SessionGroup>>(new Map())
+  let persistTimer: number | null = null
 
   function rebuildIndexes(groups: SessionGroup[] = sessionGroups) {
     hostMap.clear()
@@ -151,6 +154,17 @@ export function useSessionPersistence() {
     }
   }
 
+  function schedulePersistSessionTree() {
+    if (persistTimer !== null) {
+      window.clearTimeout(persistTimer)
+    }
+
+    persistTimer = window.setTimeout(() => {
+      persistTimer = null
+      void persistSessionTree()
+    }, 500)
+  }
+
   watch(
     sessionGroups,
     () => {
@@ -158,7 +172,7 @@ export function useSessionPersistence() {
         return
       }
 
-      persistSessionTree()
+      schedulePersistSessionTree()
     },
     { deep: true },
   )
@@ -173,5 +187,6 @@ export function useSessionPersistence() {
     rebuildIndexes,
     loadPersistedSessionTree,
     persistSessionTree,
+    schedulePersistSessionTree,
   }
 }

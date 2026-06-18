@@ -36,19 +36,35 @@ const suggestions: Record<string, string> = {
   canceled: 'The operation was canceled before it completed.',
 }
 
+const sensitivePatterns = [
+  /password\s*[:=]\s*[^\s,;]+/gi,
+  /passphrase\s*[:=]\s*[^\s,;]+/gi,
+  /private[_ -]?key\s*[:=]\s*[^\s,;]+/gi,
+  /([A-Z]:)?[\\/](?:Users|home)[\\/][^\\/\s]+/gi,
+]
+
+export function redactSensitiveText(value: string) {
+  return sensitivePatterns.reduce((text, pattern) => text.replace(pattern, (match) => {
+    if (match.toLowerCase().includes('password')) return 'password=<redacted>'
+    if (match.toLowerCase().includes('passphrase')) return 'passphrase=<redacted>'
+    if (match.toLowerCase().includes('key')) return 'privateKey=<redacted>'
+    return '<user-path>'
+  }), value)
+}
+
 export function toAppError(error: unknown, fallbackMessage = 'Operation failed'): AppError {
   if (error && typeof error === 'object') {
     const value = error as StructuredError
     const code = typeof value.code === 'string' && value.code ? value.code : 'unknown'
-    const message = typeof value.message === 'string' && value.message ? value.message : fallbackMessage
+    const message = redactSensitiveText(typeof value.message === 'string' && value.message ? value.message : fallbackMessage)
     const recoverable = typeof value.recoverable === 'boolean' ? value.recoverable : false
     const details = value.details && typeof value.details === 'object'
       ? value.details as Record<string, unknown>
       : undefined
     const path = typeof value.path === 'string'
-      ? value.path
+      ? redactSensitiveText(value.path)
       : typeof details?.path === 'string'
-        ? details.path
+        ? redactSensitiveText(details.path)
         : null
 
     return {
@@ -63,7 +79,7 @@ export function toAppError(error: unknown, fallbackMessage = 'Operation failed')
     }
   }
 
-  const message = error instanceof Error ? error.message : String(error || fallbackMessage)
+  const message = redactSensitiveText(error instanceof Error ? error.message : String(error || fallbackMessage))
   return {
     code: 'unknown',
     message,

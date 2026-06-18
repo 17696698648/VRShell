@@ -1,6 +1,7 @@
 ﻿import {reactive, ref} from 'vue'
 import type {SessionGroup, SessionHost} from '../components/SessionTreeGroup.vue'
 import type {SessionFormModel} from '../types/session'
+import {createId} from '../utils/id'
 
 export function useSessionForm(defaultGroupId: () => string) {
   const sessionDialog = reactive({visible: false, mode: 'create' as 'create' | 'edit', originalName: ''})
@@ -12,6 +13,7 @@ export function useSessionForm(defaultGroupId: () => string) {
     authMethod: 'password',
     user: '',
     password: '',
+    passwordKeyringId: '',
     privateKeyPath: '',
     passphrase: '',
     remark: '',
@@ -73,6 +75,7 @@ export function useSessionForm(defaultGroupId: () => string) {
     sessionForm.authMethod = 'password';
     sessionForm.user = '';
     sessionForm.password = '';
+    sessionForm.passwordKeyringId = '';
     sessionForm.privateKeyPath = '';
     sessionForm.passphrase = '';
     sessionForm.remark = ''
@@ -109,6 +112,7 @@ export function useSessionForm(defaultGroupId: () => string) {
     sessionForm.authMethod = host.authMethod;
     sessionForm.user = host.user
     sessionForm.password = host.password;
+    sessionForm.passwordKeyringId = host.passwordKeyringId ?? '';
     sessionForm.privateKeyPath = host.privateKeyPath ?? '';
     sessionForm.passphrase = host.passphrase ?? '';
     sessionForm.remark = host.remark
@@ -126,6 +130,7 @@ export function useSessionForm(defaultGroupId: () => string) {
       port: sessionForm.port,
       authMethod: sessionForm.authMethod,
       password: sessionForm.authMethod === 'password' ? sessionForm.password : '',
+      passwordKeyringId: sessionForm.passwordKeyringId || createId('credential'),
       privateKeyPath: sessionForm.authMethod === 'key' ? sessionForm.privateKeyPath : '',
       passphrase: sessionForm.authMethod === 'key' ? sessionForm.passphrase : '',
       remark: sessionForm.remark,
