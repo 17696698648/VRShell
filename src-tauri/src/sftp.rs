@@ -242,6 +242,15 @@ fn is_sftp_session_healthy(session: &ssh2::Session) -> bool {
     session.sftp().is_ok()
 }
 
+fn remove_sftp_session_state(state: &State<'_, AppState>, session_key: &str) {
+    if let Ok(mut sessions) = state.sftp_sessions.lock() {
+        sessions.remove(session_key);
+    }
+    if let Ok(mut queues) = state.sftp_task_queues.lock() {
+        queues.remove(session_key);
+    }
+}
+
 #[tauri::command]
 pub async fn set_sftp_idle_timeout(state: State<'_, AppState>, seconds: u64) -> SftpResult<()> {
     state
@@ -278,12 +287,24 @@ fn with_sftp<T>(
             .sftp_sessions
             .lock()
             .map_err(|e| format!("sftp session cache lock err: {}", e))?;
-        sessions.retain(|_, handle| {
-            handle
+        let mut expired_keys = Vec::new();
+        sessions.retain(|session_key, handle| {
+            let keep = handle
                 .lock()
                 .map(|handle| now.duration_since(handle.last_used) < idle_timeout)
-                .unwrap_or(false)
+                .unwrap_or(false);
+            if !keep {
+                expired_keys.push(session_key.clone());
+            }
+            keep
         });
+        if !expired_keys.is_empty() {
+            if let Ok(mut queues) = state.sftp_task_queues.lock() {
+                for expired_key in expired_keys {
+                    queues.remove(&expired_key);
+                }
+            }
+        }
 
         if let Some(handle) = sessions.get(&key) {
             handle.clone()
@@ -303,27 +324,21 @@ fn with_sftp<T>(
 
     if !is_sftp_session_healthy(&handle.session) {
         drop(handle);
-        if let Ok(mut sessions) = state.sftp_sessions.lock() {
-            sessions.remove(&key);
-        }
+        remove_sftp_session_state(state, &key);
         return with_sftp(state, connection, operation);
     }
 
     handle.last_used = now;
     let sftp = handle.session.sftp().map_err(|e| {
         drop(handle);
-        if let Ok(mut sessions) = state.sftp_sessions.lock() {
-            sessions.remove(&key);
-        }
+        remove_sftp_session_state(state, &key);
         format!("sftp init err: {}", e)
     })?;
 
     match operation(&sftp) {
         Ok(value) => Ok(value),
         Err(error) => {
-            if let Ok(mut sessions) = state.sftp_sessions.lock() {
-                sessions.remove(&key);
-            }
+            remove_sftp_session_state(state, &key);
             Err(error)
         }
     }
@@ -337,11 +352,7 @@ pub async fn disconnect_sftp_session(
     username: String,
 ) -> SftpResult<()> {
     let key = sftp_session_key(&host, port, &username);
-    let mut sessions = state
-        .sftp_sessions
-        .lock()
-        .map_err(|e| format!("sftp session cache lock err: {}", e))?;
-    sessions.remove(&key);
+    remove_sftp_session_state(&state, &key);
     Ok(())
 }
 

@@ -195,7 +195,6 @@ const emit = defineEmits<{
 
 let unlistenFns: Array<() => void> = []
 let pollTimer: number | null = null
-let usePolling = false
 let resizeObserver: ResizeObserver | null = null
 let inputFlushTimer: number | null = null
 let pendingInput = ''
@@ -445,11 +444,10 @@ function clearPollTimer() {
 }
 
 function startPollingFallback() {
-  usePolling = true
   let idlePollDelay = 250
 
   const poll = async () => {
-    if (!usePolling || !sessionId.value) return
+    if (pollTimer === null || !sessionId.value) return
 
     let hadEvents = false
     try {
@@ -596,9 +594,8 @@ async function disconnect(updateStatus = true) {
   clearPollTimer()
   if (connectionLogTimer) {
     window.clearTimeout(connectionLogTimer);
-    connectionLogTimer = null
+  connectionLogTimer = null
   }
-  usePolling = false
 }
 
 onMounted(() => {
