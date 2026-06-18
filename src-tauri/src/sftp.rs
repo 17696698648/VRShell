@@ -20,6 +20,7 @@ pub(crate) const DEFAULT_SFTP_IDLE_TIMEOUT_SECS: u64 = 10 * 60;
 
 /// Default buffer size for SFTP stream copies (64 KiB).
 const SFTP_COPY_BUFFER_SIZE: usize = 64 * 1024;
+const SFTP_PROGRESS_EMIT_INTERVAL: Duration = Duration::from_millis(100);
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -558,6 +559,10 @@ fn copy_with_progress<R: Read, W: Write>(
 ) -> Result<u64, String> {
     let mut buf = vec![0u8; buffer_size];
     let mut transferred = 0u64;
+    let mut last_progress_emit = Instant::now()
+        .checked_sub(SFTP_PROGRESS_EMIT_INTERVAL)
+        .unwrap_or_else(Instant::now);
+    let mut last_progress_value = 0u64;
 
     loop {
         check_sftp_task_cancelled(cancel_flag)?;
@@ -572,6 +577,14 @@ fn copy_with_progress<R: Read, W: Write>(
             .write_all(&buf[..read])
             .map_err(|e| format!("write err: {}", e))?;
         transferred += read as u64;
+        if last_progress_emit.elapsed() >= SFTP_PROGRESS_EMIT_INTERVAL || transferred >= total {
+            on_progress(transferred);
+            last_progress_emit = Instant::now();
+            last_progress_value = transferred;
+        }
+    }
+
+    if transferred != last_progress_value {
         on_progress(transferred);
     }
 

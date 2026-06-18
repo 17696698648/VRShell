@@ -899,6 +899,7 @@ const {
   isSftpDragging,
   pendingDragUploadDirectory,
   registerTauriDragDrop,
+  unregisterTauriDragDrop,
   handleSftpDragLeave,
   handleSftpItemDragEnter,
   handleSftpDrop,
@@ -1048,7 +1049,7 @@ useGlobalShortcuts({
   isSftpActive: () => activeDrawer.value === 'sftp',
 })
 
-const {restoreUiState} = useUiStatePersistence({
+const {restoreUiState, saveUiState, stopPersistence} = useUiStatePersistence({
   activeTheme,
   showEditorArea,
   editorPaneHeight,
@@ -1057,6 +1058,7 @@ const {restoreUiState} = useUiStatePersistence({
   minDrawerWidth,
   maxDrawerWidth,
 })
+let unlistenSftpProgress: (() => void) | null = null
 
 onMounted(async () => {
   restoreUiState()
@@ -1068,13 +1070,20 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  saveUiState()
+  stopPersistence()
   window.removeEventListener('beforeunload', disconnectAllSessionsBeforeExit)
+  unlistenSftpProgress?.()
+  unlistenSftpProgress = null
+  unregisterTauriDragDrop()
   disconnectAllSessionsBeforeExit()
 })
 
 async function registerSftpProgressListener() {
+  if (unlistenSftpProgress) return
+
   try {
-    await listen('sftp-progress', (event) => {
+    unlistenSftpProgress = await listen('sftp-progress', (event) => {
       applySftpTaskProgress(event.payload as Parameters<typeof applySftpTaskProgress>[0])
     })
   } catch (error) {

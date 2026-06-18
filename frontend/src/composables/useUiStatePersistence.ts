@@ -77,10 +77,11 @@ export function useUiStatePersistence<ThemeName extends string>({
     }
   }
 
-  watch([activeTheme, showEditorArea, editorPaneHeight, drawerWidth, activeDrawer], saveUiState)
+  const stopPersistence = watch([activeTheme, showEditorArea, editorPaneHeight, drawerWidth, activeDrawer], saveUiState)
 
   return {
     saveUiState,
     restoreUiState,
+    stopPersistence,
   }
 }

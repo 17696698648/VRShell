@@ -18,13 +18,21 @@ export function useSftpDropUpload(
   const isSftpDragging = ref(false)
   const pendingDragUploadDirectory = ref('')
   const pendingDragUploadPaths = ref<string[]>([])
+  let unlistenDragDrop: (() => void) | null = null
 
   async function registerTauriDragDrop() {
+    if (unlistenDragDrop) return
+
     try {
-      await getCurrentWebview().onDragDropEvent((event) => handleTauriDragDropEvent(event.payload))
+      unlistenDragDrop = await getCurrentWebview().onDragDropEvent((event) => handleTauriDragDropEvent(event.payload))
     } catch (error) {
       console.warn('register tauri drag/drop failed:', error)
     }
+  }
+
+  function unregisterTauriDragDrop() {
+    unlistenDragDrop?.()
+    unlistenDragDrop = null
   }
 
   function handleTauriDragDropEvent(event: DragDropEvent) {
@@ -106,6 +114,7 @@ export function useSftpDropUpload(
     pendingDragUploadDirectory,
     pendingDragUploadPaths,
     registerTauriDragDrop,
+    unregisterTauriDragDrop,
     handleSftpDragLeave,
     handleSftpItemDragEnter,
     handleSftpDrop,
