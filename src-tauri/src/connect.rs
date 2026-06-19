@@ -10,14 +10,17 @@ use std::{
     time::Duration,
 };
 
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
+
 use crate::interaction::{self, InteractionContext, InteractionRequest, InteractionResponse};
 
 /// Default per-address TCP connect timeout (used when no overall timeout is given).
 const DEFAULT_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// Apply TCP socket options for interactive SSH sessions:
-/// - `TCP_NODELAY`: disable Nagle algorithm 鈫?lower latency for keystrokes
-/// - `SO_KEEPALIVE`: OS鈥憀evel liveness probes 鈫?faster dead鈥慶onnection detection
+/// - `TCP_NODELAY`: disable Nagle algorithm 閳?lower latency for keystrokes
+/// - `SO_KEEPALIVE`: OS閳ユ唨evel liveness probes 閳?faster dead閳ユ叾onnection detection
 fn tune_tcp_stream(tcp: &TcpStream) {
     let _ = tcp.set_nodelay(true);
     let sock = socket2::SockRef::from(tcp);
@@ -26,22 +29,44 @@ fn tune_tcp_stream(tcp: &TcpStream) {
         sock.set_tcp_keepalive(&socket2::TcpKeepalive::new().with_time(Duration::from_secs(60)));
 }
 
-/// Get the SSH config directory (~/.ssh), creating it if it doesn't exist.
-fn ssh_dir() -> Option<PathBuf> {
-    let home = std::env::var("HOME")
-        .or_else(|_| std::env::var("USERPROFILE"))
-        .ok()?;
-    if home.is_empty() {
-        return None;
+fn validate_private_key_path(path: &str) -> Result<(), SshError> {
+    let key_path = Path::new(path);
+    let metadata = fs::metadata(key_path).map_err(|e| {
+        SshError::new(
+            "auth_key",
+            format!("private key is not accessible: {}", e),
+            true,
+        )
+    })?;
+    if !metadata.is_file() {
+        return Err(SshError::new(
+            "auth_key",
+            "private key path must point to a regular file",
+            true,
+        ));
     }
-    let dir = PathBuf::from(&home).join(".ssh");
-    let _ = fs::create_dir_all(&dir);
-    Some(dir)
-}
 
-/// Get the path to ~/.ssh/known_hosts (public for host_key.rs).
-pub(crate) fn known_hosts_path() -> Option<PathBuf> {
-    ssh_dir().map(|d| d.join("known_hosts"))
+    #[cfg(unix)]
+    {
+        let mode = metadata.permissions().mode() & 0o777;
+        if mode & 0o077 != 0 {
+            return Err(SshError::new(
+                "auth_key_permissions",
+                format!("private key permissions are too open ({mode:o}); use chmod 600"),
+                true,
+            ));
+        }
+    }
+
+    #[cfg(windows)]
+    {
+        if !metadata.permissions().readonly() {
+            // Windows ACL inspection is platform-specific and can be expensive;
+            // keep this as a non-fatal marker by allowing libssh2 auth to proceed.
+        }
+    }
+
+    Ok(())
 }
 
 /// Structured error for SSH connection operations.
@@ -135,7 +160,7 @@ impl From<ssh2::Error> for SshError {
                 -42 => "auth_agent",
                 -31 => "sftp_error",
                 _ => {
-                    // Fallback to string鈥慴ased heuristics for unknown codes.
+                    // Fallback to string閳ユ叴ased heuristics for unknown codes.
                     let lower = message.to_lowercase();
                     if lower.contains("timeout") || lower.contains("connect") {
                         "tcp_connect"
@@ -216,6 +241,7 @@ pub struct ConnectOptions<'a> {
     pub connect_timeout: Option<Duration>,
     pub verify_known_hosts: bool,
     pub host_key_cache: Option<&'a crate::sessions::HostKeyCache>,
+    pub known_hosts_path_override: Option<&'a Mutex<Option<PathBuf>>>,
     pub interaction: InteractionOptions<'a>,
 }
 
@@ -235,6 +261,7 @@ fn verify_host_key(
     host: &str,
     port: u16,
     host_key_cache: Option<&crate::sessions::HostKeyCache>,
+    known_hosts_path_override: Option<&Mutex<Option<PathBuf>>>,
     interaction_ctx: Option<&InteractionContext>,
     app: Option<&tauri::AppHandle>,
     session_id: Option<&str>,
@@ -256,9 +283,11 @@ fn verify_host_key(
     );
     let key_base64 = STANDARD.encode(host_key_bytes);
 
-    let known_hosts_path = match known_hosts_path() {
+    let known_hosts_path = match known_hosts_path_override
+        .and_then(crate::host_key::effective_known_hosts_path_from_override)
+    {
         Some(p) => p,
-        None => return Ok(()), // Can't determine home directory; skip check.
+        None => return Ok(()), // Can't determine a known_hosts path; skip check.
     };
 
     let mut known_hosts = sess
@@ -286,6 +315,22 @@ fn verify_host_key(
             if let (true, Some(app), Some(interaction_ctx), Some(session_id)) =
                 (interactive, app, interaction_ctx, session_id)
             {
+                // If the key is merely unknown (not a mismatch), re-read the
+                // known_hosts file before asking the user.  Another terminal
+                // tab may have just written this key.
+                if !is_mismatch && known_hosts_path.exists() {
+                    let mut fresh = sess.known_hosts().map_err(|e| {
+                        SshError::new("known_hosts", format!("init known_hosts err: {}", e), false)
+                    })?;
+                    let _ = fresh.read_file(&known_hosts_path, ssh2::KnownHostFileKind::OpenSSH);
+                    if matches!(
+                        fresh.check_port(host, port, host_key_bytes),
+                        ssh2::CheckResult::Match
+                    ) {
+                        return Ok(());
+                    }
+                }
+
                 let response = interaction::request_interaction(
                     app,
                     interaction_ctx,
@@ -312,6 +357,12 @@ fn verify_host_key(
                             key_type_name,
                             &key_base64,
                         )?;
+
+                        // Auto-resolve any other pending HostKeyVerification
+                        // requests for the same host:port so they don't show
+                        // a duplicate trust dialog.
+                        interaction::resolve_pending_host_keys(interaction_ctx, host, port);
+
                         Ok(())
                     }
                     InteractionResponse::HostKeyRejected | InteractionResponse::Cancel => {
@@ -373,7 +424,7 @@ fn verify_host_key(
     }
 }
 
-/// Directly write a host key entry to known_hosts 鈥?used inside the
+/// Directly write a host key entry to known_hosts 閳?used inside the
 /// interactive host-key flow where we already hold the session open.
 fn accept_host_key_inline(
     ctx: &InteractionContext,
@@ -491,6 +542,7 @@ pub fn connect_ssh_session(options: ConnectOptions<'_>) -> Result<SshConnection,
         connect_timeout,
         verify_known_hosts,
         host_key_cache,
+        known_hosts_path_override,
         interaction,
     } = options;
     let InteractionOptions {
@@ -515,7 +567,7 @@ pub fn connect_ssh_session(options: ConnectOptions<'_>) -> Result<SshConnection,
         ));
     }
 
-    // --- try each address with a time鈥憇liced timeout ---
+    // --- try each address with a time閳ユ唶liced timeout ---
     let addrs_len = socket_addrs.len().max(1) as u32;
     let per_addr_timeout = connect_timeout
         .map(|t| (t / addrs_len).max(Duration::from_secs(3)))
@@ -576,6 +628,8 @@ pub fn connect_ssh_session(options: ConnectOptions<'_>) -> Result<SshConnection,
             host,
             port,
             host_key_cache,
+            known_hosts_path_override
+                .or_else(|| interaction_ctx.map(|ctx| ctx.known_hosts_path_override.as_ref())),
             interaction_ctx,
             app,
             session_id,
@@ -665,6 +719,7 @@ fn authenticate_session(
                 let pp = new_pp.as_deref();
 
                 if let Some(kp) = key.filter(|v| !v.is_empty()) {
+                    validate_private_key_path(kp)?;
                     tried.push("publickey (user)".to_string());
                     if sess
                         .userauth_pubkey_file(
@@ -705,7 +760,7 @@ fn authenticate_session(
     }
 }
 
-/// Run the standard auth chain: agent 鈫?explicit key 鈫?auto key 鈫?password.
+/// Run the standard auth chain: agent 閳?explicit key 閳?auto key 閳?password.
 /// Returns `true` on success and populates `tried` for diagnostics.
 fn try_auth_chain(
     sess: &ssh2::Session,
@@ -724,6 +779,10 @@ fn try_auth_chain(
 
     // 2. Private key file (explicit)
     if let Some(key_path) = private_key_path.filter(|v| !v.is_empty()) {
+        if validate_private_key_path(key_path).is_err() {
+            tried.push("publickey (invalid key permissions)".to_string());
+            return false;
+        }
         tried.push("publickey".to_string());
         if sess
             .userauth_pubkey_file(
@@ -739,7 +798,7 @@ fn try_auth_chain(
         }
     }
 
-    // 2b. Private key from ~/.ssh/config IdentityFile (auto鈥慸etected)
+    // 2b. Private key from ~/.ssh/config IdentityFile (auto閳ユ吀etected)
     let auto_key = crate::sessions::lookup_identity_file(host);
     if let Some(ref key_path) = auto_key {
         if Path::new(key_path).exists() {

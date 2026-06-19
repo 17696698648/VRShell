@@ -1,5 +1,5 @@
-use crate::connect;
 use crate::sessions::{push_output_event, AppState, ControlMessage, SessionHandle, TerminalEvent};
+use crate::{config, connect};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use std::{
     collections::VecDeque,
@@ -61,12 +61,17 @@ pub async fn connect_ssh(
 
     let auto_reconnect = auto_reconnect.unwrap_or(false);
     let idle_timeout = Duration::from_secs(idle_timeout_secs.unwrap_or(0));
-    let max_retries: u32 = if auto_reconnect { 3 } else { 0 };
+    let max_retries: u32 = if auto_reconnect {
+        config::SSH_AUTO_RECONNECT_RETRIES
+    } else {
+        0
+    };
 
     let join_handle = thread::Builder::new()
         .name(format!("ssh-{}", &session_id[..8]))
         .spawn(move || {
             let emit_terminal_error = |message: String| {
+                let message = crate::sanitize::redact_sensitive(message);
                 let payload =
                     serde_json::json!({"session_id": thread_session_id.clone(), "message": message});
                 let _ = app.emit("terminal-error", payload.clone());
@@ -114,9 +119,10 @@ pub async fn connect_ssh(
                         private_key_path: key_path.as_deref(),
                         passphrase: key_passphrase.as_deref(),
                     },
-                    connect_timeout: Some(Duration::from_secs(15)),
+                    connect_timeout: Some(config::ssh_connect_timeout()),
                     verify_known_hosts: true,
                     host_key_cache: Some(&host_key_cache),
+                    known_hosts_path_override: None,
                     interaction: connect::InteractionOptions {
                         context: Some(&interaction_ctx),
                         app: Some(&app),
@@ -199,8 +205,8 @@ pub async fn connect_ssh(
                 let mut buf = [0u8; 16384];
                 let mut pending_output = Vec::with_capacity(32768);
                 let mut last_output_flush = Instant::now();
-                let output_flush_interval = Duration::from_millis(12);
-                let max_pending_output = 65536;
+                let output_flush_interval = config::ssh_output_flush_interval();
+                let max_pending_output = config::SSH_MAX_PENDING_OUTPUT_BYTES;
                 let mut last_keepalive = Instant::now();
                 let mut keepalive_failures: u32 = 0;
                 let mut last_activity = Instant::now();
@@ -257,13 +263,13 @@ pub async fn connect_ssh(
                                 break;
                             }
                             // keepalive every 30s
-                            if last_keepalive.elapsed() >= Duration::from_secs(30) {
+                            if last_keepalive.elapsed() >= config::ssh_keepalive_interval() {
                                 last_keepalive = Instant::now();
                                 match sess.keepalive_send() {
                                     Ok(_) => keepalive_failures = 0,
                                     Err(_) => {
                                         keepalive_failures += 1;
-                                        if keepalive_failures >= 3 {
+                                        if keepalive_failures >= config::SSH_MAX_KEEPALIVE_FAILURES {
                                             emit_terminal_error(
                                                 "session keepalive failed — connection lost"
                                                     .to_string(),
@@ -463,6 +469,7 @@ pub async fn test_ssh_connection(
         connect_timeout: Some(Duration::from_secs(5)),
         verify_known_hosts: false,
         host_key_cache: None,
+        known_hosts_path_override: None,
         interaction: connect::InteractionOptions::none(),
     })
     .map_err(|e| e.to_string())?;

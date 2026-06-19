@@ -1,6 +1,6 @@
 <template>
   <div v-if="visible" class="command-palette-backdrop" @click="close">
-    <div class="command-palette" @click.stop>
+    <div class="command-palette" data-testid="command-palette" @click.stop>
       <div class="palette-input-row">
         <Search :size="16" class="palette-search-icon"/>
         <input
@@ -9,35 +9,47 @@
           type="text"
           placeholder="搜索命令或会话..."
           class="palette-search"
+          data-testid="command-palette-search"
           @keydown="handleKeydown"
           @input="handleInput"
         />
         <kbd>esc</kbd>
       </div>
 
-      <div class="palette-results" ref="resultsContainerRef">
-        <template v-if="filteredGroups.length === 0">
+      <div
+        class="palette-results"
+        ref="resultsContainerRef"
+        role="listbox"
+        :aria-activedescendant="activeOptionId"
+        @scroll="updateVirtualWindow"
+      >
+        <template v-if="flatItems.length === 0">
           <div class="palette-empty">No matching commands</div>
         </template>
 
-        <template v-for="group in filteredGroups" :key="group.label">
-          <div class="palette-group-label">{{ group.label }}</div>
+        <div v-else class="palette-virtual-list" :style="{ height: virtualTotalHeight + 'px' }">
+          <div class="palette-virtual-window" :style="{ transform: `translateY(${virtualTopPadding}px)` }">
           <button
-            v-for="(item, itemIndex) in group.items"
-            :key="item.id"
+              v-for="entry in virtualEntries"
+              :key="entry.item.id"
+              :id="getOptionId(entry.index)"
             class="palette-item"
-            :class="{ active: activeIndex === getGlobalIndex(group.label, itemIndex) }"
-            @click="executeCommand(item)"
-            @mouseenter="activeIndex = getGlobalIndex(group.label, itemIndex)"
+              :data-command-id="entry.item.id"
+              role="option"
+              :aria-selected="activeIndex === entry.index"
+              :class="{ active: activeIndex === entry.index }"
+              @click="executeCommand(entry.item)"
+              @mouseenter="activeIndex = entry.index"
           >
-            <component :is="item.icon" :size="16" class="palette-item-icon"/>
+              <component :is="entry.item.icon" :size="16" class="palette-item-icon"/>
             <div class="palette-item-text">
-              <span class="palette-item-label">{{ item.label }}</span>
-              <span v-if="item.description" class="palette-item-desc">{{ item.description }}</span>
+                <span class="palette-item-label">{{ entry.item.label }}</span>
+                <span v-if="entry.item.description" class="palette-item-desc">{{ entry.item.description }}</span>
             </div>
-            <kbd v-if="item.shortcut">{{ item.shortcut }}</kbd>
+              <kbd v-if="entry.item.shortcut">{{ entry.item.shortcut }}</kbd>
           </button>
-        </template>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -75,6 +87,7 @@ type CommandAction =
   | 'switch_theme'
   | 'ssh_hash_known_hosts'
   | 'ssh_auto_reconnect'
+  | 'show_shortcuts'
 
 interface CommandItem {
   id: string
@@ -84,6 +97,7 @@ interface CommandItem {
   action: CommandAction
   shortcut?: string
   payload?: string
+  searchText?: string
 }
 
 interface CommandGroup {
@@ -105,8 +119,13 @@ const emit = defineEmits<{
   (event: 'execute', action: CommandAction, payload?: string): void
 }>()
 
+const PALETTE_ROW_HEIGHT = 48
+const PALETTE_OVERSCAN = 6
+
 const query = ref('')
 const activeIndex = ref(0)
+const virtualStartIndex = ref(0)
+const virtualEndIndex = ref(0)
 const searchInputRef = ref<HTMLInputElement | null>(null)
 const resultsContainerRef = ref<HTMLElement | null>(null)
 
@@ -198,6 +217,14 @@ const baseCommands: CommandGroup[] = [
         icon: Settings,
         action: 'ssh_auto_reconnect'
       },
+      {
+        id: 'cmd-show-shortcuts',
+        label: '快捷键帮助',
+        description: '查看命令面板、标签、SFTP、广播输入等快捷键',
+        icon: Settings,
+        action: 'show_shortcuts',
+        shortcut: 'Ctrl+/'
+      },
     ],
   },
 ]
@@ -222,16 +249,23 @@ const sessionCommands: CommandItem[] = [
   })),
 ]
 
+function withSearchText(item: CommandItem): CommandItem {
+  return {
+    ...item,
+    searchText: `${item.label} ${item.description ?? ''} ${item.payload ?? ''}`.toLowerCase(),
+  }
+}
+
 const allGroups = computed<CommandGroup[]>(() => {
   const groups = baseCommands.map((group) => {
     if (group.label === '主题') {
-      return {label: '主题', items: themeItems}
+      return {label: '主题', items: themeItems.map(withSearchText)}
     }
-    return group
+    return {...group, items: group.items.map(withSearchText)}
   })
 
   if (sessionCommands.length > 0) {
-    groups.push({label: '会话', items: sessionCommands})
+    groups.push({label: '会话', items: sessionCommands.map(withSearchText)})
   }
 
   return groups
@@ -256,13 +290,19 @@ const filteredGroups = computed(() => {
     .map((group) => ({
       ...group,
       items: group.items.filter(
-        (item) => fuzzyMatch(item.label, q) || fuzzyMatch(item.description ?? '', q),
+        (item) => fuzzyMatch(item.searchText ?? item.label, q.toLowerCase()),
       ),
     }))
     .filter((group) => group.items.length > 0)
 })
 
 const flatItems = computed(() => filteredGroups.value.flatMap((g) => g.items))
+const virtualTotalHeight = computed(() => flatItems.value.length * PALETTE_ROW_HEIGHT)
+const virtualTopPadding = computed(() => virtualStartIndex.value * PALETTE_ROW_HEIGHT)
+const virtualEntries = computed(() => flatItems.value
+  .slice(virtualStartIndex.value, virtualEndIndex.value)
+  .map((item, offset) => ({item, index: virtualStartIndex.value + offset})))
+const activeOptionId = computed(() => flatItems.value[activeIndex.value] ? getOptionId(activeIndex.value) : undefined)
 
 function getGlobalIndex(groupLabel: string, itemIndex: number): number {
   let offset = 0
@@ -275,10 +315,15 @@ function getGlobalIndex(groupLabel: string, itemIndex: number): number {
 
 function handleInput() {
   activeIndex.value = 0
+  updateVirtualWindow()
 }
 
 function handleKeydown(event: KeyboardEvent) {
   const total = flatItems.value.length
+  if (total === 0) {
+    if (event.key === 'Escape') close()
+    return
+  }
 
   if (event.key === 'ArrowDown') {
     event.preventDefault()
@@ -302,11 +347,27 @@ function scrollToActive() {
   nextTick(() => {
     const container = resultsContainerRef.value
     if (!container) return
-    const activeEl = container.querySelector('.palette-item.active')
-    if (activeEl) {
-      activeEl.scrollIntoView({block: 'nearest'})
+    const itemTop = activeIndex.value * PALETTE_ROW_HEIGHT
+    const itemBottom = itemTop + PALETTE_ROW_HEIGHT
+    if (itemTop < container.scrollTop) {
+      container.scrollTop = itemTop
+    } else if (itemBottom > container.scrollTop + container.clientHeight) {
+      container.scrollTop = itemBottom - container.clientHeight
     }
+    updateVirtualWindow()
   })
+}
+
+function updateVirtualWindow() {
+  const container = resultsContainerRef.value
+  const visibleRows = container ? Math.ceil(container.clientHeight / PALETTE_ROW_HEIGHT) : 10
+  const scrollTop = container?.scrollTop ?? 0
+  virtualStartIndex.value = Math.max(0, Math.floor(scrollTop / PALETTE_ROW_HEIGHT) - PALETTE_OVERSCAN)
+  virtualEndIndex.value = Math.min(flatItems.value.length, virtualStartIndex.value + visibleRows + PALETTE_OVERSCAN * 2)
+}
+
+function getOptionId(index: number) {
+  return `command-palette-option-${index}`
 }
 
 function executeCommand(item: CommandItem) {
@@ -330,10 +391,18 @@ watch(
     if (val) {
       nextTick(() => {
         searchInputRef.value?.focus()
+        updateVirtualWindow()
       })
     }
   },
 )
+
+watch(flatItems, () => {
+  if (activeIndex.value >= flatItems.value.length) {
+    activeIndex.value = Math.max(0, flatItems.value.length - 1)
+  }
+  nextTick(updateVirtualWindow)
+})
 </script>
 
 <style scoped>
@@ -400,9 +469,20 @@ watch(
 }
 
 .palette-results {
+  position: relative;
   overflow-y: auto;
   max-height: calc(60vh - 60px);
   padding: 6px;
+}
+
+.palette-virtual-list {
+  position: relative;
+}
+
+.palette-virtual-window {
+  position: absolute;
+  inset: 0 0 auto;
+  will-change: transform;
 }
 
 .palette-results::-webkit-scrollbar {

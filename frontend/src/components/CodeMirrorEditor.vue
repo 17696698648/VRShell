@@ -4,34 +4,12 @@
 
 <script setup lang="ts">
 import { EditorView, keymap, lineNumbers } from '@codemirror/view'
-import { Compartment, Prec } from '@codemirror/state'
+import { Compartment, Prec, type Extension } from '@codemirror/state'
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
 import { syntaxHighlighting, defaultHighlightStyle, StreamLanguage } from '@codemirror/language'
 import { searchKeymap } from '@codemirror/search'
 import { oneDark } from '@codemirror/theme-one-dark'
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-
-// --- Dedicated language packages ---
-import { javascript } from '@codemirror/lang-javascript'
-import { python } from '@codemirror/lang-python'
-import { json } from '@codemirror/lang-json'
-import { css } from '@codemirror/lang-css'
-import { html } from '@codemirror/lang-html'
-import { rust } from '@codemirror/lang-rust'
-import { go } from '@codemirror/lang-go'
-import { sql } from '@codemirror/lang-sql'
-import { markdown } from '@codemirror/lang-markdown'
-import { xml } from '@codemirror/lang-xml'
-import { php } from '@codemirror/lang-php'
-
-// --- Legacy StreamLanguage modes for languages lacking a dedicated CM6 package ---
-import { shell } from '@codemirror/legacy-modes/mode/shell'
-import { yaml } from '@codemirror/legacy-modes/mode/yaml'
-import { ruby } from '@codemirror/legacy-modes/mode/ruby'
-import { toml } from '@codemirror/legacy-modes/mode/toml'
-import { dockerFile } from '@codemirror/legacy-modes/mode/dockerfile'
-import { cpp } from '@codemirror/legacy-modes/mode/clike'
-import { java } from '@codemirror/legacy-modes/mode/clike'
 
 const props = defineProps<{
   modelValue: string
@@ -49,63 +27,112 @@ const containerRef = ref<HTMLElement | null>(null)
 let editorView: EditorView | null = null
 const languageCompartment = new Compartment()
 let isApplyingExternalValue = false
+let languageLoadToken = 0
 
-function resolveLanguage(lang: string) {
+async function resolveLanguage(lang: string): Promise<Extension> {
   switch (lang) {
     case 'javascript':
-    case 'typescript':
+    case 'typescript': {
+      const { javascript } = await import('@codemirror/lang-javascript')
       return javascript({ typescript: lang === 'typescript' })
-    case 'python':
+    }
+    case 'python': {
+      const { python } = await import('@codemirror/lang-python')
       return python()
-    case 'json':
+    }
+    case 'json': {
+      const { json } = await import('@codemirror/lang-json')
       return json()
+    }
     case 'css':
     case 'scss':
-    case 'less':
+    case 'less': {
+      const { css } = await import('@codemirror/lang-css')
       return css()
+    }
     case 'html':
     case 'handlebars':
-    case 'razor':
+    case 'razor': {
+      const { html } = await import('@codemirror/lang-html')
       return html()
-    case 'rust':
+    }
+    case 'rust': {
+      const { rust } = await import('@codemirror/lang-rust')
       return rust()
-    case 'go':
+    }
+    case 'go': {
+      const { go } = await import('@codemirror/lang-go')
       return go()
-    case 'sql':
+    }
+    case 'sql': {
+      const { sql } = await import('@codemirror/lang-sql')
       return sql()
-    case 'markdown':
+    }
+    case 'markdown': {
+      const { markdown } = await import('@codemirror/lang-markdown')
       return markdown()
-    case 'xml':
+    }
+    case 'xml': {
+      const { xml } = await import('@codemirror/lang-xml')
       return xml()
-    case 'php':
+    }
+    case 'php': {
+      const { php } = await import('@codemirror/lang-php')
       return php()
+    }
     case 'shell':
     case 'bash':
     case 'zsh':
-    case 'sh':
+    case 'sh': {
+      const { shell } = await import('@codemirror/legacy-modes/mode/shell')
       return StreamLanguage.define(shell)
+    }
     case 'yaml':
-    case 'yml':
+    case 'yml': {
+      const { yaml } = await import('@codemirror/legacy-modes/mode/yaml')
       return StreamLanguage.define(yaml)
+    }
     case 'ruby':
-    case 'rb':
+    case 'rb': {
+      const { ruby } = await import('@codemirror/legacy-modes/mode/ruby')
       return StreamLanguage.define(ruby)
-    case 'toml':
+    }
+    case 'toml': {
+      const { toml } = await import('@codemirror/legacy-modes/mode/toml')
       return StreamLanguage.define(toml)
-    case 'dockerfile':
+    }
+    case 'dockerfile': {
+      const { dockerFile } = await import('@codemirror/legacy-modes/mode/dockerfile')
       return StreamLanguage.define(dockerFile)
+    }
     case 'cpp':
     case 'c':
-    case 'h':
+    case 'h': {
+      const { cpp } = await import('@codemirror/legacy-modes/mode/clike')
       return StreamLanguage.define(cpp)
-    case 'java':
+    }
+    case 'java': {
+      const { java } = await import('@codemirror/legacy-modes/mode/clike')
       return StreamLanguage.define(java)
-    case 'vue':
-      // Vue SFC — basic HTML highlighting as fallback
+    }
+    case 'vue': {
+      const { html } = await import('@codemirror/lang-html')
       return html()
+    }
     default:
       return []
   }
+}
+
+async function configureLanguage(lang: string) {
+  const token = ++languageLoadToken
+  const extension = await resolveLanguage(lang)
+  const view = editorView
+  if (!view || token !== languageLoadToken) return
+
+  view.dispatch({
+    effects: languageCompartment.reconfigure(extension),
+  })
 }
 
 onMounted(async () => {
@@ -144,7 +171,7 @@ onMounted(async () => {
       }),
 
       // Language — set via compartment for dynamic switching
-      languageCompartment.of(resolveLanguage(props.language)),
+      languageCompartment.of([]),
 
       // Theme
       oneDark,
@@ -173,6 +200,8 @@ onMounted(async () => {
     ],
     parent: containerRef.value,
   })
+
+  void configureLanguage(props.language)
 })
 
 watch(
@@ -194,11 +223,7 @@ watch(
 watch(
   () => props.language,
   (lang) => {
-    const view = editorView
-    if (!view) return
-    view.dispatch({
-      effects: languageCompartment.reconfigure(resolveLanguage(lang)),
-    })
+    void configureLanguage(lang)
   },
 )
 

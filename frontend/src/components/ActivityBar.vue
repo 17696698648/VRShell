@@ -2,6 +2,7 @@
   <nav class="activity-bar">
     <button
       class="activity-button"
+      data-testid="activity-sessions"
       :class="{ active: activeDrawer === 'sessions' }"
       title="Sessions"
       @click="emit('toggle-drawer', 'sessions')"
@@ -13,6 +14,7 @@
     </button>
     <button
       class="activity-button"
+      data-testid="activity-sftp"
       :class="{ active: activeDrawer === 'sftp' }"
       title="SFTP"
       @click="emit('toggle-drawer', 'sftp')"

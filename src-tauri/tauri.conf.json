@@ -19,7 +19,7 @@
         "closable": true,
         "decorations": false,
         "theme": "Dark",
-        "devtools": false
+        "devtools": true
       }
     ],
     "security": {
@@ -27,9 +27,9 @@
     }
   },
   "build": {
-    "beforeDevCommand": "npm.cmd --prefix frontend run dev",
+    "beforeDevCommand": "npm --prefix frontend run dev",
     "devUrl": "http://localhost:5173",
-    "beforeBuildCommand": "npm.cmd --prefix frontend run build",
+    "beforeBuildCommand": "npm --prefix frontend run build",
     "frontendDist": "../frontend/dist"
   },
   "bundle": {

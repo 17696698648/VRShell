@@ -76,9 +76,7 @@ export function useUiStatePersistence<ThemeName extends string>({
     }
     editorPaneHeight.value = clampNumber(state.editorPaneHeight, minEditorPaneHeight, maxEditorPaneHeight, editorPaneHeight.value)
     drawerWidth.value = clampNumber(state.drawerWidth, minDrawerWidth, maxDrawerWidth, minDrawerWidth)
-    if (state.activeDrawer === null || state.activeDrawer === 'sessions' || state.activeDrawer === 'sftp') {
-      activeDrawer.value = state.activeDrawer
-    }
+    activeDrawer.value = 'sessions'
   }
 
   const stopPersistence = watch([activeTheme, showEditorArea, editorPaneHeight, drawerWidth, activeDrawer], saveUiState)

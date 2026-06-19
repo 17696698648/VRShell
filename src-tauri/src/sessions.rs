@@ -1,3 +1,4 @@
+use crate::config;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
@@ -38,13 +39,29 @@ pub(crate) struct SessionHandle {
     pub(crate) username: String,
 }
 
-/// Push a JSON event string into the output queue, dropping oldest entries if over capacity.
+/// Push a JSON event string into the fallback output queue.
+///
+/// The normal delivery path is Tauri events. This queue is only for frontend
+/// polling fallback, so it uses both item-count and byte-count caps and drops
+/// oldest entries first when the frontend consumes too slowly.
 pub(crate) fn push_output_event(output: &Arc<Mutex<VecDeque<String>>>, event_json: String) {
     if let Ok(mut q) = output.lock() {
-        while q.len() >= MAX_OUTPUT_QUEUE_SIZE {
-            q.pop_front();
-        }
         q.push_back(event_json);
+        trim_output_queue(&mut q);
+    }
+}
+
+fn trim_output_queue(q: &mut VecDeque<String>) {
+    while q.len() > MAX_OUTPUT_QUEUE_SIZE {
+        q.pop_front();
+    }
+
+    let mut total_bytes: usize = q.iter().map(|event| event.len()).sum();
+    while total_bytes > config::SSH_OUTPUT_QUEUE_MAX_BYTES {
+        let Some(removed) = q.pop_front() else {
+            break;
+        };
+        total_bytes = total_bytes.saturating_sub(removed.len());
     }
 }
 

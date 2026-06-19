@@ -15,7 +15,8 @@ export function base64ToBytes(base64: string) {
 }
 
 export function downloadBytes(bytes: Uint8Array, fileName: string) {
-  const blob = new Blob([bytes])
+  const copy = new Uint8Array(bytes)
+  const blob = new Blob([copy.buffer])
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
 

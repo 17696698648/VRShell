@@ -1,4 +1,4 @@
-import {ref, type Ref} from 'vue'
+import {ref, type Ref, unref} from 'vue'
 import {listen} from '@tauri-apps/api/event'
 import {invoke} from '@tauri-apps/api/core'
 
@@ -58,7 +58,13 @@ type InteractionRequiredEvent = {
 // Composable
 // ---------------------------------------------------------------------------
 
-export function useInteractionManager() {
+/**
+ * @param sessionIdRef — Ref to the current terminal's SSH session ID.
+ *   When set, only `interaction-required` events matching this session are
+ *   accepted.  This prevents one TerminalComponent from stealing another's
+ *   interaction event when multiple terminal tabs connect simultaneously.
+ */
+export function useInteractionManager(sessionIdRef: Ref<string | null>) {
   const active = ref<ActiveInteraction | null>(null) as Ref<ActiveInteraction | null>
   let listenUnsubscribe: (() => void) | null = null
 
@@ -69,6 +75,13 @@ export function useInteractionManager() {
       'interaction-required',
       (event: InteractionRequiredEvent) => {
         const {session_id, request} = event.payload
+
+        // When the terminal's own session ID is already known, only accept
+        // events that belong to it.  Otherwise any auto-connecting tab
+        // would overwrite every other tab's active interaction.
+        const ownSessionId = unref(sessionIdRef)
+        if (ownSessionId && ownSessionId !== session_id) return
+
         active.value = {sessionId: session_id, request}
       },
     )

@@ -1,0 +1,5 @@
+export {useTerminalActivity} from '../composables/terminal/useTerminalActivity'
+export {useTerminalCommands, copyText} from '../composables/terminal/useTerminalCommands'
+export {useTerminalRegistry} from '../composables/terminal/useTerminalRegistry'
+export {getTerminalTabTitle} from '../composables/terminal/useTerminalTabs'
+export {useTerminalViewState} from '../composables/terminal/useTerminalViewState'

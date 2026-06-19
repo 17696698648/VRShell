@@ -1,6 +1,6 @@
 import { ref } from 'vue'
-import type { Terminal } from 'xterm'
-import type { SearchAddon } from 'xterm-addon-search'
+import type { Terminal } from '@xterm/xterm'
+import type { SearchAddon } from '@xterm/addon-search'
 
 export function useTerminalSearch({
   getSearchAddon,

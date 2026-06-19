@@ -99,8 +99,16 @@ pub enum InteractionResponse {
 /// The send-half stored so `respond_to_interaction` can reach the waiting thread.
 pub(crate) type PendingInteractionSender = mpsc::Sender<InteractionResponse>;
 
-/// Map of session_id → sender for in-flight interactions.
-pub(crate) type PendingInteractionMap = Arc<Mutex<HashMap<String, PendingInteractionSender>>>;
+/// Stored alongside each sender so we can auto-resolve other pending host-key
+/// verifications for the same host:port after one is accepted.
+#[derive(Debug, Clone)]
+pub(crate) struct PendingInteractionEntry {
+    pub(crate) request: InteractionRequest,
+    pub(crate) sender: PendingInteractionSender,
+}
+
+/// Map of session_id → (request, sender) for in-flight interactions.
+pub(crate) type PendingInteractionMap = Arc<Mutex<HashMap<String, PendingInteractionEntry>>>;
 
 /// How long the thread waits for a frontend response before timing out.
 const INTERACTION_TIMEOUT: Duration = Duration::from_secs(120);
@@ -157,7 +165,13 @@ pub(crate) fn request_interaction(
             crate::connect::SshError::new("interaction", format!("lock: {}", e), false)
         })?;
         // Replace any stale pending interaction for this session.
-        pending.insert(session_id.to_string(), tx);
+        pending.insert(
+            session_id.to_string(),
+            PendingInteractionEntry {
+                request: request.clone(),
+                sender: tx,
+            },
+        );
     }
 
     // Notify the frontend via Tauri event.
@@ -198,6 +212,44 @@ pub(crate) fn request_interaction(
 }
 
 // ---------------------------------------------------------------------------
+// Auto-resolve helper
+// ---------------------------------------------------------------------------
+
+/// After a host key for `host:port` has been accepted and written to
+/// known_hosts, auto-resolve any other pending `HostKeyVerification` requests
+/// for the same host:port so they don't show a duplicate trust dialog.
+pub(crate) fn resolve_pending_host_keys(ctx: &InteractionContext, host: &str, port: u16) {
+    let mut pending = match ctx.pending_map.lock() {
+        Ok(p) => p,
+        Err(_) => return,
+    };
+
+    let resolved: Vec<String> = pending
+        .iter()
+        .filter(|(_, entry)| {
+            if let InteractionRequest::HostKeyVerification {
+                host: entry_host,
+                port: entry_port,
+                ..
+            } = &entry.request
+            {
+                entry_host == host && *entry_port == port
+            } else {
+                false
+            }
+        })
+        .map(|(session_id, _)| session_id.clone())
+        .collect();
+
+    for session_id in resolved {
+        if let Some(entry) = pending.remove(&session_id) {
+            // Send HostKeyAccepted — this unblocks the waiting thread.
+            let _ = entry.sender.send(InteractionResponse::HostKeyAccepted);
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Tauri command: respond to a pending interaction
 // ---------------------------------------------------------------------------
 
@@ -215,6 +267,7 @@ pub async fn respond_to_interaction(
             .map_err(|e| format!("lock err: {}", e))?;
         pending
             .remove(&session_id)
+            .map(|entry| entry.sender)
             .ok_or_else(|| format!("no pending interaction for session {}", session_id))?
     };
 

@@ -3,11 +3,15 @@
 
 node_modules/
 frontend/node_modules/
+frontend/node_modules/.vite/
 
 dist/
 frontend/dist/
+frontend/playwright-report/
+frontend/test-results/
 src-tauri/dist/
 src-tauri/target/
+target/
 
 .DS_Store
 Thumbs.db

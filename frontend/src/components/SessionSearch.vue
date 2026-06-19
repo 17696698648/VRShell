@@ -1,8 +1,11 @@
 <template>
-  <label class="search-box">
-    <Search :size="12" />
-    <input :value="modelValue" placeholder="Search hosts, groups..." @input="emit('update:modelValue', ($event.target as HTMLInputElement).value)" />
-  </label>
+  <div class="search-wrap">
+    <label class="search-box">
+      <Search :size="12" />
+      <input :value="modelValue" placeholder="Search name, host, user, remark, group..." @input="emit('update:modelValue', ($event.target as HTMLInputElement).value)" />
+    </label>
+    <small v-if="modelValue.trim()">Matching across host, user, remark, and group path</small>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -29,6 +32,17 @@ const emit = defineEmits<{
   background: rgba(8, 11, 18, 0.44);
   color: #64748b;
   font-size: 12px;
+}
+
+.search-wrap {
+  display: grid;
+  gap: 4px;
+}
+
+.search-wrap small {
+  padding: 0 4px;
+  color: var(--idea-text-muted);
+  font-size: 10px;
 }
 
 .search-box input {

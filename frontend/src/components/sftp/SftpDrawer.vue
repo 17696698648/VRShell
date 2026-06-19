@@ -21,12 +21,30 @@
         <div class="transfer-progress-meta">
           <strong>{{ progressLabel }}</strong>
           <span>{{ progress.file }}</span>
-          <small>{{ progress.operation === 'delete' ? `${progress.deleted} ‰∏™` : `${progress.percent}%` }}</small>
+          <small>{{ progress.operation === 'delete' ? `${progress.deleted} items` : `${progress.percent}%` }}</small>
         </div>
         <progress v-if="progress.operation !== 'delete'" :value="progress.percent" max="100"></progress>
-        <div v-else class="delete-progress-text">Ê≠£Âú®Âà†Èô§ {{ progress.file }} / {{ progress.deleted }}</div>
-        <button class="btn small" @click="emit('cancel-transfer')">ÂèñÊ∂à</button>
+        <div v-else class="delete-progress-text">Deleting {{ progress.file }} / {{ progress.deleted }}</div>
+        <div v-if="progressDetail" class="transfer-progress-detail">{{ progressDetail }}</div>
+        <button class="btn small" @click="emit('cancel-transfer')">Cancel</button>
       </div>
+      <details v-if="tasks.length > 0" class="sftp-task-center">
+        <summary>
+          <span>Transfers</span>
+          <small>{{ taskSummary }}</small>
+          <button type="button" class="task-clear" @click.prevent="emit('clear-task-history')">Clear</button>
+        </summary>
+        <ul>
+          <li v-for="task in tasks.slice(0, 6)" :key="task.id" :class="`task-${task.status}`">
+            <span class="task-main">
+              <strong>{{ task.type }}</strong>
+              <em>{{ task.currentFile || task.status }}</em>
+            </span>
+            <span class="task-meta">{{ formatTaskMeta(task) }}</span>
+          </li>
+        </ul>
+      </details>
+
 
       <div class="sftp-breadcrumb-row">
         <SftpBreadcrumbs :path="path" :breadcrumbs="breadcrumbs" @open-path="emit('open-path', $event)"/>
@@ -34,7 +52,7 @@
           class="bookmark-star"
           :title="props.bookmarks?.includes(path) ? 'Remove bookmark' : 'Add bookmark'"
           @click="props.bookmarks?.includes(path) ? emit('remove-bookmark', path) : emit('add-bookmark', path)"
-        >{{ props.bookmarks?.includes(path) ? '‚òÖ' : '‚òÜ' }}
+        >{{ props.bookmarks?.includes(path) ? '°Ô' : '°Ó' }}
         </button>
       </div>
 
@@ -48,7 +66,7 @@
           @click="emit('open-path', b)"
         >
           {{ b === '/' ? '/' : b.split('/').pop() || b }}
-          <span class="bookmark-remove" @click.stop="emit('remove-bookmark', b)">√ó</span>
+          <span class="bookmark-remove" @click.stop="emit('remove-bookmark', b)">°¡</span>
         </button>
       </div>
 
@@ -85,7 +103,7 @@
 
 <script setup lang="ts">
 import {computed} from 'vue'
-import type {SftpSortKey, SftpTreeNode} from '../../types'
+import type {SftpSortKey, SftpTask, SftpTreeNode} from '../../types'
 import SftpBreadcrumbs from './SftpBreadcrumbs.vue'
 import SftpSearch from './SftpSearch.vue'
 import SftpToolbar from './SftpToolbar.vue'
@@ -117,7 +135,10 @@ const props = defineProps<{
     file: string
     percent: number
     deleted: number
+    bytesPerSecond?: number
+    etaSeconds?: number
   }
+  tasks: SftpTask[]
 }>()
 
 const emit = defineEmits<{
@@ -127,6 +148,7 @@ const emit = defineEmits<{
   (event: 'remote-search'): void
   (event: 'cancel-search'): void
   (event: 'cancel-transfer'): void
+  (event: 'clear-task-history'): void
   (event: 'clear-search'): void
   (event: 'sort', key: SftpSortKey): void
   (event: 'open-path', path: string): void
@@ -149,10 +171,50 @@ const searchTextModel = computed({
 })
 
 const progressLabel = computed(() => {
-  if (props.progress.operation === 'download') return '‰∏ãËΩΩ'
-  if (props.progress.operation === 'delete') return 'Âà†Èô§'
-  return '‰∏ä‰º†'
+  if (props.progress.operation === 'download') return 'Download'
+  if (props.progress.operation === 'delete') return 'Delete'
+  return 'Upload'
 })
+
+const taskSummary = computed(() => {
+  const failed = props.tasks.filter((task) => task.status === 'error').length
+  const running = props.tasks.filter((task) => ['queued', 'running', 'canceling'].includes(task.status)).length
+  return [running ? `${running} active` : '', failed ? `${failed} failed` : '', `${props.tasks.length} total`]
+    .filter(Boolean)
+    .join(' °§ ')
+})
+
+const progressDetail = computed(() => {
+  const parts: string[] = []
+  if (props.progress.bytesPerSecond) parts.push(`${formatBytes(props.progress.bytesPerSecond)}/s`)
+  if (props.progress.etaSeconds !== undefined) parts.push(`ETA ${formatDuration(props.progress.etaSeconds)}`)
+  return parts.join(' °§ ')
+})
+
+function formatTaskMeta(task: SftpTask) {
+  const value = task.type === 'delete' ? `${task.deleted} items` : `${task.progress}%`
+  return task.status === 'error' && task.error ? `${value} °§ ${task.error}` : `${value} °§ ${task.status}`
+}
+
+function formatBytes(bytes: number) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 B'
+  const units = ['B', 'KB', 'MB', 'GB']
+  let value = bytes
+  let unitIndex = 0
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024
+    unitIndex += 1
+  }
+  return `${value >= 10 || unitIndex === 0 ? value.toFixed(0) : value.toFixed(1)} ${units[unitIndex]}`
+}
+
+function formatDuration(seconds: number) {
+  if (!Number.isFinite(seconds) || seconds < 0) return '--'
+  if (seconds < 60) return `${Math.ceil(seconds)}s`
+  const minutes = Math.floor(seconds / 60)
+  const rest = Math.ceil(seconds % 60)
+  return `${minutes}m ${rest}s`
+}
 
 </script>
 
@@ -259,5 +321,89 @@ const progressLabel = computed(() => {
   width: 100%;
   height: 6px;
   accent-color: var(--status-transfer);
+}
+
+.transfer-progress-detail {
+  color: #94a3b8;
+  font-size: 10px;
+}
+
+.sftp-task-center {
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: var(--radius-sm);
+  background: rgba(15, 23, 42, 0.34);
+  color: #cbd5e1;
+  font-size: 11px;
+}
+
+.sftp-task-center summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 8px;
+  cursor: pointer;
+}
+
+.sftp-task-center summary small {
+  overflow: hidden;
+  color: #94a3b8;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-clear {
+  border: 0;
+  background: transparent;
+  color: #7dd3fc;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.sftp-task-center ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0 8px 8px;
+  list-style: none;
+}
+
+.sftp-task-center li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  padding: 5px 6px;
+  border-radius: 6px;
+  background: rgba(148, 163, 184, 0.06);
+}
+
+.task-main {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+}
+
+.task-main strong {
+  color: #e2e8f0;
+  text-transform: capitalize;
+}
+
+.task-main em,
+.task-meta {
+  overflow: hidden;
+  color: #94a3b8;
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-error .task-meta {
+  color: #fca5a5;
+}
+
+.task-success .task-meta {
+  color: #86efac;
 }
 </style>

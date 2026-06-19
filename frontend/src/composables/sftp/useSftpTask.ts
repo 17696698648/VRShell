@@ -13,6 +13,9 @@ export function useSftpTask(getConnection: () => SftpConnection, setStatus?: (me
     cancelable: false,
     sessionKey: '',
     deleted: 0,
+    bytesPerSecond: undefined,
+    etaSeconds: undefined,
+    retryable: false,
   })
   const taskHistory = reactive<SftpTask[]>([])
 
@@ -43,6 +46,9 @@ export function useSftpTask(getConnection: () => SftpConnection, setStatus?: (me
     status: currentTask.status,
     error: currentTask.error,
     cancelable: currentTask.cancelable,
+    bytesPerSecond: currentTask.bytesPerSecond,
+    etaSeconds: currentTask.etaSeconds,
+    retryable: currentTask.retryable,
   }))
 
   function beginTask(type: SftpTask['type']) {
@@ -56,11 +62,14 @@ export function useSftpTask(getConnection: () => SftpConnection, setStatus?: (me
     currentTask.cancelable = true
     currentTask.sessionKey = getSftpSessionKey(connection)
     currentTask.deleted = 0
+    currentTask.bytesPerSecond = undefined
+    currentTask.etaSeconds = undefined
+    currentTask.retryable = false
     upsertCurrentTaskHistory()
     return currentTask.id
   }
 
-  function applyProgress(payload: { taskId: string; sessionKey: string; operation: SftpTask['type']; file: string; transferred: number; total: number; deleted: number }) {
+  function applyProgress(payload: { taskId: string; sessionKey: string; operation: SftpTask['type']; file: string; transferred: number; total: number; deleted: number; bytesPerSecond?: number; etaSeconds?: number }) {
     if (payload.sessionKey !== currentTask.sessionKey || payload.taskId !== currentTask.id) {
       return false
     }
@@ -70,6 +79,8 @@ export function useSftpTask(getConnection: () => SftpConnection, setStatus?: (me
     currentTask.type = payload.operation
     currentTask.currentFile = payload.file
     currentTask.deleted = payload.deleted
+    currentTask.bytesPerSecond = payload.bytesPerSecond
+    currentTask.etaSeconds = payload.etaSeconds
     currentTask.progress = payload.operation === 'delete'
       ? 0
       : total > 0 ? Math.min(100, Math.round((payload.transferred / total) * 100)) : 0
@@ -81,6 +92,7 @@ export function useSftpTask(getConnection: () => SftpConnection, setStatus?: (me
     currentTask.status = 'success'
     currentTask.progress = currentTask.type === 'delete' ? currentTask.progress : 100
     currentTask.cancelable = false
+    currentTask.retryable = false
     upsertCurrentTaskHistory()
     window.setTimeout(() => {
       if (currentTask.status === 'success') {
@@ -94,6 +106,7 @@ export function useSftpTask(getConnection: () => SftpConnection, setStatus?: (me
     currentTask.status = message.toLowerCase().includes('canceled') ? 'canceled' : 'error'
     currentTask.error = message
     currentTask.cancelable = false
+    currentTask.retryable = currentTask.status === 'error'
     upsertCurrentTaskHistory()
   }
 

@@ -40,6 +40,9 @@ const sensitivePatterns = [
   /password\s*[:=]\s*[^\s,;]+/gi,
   /passphrase\s*[:=]\s*[^\s,;]+/gi,
   /private[_ -]?key\s*[:=]\s*[^\s,;]+/gi,
+  /privateKeyPath\s*[:=]\s*[^\s,;]+/gi,
+  /identity[_ -]?file\s*[:=]\s*[^\s,;]+/gi,
+  /-----BEGIN [^-]+ PRIVATE KEY-----[\s\S]*?-----END [^-]+ PRIVATE KEY-----/gi,
   /([A-Z]:)?[\\/](?:Users|home)[\\/][^\\/\s]+/gi,
 ]
 

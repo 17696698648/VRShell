@@ -61,13 +61,19 @@ const searchQuery = ref('')
 const normalizedSearchQuery = computed(() => searchQuery.value.trim().toLowerCase())
 const visibleSessionGroups = computed(() => {
   if (!normalizedSearchQuery.value) return props.sessionGroups
-  return props.sessionGroups.map((group) => filterGroup(group, normalizedSearchQuery.value)).filter(Boolean) as SessionGroup[]
+  return props.sessionGroups.map((group) => filterGroup(group, normalizedSearchQuery.value, [])).filter(Boolean) as SessionGroup[]
 })
 
-function filterGroup(group: SessionGroup, query: string): SessionGroup | null {
-  const groupMatches = group.name.toLowerCase().includes(query)
-  const hosts = group.hosts.filter((host) => [host.name, host.user, host.address, host.remark].some((value) => value.toLowerCase().includes(query)))
-  const children = group.children.map((child) => filterGroup(child, query)).filter(Boolean) as SessionGroup[]
+function filterGroup(group: SessionGroup, query: string, parentPath: string[]): SessionGroup | null {
+  const groupPath = [...parentPath, group.name]
+  const tokens = query.split(/\s+/).filter(Boolean)
+  const groupText = groupPath.join(' / ').toLowerCase()
+  const groupMatches = tokens.every((token) => groupText.includes(token))
+  const hosts = group.hosts.filter((host) => {
+    const searchable = [host.name, host.user, host.address, host.remark, groupPath.join(' / ')].join(' ').toLowerCase()
+    return tokens.every((token) => searchable.includes(token))
+  })
+  const children = group.children.map((child) => filterGroup(child, query, groupPath)).filter(Boolean) as SessionGroup[]
 
   if (!groupMatches && hosts.length === 0 && children.length === 0) return null
   return { ...group, hosts: groupMatches ? group.hosts : hosts, children: groupMatches ? group.children : children }

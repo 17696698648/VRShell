@@ -8,6 +8,7 @@ import {
 } from '../../services/sftp'
 import type {DroppedUploadFile} from '../../types'
 import {joinRemotePath} from '../../utils/sftp'
+import {redactSensitiveText} from '../../services/errors'
 
 export function useSftpUploadActions(options: {
   sftpStatus: WritableComputedRef<string>
@@ -48,7 +49,7 @@ export function useSftpUploadActions(options: {
       const summary = await uploadSftpLocalPaths(options.getSftpConnection(), files, taskId)
       options.finishSftpTask()
       reportUploadSummary(summary.uploaded, summary.failed.length)
-      if (summary.failed.length > 0) console.warn('sftp upload failures:', summary.failed)
+      logUploadFailures(summary.failed)
       await options.refreshSftpTreePath(targetDirectory)
     } catch (error) {
       options.failSftpTask(error)
@@ -77,13 +78,21 @@ export function useSftpUploadActions(options: {
       const summary = await uploadSftpFiles(options.getSftpConnection(), uploadFiles, taskId)
       options.finishSftpTask()
       reportUploadSummary(summary.uploaded, summary.failed.length)
-      if (summary.failed.length > 0) console.warn('sftp upload failures:', summary.failed)
+      logUploadFailures(summary.failed)
       await options.refreshSftpTreePath(targetDirectory)
     } catch (error) {
       options.failSftpTask(error)
       options.sftpStatus.value = `Upload failed: ${formatSftpError(error)}`
       options.showToast('Upload failed', 'error')
     }
+  }
+
+  function logUploadFailures(failed: Array<{remotePath: string; error: string}>) {
+    if (failed.length === 0) return
+    console.warn('sftp upload failures:', failed.map((item) => ({
+      remotePath: redactSensitiveText(item.remotePath),
+      error: redactSensitiveText(item.error),
+    })))
   }
 
   function reportUploadSummary(uploaded: number, failedCount: number) {

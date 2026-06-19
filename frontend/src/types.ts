@@ -61,6 +61,9 @@ export type SftpTask = {
   cancelable: boolean
   sessionKey: string
   deleted: number
+  bytesPerSecond?: number
+  etaSeconds?: number
+  retryable?: boolean
 }
 
 export type WorkspaceState = {

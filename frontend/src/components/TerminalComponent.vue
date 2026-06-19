@@ -51,11 +51,11 @@
 </template>
 
 <script lang="ts" setup>
-import {ref, computed, onMounted, onBeforeUnmount, watch, defineProps, defineEmits, defineExpose} from 'vue'
-import {Terminal} from 'xterm'
-import {FitAddon} from 'xterm-addon-fit'
-import {SearchAddon} from 'xterm-addon-search'
-import 'xterm/css/xterm.css'
+import {ref, computed, onMounted, onBeforeUnmount, watch} from 'vue'
+import {Terminal} from '@xterm/xterm'
+import {FitAddon} from '@xterm/addon-fit'
+import {SearchAddon} from '@xterm/addon-search'
+import '@xterm/xterm/css/xterm.css'
 import {invoke} from '@tauri-apps/api/core'
 import TerminalInteractionDialog from './TerminalInteractionDialog.vue'
 import TerminalSearchBar from './terminal/TerminalSearchBar.vue'
@@ -139,8 +139,6 @@ function handleTerminalWheel(e: WheelEvent) {
 }
 
 // --- Interaction manager (replaces old host-key prompt flow) ---
-const interactionMgr = useInteractionManager()
-const activeInteraction = computed(() => interactionMgr.active.value)
 const host = ref('localhost')
 const port = ref(22)
 const username = ref('')
@@ -182,11 +180,17 @@ const emit = defineEmits<{
 
 const terminalConnection = useTerminalConnectionState((nextStatus, error) => emit('status-change', nextStatus, error))
 const {sessionId, connected, hasAttemptedConnection, status} = terminalConnection
+const interactionMgr = useInteractionManager(sessionId)
+const activeInteraction = computed(() => interactionMgr.active.value)
 const {setManagedTimeout, clearManagedTimeouts} = useManagedTimeouts()
 
 let unlistenFns: Array<() => void> = []
 let pollTimer: number | null = null
 let resizeObserver: ResizeObserver | null = null
+let pendingTerminalOutput = ''
+let terminalOutputFrame: number | null = null
+const MAX_PENDING_TERMINAL_OUTPUT = 1024 * 1024
+const OUTPUT_TRUNCATED_NOTICE = '\r\n[VRShell] [output truncated: terminal renderer is catching up]\r\n'
 
 const terminalResize = useTerminalResize({
   getSessionId: () => sessionId.value,
@@ -253,7 +257,34 @@ function syncXtermWithCssVars() {
 }
 
 function writeTerminalLine(message: string) {
-  term?.writeln(`\r\n${message}`)
+  queueTerminalOutput(`\r\n${message}\r\n`)
+}
+
+function flushTerminalOutput() {
+  terminalOutputFrame = null
+  if (!pendingTerminalOutput) return
+
+  const output = pendingTerminalOutput
+  pendingTerminalOutput = ''
+  term?.write(output)
+}
+
+function queueTerminalOutput(output: string) {
+  pendingTerminalOutput += output
+  if (pendingTerminalOutput.length > MAX_PENDING_TERMINAL_OUTPUT) {
+    pendingTerminalOutput = OUTPUT_TRUNCATED_NOTICE + pendingTerminalOutput.slice(-MAX_PENDING_TERMINAL_OUTPUT)
+  }
+  if (terminalOutputFrame !== null) return
+
+  terminalOutputFrame = window.requestAnimationFrame(flushTerminalOutput)
+}
+
+function clearTerminalOutputQueue() {
+  pendingTerminalOutput = ''
+  if (terminalOutputFrame !== null) {
+    window.cancelAnimationFrame(terminalOutputFrame)
+    terminalOutputFrame = null
+  }
 }
 
 function clearSensitiveAuthFields() {
@@ -336,7 +367,7 @@ async function handleQueuedTerminalEvent(queuedEvent: string) {
   } else if (event.event === 'terminal-data') {
     if (payload.session_id !== sessionId.value) return
     const text = base64ToString(payload.data_base64)
-    term?.write(text)
+    queueTerminalOutput(text)
     emit('activity')
   } else if (event.event === 'terminal-error') {
     await handleTerminalErrorPayload(payload)
@@ -448,7 +479,7 @@ async function connect() {
         const payload = e.payload
         if (payload.session_id !== sessionId.value) return
         const s = base64ToString(payload.data_base64)
-        term?.write(s)
+        queueTerminalOutput(s)
         emit('activity')
       })
       const l2 = await listenTerminalEvent(TERMINAL_EVENTS.error, async (e) => {
@@ -533,10 +564,10 @@ onMounted(() => {
   term.loadAddon(fit)
   term.loadAddon(searchAddon)
   term.open(termContainer.value!)
-  term.writeln('[VRShell] Terminal initialized.')
+  writeTerminalLine('[VRShell] Terminal initialized.')
   term.focus()
   scheduleFitAndResize()
-  setManagedTimeout(() => term?.writeln('[VRShell] Waiting for connection...'), 80)
+  setManagedTimeout(() => writeTerminalLine('[VRShell] Waiting for connection...'), 80)
   resizeObserver = new ResizeObserver(() => scheduleFitAndResize())
   if (termContainer.value) {
     resizeObserver.observe(termContainer.value)
@@ -650,6 +681,7 @@ onBeforeUnmount(() => {
   } catch {
   }
   terminalResize.clearResizeTimer()
+  clearTerminalOutputQueue()
   clearManagedTimeouts()
   clearInputQueue()
   disconnect()

@@ -1,18 +1,22 @@
 <template>
-  <nav ref="tabsBarRef" v-if="hasActiveSession" class="tabs-bar session-tabs">
-    <div ref="tabListRef" class="session-tab-list" @scroll="updateScrollState">
+  <nav ref="tabsBarRef" v-if="hasActiveSession" class="tabs-bar session-tabs workspace-tab-bar" aria-label="Open sessions">
+    <div ref="tabListRef" class="session-tab-list workspace-tab-list" role="tablist" @scroll="updateScrollState">
       <button
-        v-for="tab in tabs"
+        v-for="(tab, index) in tabs"
         :key="tab.name"
         ref="tabButtonRefs"
-        class="session-tab"
+        class="session-tab workspace-tab-item"
+        role="tab"
+        :aria-selected="tab.selected"
+        :tabindex="tab.selected ? 0 : -1"
         :class="{ selected: tab.selected }"
         @click="emit('select-session', tab.name)"
+        @keydown="handleTabKeydown($event, index)"
         @contextmenu="emit('open-session-menu', $event, tab.name)"
       >
         <span class="tab-status-dot" :class="tab.status"></span>
-        <span class="tab-title">{{ tab.name }}</span>
-        <span class="tab-close" title="Close" @click.stop="emit('close-session', tab.name)">
+        <span class="tab-title workspace-tab-title">{{ tab.name }}</span>
+        <span class="tab-close workspace-tab-close" role="button" tabindex="0" title="Close" :aria-label="`Close ${tab.name}`" @click.stop="emit('close-session', tab.name)" @keydown.enter.stop="emit('close-session', tab.name)" @keydown.space.prevent.stop="emit('close-session', tab.name)">
           <X :size="12"/>
         </span>
       </button>
@@ -23,12 +27,14 @@
         class="tab-overflow-button"
         :class="{ active: overflowMenuOpen }"
         title="Hidden tabs"
+        aria-haspopup="menu"
+        :aria-expanded="overflowMenuOpen"
         @click.stop="toggleOverflowMenu"
       >
         <ChevronDown :size="14" class="chevron-icon"/>
       </button>
 
-      <div v-if="overflowMenuOpen" class="tab-overflow-menu" @click.stop>
+      <div v-if="overflowMenuOpen" class="tab-overflow-menu" role="menu" @click.stop>
         <div class="tab-overflow-header">
           <span>Hidden Tabs</span>
           <small>{{ hiddenTabs.length }}</small>
@@ -37,6 +43,7 @@
           v-for="tab in hiddenTabs"
           :key="'hidden-' + tab.name"
           class="tab-overflow-item"
+          role="menuitem"
           :class="{ selected: tab.selected }"
           :title="tab.name"
           @click="selectOverflowTab(tab.name)"
@@ -153,6 +160,27 @@ function selectOverflowTab(sessionName: string) {
   emit('select-session', sessionName)
 }
 
+function handleTabKeydown(event: KeyboardEvent, index: number) {
+  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight' && event.key !== 'Home' && event.key !== 'End') {
+    return
+  }
+
+  event.preventDefault()
+  const lastIndex = props.tabs.length - 1
+  const nextIndex = event.key === 'Home'
+    ? 0
+    : event.key === 'End'
+      ? lastIndex
+      : event.key === 'ArrowLeft'
+        ? Math.max(0, index - 1)
+        : Math.min(lastIndex, index + 1)
+  const nextTab = props.tabs[nextIndex]
+  if (nextTab) {
+    emit('select-session', nextTab.name)
+    nextTick(() => tabButtonRefs.value[nextIndex]?.focus())
+  }
+}
+
 function closeOverflowMenuOnOutsideClick(event: MouseEvent) {
   if (!tabsBarRef.value?.contains(event.target as Node)) {
     overflowMenuOpen.value = false
@@ -161,32 +189,42 @@ function closeOverflowMenuOnOutsideClick(event: MouseEvent) {
 </script>
 
 <style scoped>
+.session-tabs {
+  overflow: visible;
+}
+
 .tabs-bar {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 8px;
   justify-content: space-between;
   min-width: 0;
+  height: 34px;
   overflow: visible;
-  padding: 0 2px 0 0;
+  padding: 4px 6px;
+  box-sizing: border-box;
 }
 
 .session-tabs {
-  align-items: end;
-  border-bottom: 1px solid var(--idea-border);
-  background: var(--idea-chrome);
+  align-items: center;
+  border-bottom: 1px solid #111418;
+  background: #1b1d21;
   backdrop-filter: none;
+  box-shadow: inset 0 -1px 0 rgba(255,255,255,0.03);
 }
 
 .session-tab-list {
   display: flex;
-  gap: 2px;
-  align-items: end;
+  gap: 6px;
+  align-items: center;
+  justify-content: flex-start;
+  align-self: center;
   flex: 1 1 auto;
   width: 100%;
   min-width: 0;
   max-width: 100%;
+  height: 26px;
   overflow-x: auto;
   overflow-y: hidden;
   overscroll-behavior-x: contain;
@@ -201,42 +239,27 @@ function closeOverflowMenuOnOutsideClick(event: MouseEvent) {
 .session-tab {
   position: relative;
   display: flex;
-  gap: 6px;
+  gap: 7px;
   align-items: center;
   flex: 0 0 auto;
-  height: 27px;
-  padding: 0 8px 0 10px;
+  height: 26px;
+  padding: 0 10px;
+  margin: 0;
   border: 1px solid transparent;
-  border-bottom: 0;
-  border-radius: 6px 6px 0 0;
-  background: transparent;
-  color: var(--idea-text-muted);
+  border-radius: 6px;
+  background: rgba(39,43,49,0.46);
+  color: #9ba7b7;
   font-size: 12px;
+  line-height: 1;
   transition: border-color var(--motion-fast), background var(--motion-fast), color var(--motion-fast), box-shadow var(--motion-fast);
 }
 
-.session-tab.selected {
-  border-color: var(--idea-border);
-  background: var(--idea-bg);
-  color: var(--idea-text);
-  box-shadow: inset 0 2px 0 var(--accent);
-}
-
+.session-tab.selected,
 .session-tab:hover {
-  border-color: color-mix(in srgb, var(--accent) 18%, transparent);
-  background: var(--state-hover);
-  color: var(--idea-text);
-}
-
-.session-tab.selected::after {
-  position: absolute;
-  right: 9px;
-  bottom: 0;
-  left: 9px;
-  height: 1px;
-  border-radius: 999px;
-  background: var(--accent);
-  content: '';
+  border-color: rgba(72,98,125,0.82);
+  background: linear-gradient(180deg, rgba(41,65,94,0.78) 0%, rgba(32,54,80,0.72) 100%);
+  color: #8ec7ff;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 4px 12px rgba(0,0,0,0.18);
 }
 
 .tab-status-dot {
@@ -281,7 +304,7 @@ function closeOverflowMenuOnOutsideClick(event: MouseEvent) {
   height: 16px;
   place-items: center;
   border-radius: 5px;
-  color: #64748b;
+  color: #aab4c3;
   opacity: 0;
   transition: opacity var(--motion-fast), background var(--motion-fast), color var(--motion-fast);
 }
@@ -302,33 +325,29 @@ function closeOverflowMenuOnOutsideClick(event: MouseEvent) {
   align-self: stretch;
   display: flex;
   align-items: center;
-  background: linear-gradient(90deg, transparent, var(--idea-chrome) 35%);
+  background: linear-gradient(90deg, transparent, rgba(27,31,37,0.62) 35%);
 }
 
 .tab-overflow-button {
   position: relative;
   display: grid;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   place-items: center;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: 9px;
   background: transparent;
-  color: color-mix(in srgb, var(--idea-text-muted) 78%, transparent);
+  color: #9ba7b7;
   outline: 0;
-  transition: border-color var(--motion-fast), background var(--motion-fast), color var(--motion-fast);
+  transition: border-color var(--motion-fast), background var(--motion-fast), color var(--motion-fast), box-shadow var(--motion-fast);
 }
 
-.tab-overflow-button:not(:disabled):hover {
-  border-color: var(--idea-border);
-  background: var(--idea-hover);
-  color: var(--idea-text);
-}
-
+.tab-overflow-button:not(:disabled):hover,
 .tab-overflow-button.active {
-  border-color: var(--state-border);
-  background: var(--state-active);
-  color: var(--idea-text);
+  border-color: #48627d;
+  background: linear-gradient(180deg, #29415e 0%, #203650 100%);
+  color: #8ec7ff;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 4px 12px rgba(0,0,0,0.18);
 }
 
 .chevron-icon {
@@ -341,18 +360,18 @@ function closeOverflowMenuOnOutsideClick(event: MouseEvent) {
 
 .tab-overflow-menu {
   position: absolute;
-  top: calc(100% + 4px);
+  top: calc(100% + 6px);
   right: 0;
   z-index: var(--z-toast);
   display: grid;
   width: 260px;
   max-height: min(340px, 70vh);
   overflow-y: auto;
-  padding: 4px;
-  border: 1px solid var(--idea-border);
-  border-radius: 6px;
-  background: var(--idea-panel);
-  box-shadow: var(--shadow-popover);
+  padding: 6px;
+  border: 1px solid #3f5268;
+  border-radius: 10px;
+  background: #20252c;
+  box-shadow: 0 14px 36px rgba(0,0,0,0.36), inset 0 1px 0 rgba(255,255,255,0.05);
 }
 
 .tab-overflow-menu::-webkit-scrollbar {
@@ -406,13 +425,13 @@ function closeOverflowMenuOnOutsideClick(event: MouseEvent) {
 
 .tab-overflow-item:hover,
 .tab-overflow-item.selected {
-  border-color: color-mix(in srgb, var(--accent) 18%, transparent);
-  background: var(--state-hover);
-  color: var(--idea-text);
+  border-color: #48627d;
+  background: linear-gradient(180deg, #29415e 0%, #203650 100%);
+  color: #8ec7ff;
 }
 
 .tab-overflow-item.selected {
-  box-shadow: inset 3px 0 0 var(--accent);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
 }
 
 .tab-overflow-title {
@@ -425,5 +444,15 @@ function closeOverflowMenuOnOutsideClick(event: MouseEvent) {
   color: var(--accent);
   font-size: 10px;
   font-weight: 800;
+}
+</style>
+
+<style scoped>
+.session-tab:focus-visible,
+.tab-overflow-button:focus-visible,
+.tab-overflow-item:focus-visible,
+.tab-close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 </style>

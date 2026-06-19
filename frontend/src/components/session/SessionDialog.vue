@@ -91,13 +91,23 @@
             @update-field="(field, value) => emit('update-field', field, value)"
           />
         </DialogSection>
+
+        <DialogSection v-if="diagnosticStages.length > 0" index="05" title="Connection Diagnostics" description="DNS, TCP, SSH, host key, and auth stage results." compact>
+          <div class="diagnostic-list">
+            <div v-for="stage in diagnosticStages" :key="stage.stage" class="diagnostic-row" :class="stage.status">
+              <span class="diagnostic-stage">{{ stage.stage }}</span>
+              <span class="diagnostic-status">{{ stage.status }}</span>
+              <span class="diagnostic-message">{{ stage.message }}<template v-if="stage.latencyMs"> · {{ stage.latencyMs }}ms</template></span>
+            </div>
+          </div>
+        </DialogSection>
       </div>
     </el-form>
 
     <template #footer>
-      <UiButton class="test" :disabled="testing" @click="emit('test')">
+      <UiButton class="test" :disabled="testing || diagnosticRunning" @click="runDiagnostics">
         <span v-if="testing" class="btn-spinner"></span>
-        {{ testing ? 'Testing...' : 'Test connection' }}
+        {{ testing || diagnosticRunning ? 'Testing...' : 'Test connection' }}
       </UiButton>
       <span class="dialog-action-spacer"></span>
       <UiButton variant="ghost" @click="requestClose">Cancel</UiButton>
@@ -136,6 +146,7 @@ import SessionAuthFields from './SessionAuthFields.vue'
 import SessionNotesFields from './SessionNotesFields.vue'
 import UiButton from '../ui/UiButton.vue'
 import {sessionRules} from '../../utils/sessionFormRules'
+import {diagnoseSshConnection, type ConnectionDiagnosticStage} from '../../services/ssh'
 
 const props = defineProps<{
   visible: boolean
@@ -152,6 +163,8 @@ const props = defineProps<{
 
 const formRef = ref<FormInstance>()
 const discardConfirmVisible = ref(false)
+const diagnosticRunning = ref(false)
+const diagnosticStages = ref<ConnectionDiagnosticStage[]>([])
 const initialFormSnapshot = ref('')
 const currentFormSnapshot = computed(() => createDirtySnapshot(props.form))
 const isDirty = computed(() => props.visible && initialFormSnapshot.value !== currentFormSnapshot.value)
@@ -213,6 +226,24 @@ async function choosePrivateKey() {
     emit('update-field', 'privateKeyPath', selected)
   }
 }
+
+async function runDiagnostics() {
+  diagnosticRunning.value = true
+  diagnosticStages.value = []
+  try {
+    diagnosticStages.value = await diagnoseSshConnection({
+      host: props.form.address,
+      port: props.form.port,
+      username: props.form.user,
+      password: props.form.authMethod === 'password' ? props.form.password || null : null,
+      privateKeyPath: props.form.authMethod === 'key' ? props.form.privateKeyPath || null : null,
+      passphrase: props.form.authMethod === 'key' ? props.form.passphrase || null : null,
+    })
+  } finally {
+    diagnosticRunning.value = false
+    emit('test')
+  }
+}
 </script>
 
 <style scoped>
@@ -238,6 +269,43 @@ async function choosePrivateKey() {
   gap: 12px;
   min-height: 0;
   padding: 4px 0;
+}
+
+.diagnostic-list {
+  display: grid;
+  gap: 6px;
+}
+
+.diagnostic-row {
+  display: grid;
+  grid-template-columns: 74px 72px 1fr;
+  gap: 8px;
+  align-items: center;
+  padding: 7px 9px;
+  border: 1px solid var(--idea-border);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.45);
+  font-size: 12px;
+}
+
+.diagnostic-row.success { border-color: rgba(34, 197, 94, 0.36); }
+.diagnostic-row.error { border-color: rgba(239, 68, 68, 0.42); }
+.diagnostic-row.skipped { opacity: 0.68; }
+
+.diagnostic-stage {
+  color: var(--idea-text-muted);
+  text-transform: uppercase;
+}
+
+.diagnostic-status {
+  font-weight: 800;
+}
+
+.diagnostic-message {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 :deep(.base-dialog-body::-webkit-scrollbar) {

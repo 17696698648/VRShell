@@ -11,7 +11,9 @@
               : `The authenticity of host '${interaction.request.host}:${interaction.request.port}' can't be established.`
           }}
         </p>
-        <code>Fingerprint: {{ interaction.request.fingerprint }} ({{ interaction.request.key_type }})</code>
+        <code>Fingerprint: {{ hostKeyInfo?.fingerprint ?? interaction.request.fingerprint }} ({{ hostKeyInfo?.keyType ?? interaction.request.key_type }})</code>
+        <code v-if="hostKeyInfo?.knownHostsPath">known_hosts: {{ hostKeyInfo.knownHostsPath }}</code>
+        <small v-if="hostKeyInfo?.firstTrustWarning" class="host-key-warning">{{ hostKeyInfo.firstTrustWarning }}</small>
         <small>
           {{
             interaction.request.is_mismatch
@@ -19,9 +21,13 @@
               : 'Only trust this host if the fingerprint matches the server you expect.'
           }}
         </small>
+        <label v-if="interaction.request.is_mismatch" class="danger-confirm">
+          <span>Type REMOVE OLD KEY to confirm replacing the stored host key.</span>
+          <input v-model="hostKeyMismatchConfirm" type="text" autocomplete="off" />
+        </label>
         <div class="host-key-prompt-actions">
           <button @click="$emit('reject-host-key')">Cancel</button>
-          <button class="trust" @click="$emit('accept-host-key')">Trust and save</button>
+          <button class="trust" :disabled="!canAcceptHostKey" @click="$emit('accept-host-key')">Trust and save</button>
         </div>
       </template>
 
@@ -78,8 +84,9 @@
 </template>
 
 <script setup lang="ts">
-import {ref, watch} from 'vue'
+import {computed, ref, watch} from 'vue'
 import type {ActiveInteraction} from '../composables/interaction/useInteractionManager'
+import {getPendingHostKeyInfo, type HostKeyInfo} from '../services/ssh'
 
 const props = defineProps<{
   interaction: ActiveInteraction | null
@@ -95,6 +102,14 @@ const emit = defineEmits<{
 
 const authForm = ref({ password: '', privateKeyPath: '', passphrase: '' })
 const kbAnswers = ref<string[]>([])
+const hostKeyInfo = ref<HostKeyInfo | null>(null)
+const hostKeyMismatchConfirm = ref('')
+const canAcceptHostKey = computed(() => {
+  const request = props.interaction?.request
+  return request?.type === 'host_key_verification'
+    ? !request.is_mismatch || hostKeyMismatchConfirm.value === 'REMOVE OLD KEY'
+    : true
+})
 
 function submitCredentials() {
   emit(
@@ -116,6 +131,17 @@ watch(() => props.interaction, (interaction) => {
     kbAnswers.value = interaction.request.prompts.map(() => '')
   } else if (interaction?.request.type === 'authentication_needed') {
     authForm.value = { password: '', privateKeyPath: '', passphrase: '' }
+    hostKeyInfo.value = null
+  } else if (interaction?.request.type === 'host_key_verification') {
+    hostKeyMismatchConfirm.value = ''
+    hostKeyInfo.value = null
+    getPendingHostKeyInfo(interaction.request.host, interaction.request.port)
+      .then((info) => (hostKeyInfo.value = info))
+      .catch(() => {
+        hostKeyInfo.value = null
+      })
+  } else {
+    hostKeyInfo.value = null
   }
 })
 </script>
@@ -204,6 +230,30 @@ watch(() => props.interaction, (interaction) => {
   gap: 5px;
   color: var(--idea-text-muted);
   font-size: 12px;
+}
+
+.danger-confirm {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  border-radius: 10px;
+  background: rgba(127, 29, 29, 0.16);
+  color: #fecaca;
+  font-size: 12px;
+}
+
+.danger-confirm input {
+  padding: 8px 10px;
+  border: 1px solid rgba(248, 113, 113, 0.45);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.85);
+  color: var(--idea-text);
+}
+
+.host-key-prompt-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .auth-fields input {

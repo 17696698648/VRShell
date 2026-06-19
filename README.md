@@ -17,7 +17,7 @@ Authentication methods
 - SSH agent: leave password and key empty to use the local SSH agent when available.
 
 Prerequisites
-- Node.js (18+ recommended)
+- Node.js 20+ and npm 10+ (`.nvmrc` pins Node 20; CI uses Node.js 20)
 - Rust toolchain (stable)
 - `cargo` and `npm` in PATH
 - Tauri dependencies (see Tauri docs for platform-specific requirements)
@@ -49,9 +49,18 @@ Files of interest:
 
 Useful root scripts:
 - `npm run dev` - start the Vite frontend
+- `npm run lint` - run Biome lint/style checks for the frontend
+- `npm run format:check` - check frontend formatting without writing changes
 - `npm run typecheck` - run Vue/TypeScript checking
+- `npm run test:frontend` - run frontend unit tests
+- `npm run test:e2e:smoke` - run Playwright smoke coverage for startup, command palette, session dialog, SFTP drawer, and theme switching
 - `npm run build` - build the frontend
 - `npm run rust:test` - run Rust unit tests
-- `npm run check` - run JSON/UTF-8 checks, frontend typecheck, Rust check/tests/clippy
+- `npm run check` - run JSON/UTF-8 checks, frontend lint/typecheck/tests, Rust check/tests/clippy
 - `npm run tauri:dev` - run the Tauri desktop app in development
 - `npm run tauri:build` - build the desktop bundle
+
+Project operations:
+- `docs/testing.md` - local lint, typecheck, unit, E2E smoke, build, and Rust check workflow
+- `docs/dependency-security.md` - Dependabot and audit remediation workflow
+- `docs/release-checklist.md` - release readiness, signing, DevTools, SSH `known_hosts`, credentials, and rollback checklist

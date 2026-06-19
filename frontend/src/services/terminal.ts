@@ -1,5 +1,5 @@
-import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
+import {typedInvoke} from './ipc'
 
 export const TERMINAL_EVENTS = {
   closed: 'terminal-closed',
@@ -31,23 +31,23 @@ export interface TerminalDataPayload {
 }
 
 export function connectSsh(options: ConnectSshOptions) {
-  return invoke<string>('connect_ssh', options)
+  return typedInvoke<string>('connect_ssh', options)
 }
 
 export function disconnectSshSession(sessionId: string) {
-  return invoke<void>('disconnect_session', { sessionId })
+  return typedInvoke<void>('disconnect_session', { sessionId })
 }
 
 export function pollTerminalEvents(sessionId: string) {
-  return invoke<string[]>('poll_events', { sessionId })
+  return typedInvoke<string[]>('poll_events', { sessionId })
 }
 
 export function resizePty(sessionId: string | null, cols: number, rows: number) {
-  return invoke<void>('resize_pty', { sessionId, cols, rows })
+  return typedInvoke<void>('resize_pty', { sessionId, cols, rows })
 }
 
 export function sendTerminalInput(sessionId: string, dataBase64: string) {
-  return invoke<void>('send_input', { sessionId, dataBase64 })
+  return typedInvoke<void>('send_input', { sessionId, dataBase64 })
 }
 
 export function listenTerminalEvent<T>(event: TerminalEventName, callback: TerminalEventCallback<T>): Promise<TerminalUnlistenFn> {

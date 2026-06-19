@@ -11,6 +11,7 @@
 use crate::sessions::{AppState, HostKeyCache, PendingHostKey};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use hmac::{Hmac, Mac};
+use serde::Serialize;
 use sha1::Sha1;
 use std::{
     fs,
@@ -18,6 +19,7 @@ use std::{
     path::{Path, PathBuf},
     sync::atomic::Ordering,
 };
+use tauri::Manager;
 use uuid::Uuid;
 
 type HmacSha1 = Hmac<Sha1>;
@@ -298,14 +300,14 @@ pub(crate) fn backup_path(original: &Path) -> PathBuf {
 
 /// Resolve the effective known_hosts path:
 ///   1. override from `AppState`, if set
-///   2. fallback to `~/.ssh/known_hosts`
+///   2. no path (the app initializes the override to its private file on startup)
 pub(crate) fn effective_known_hosts_path(state: &AppState) -> Option<PathBuf> {
     if let Ok(guard) = state.known_hosts_path_override.lock() {
         if let Some(ref p) = *guard {
             return Some(p.clone());
         }
     }
-    default_known_hosts_path()
+    None
 }
 
 /// Resolve the known_hosts path from just the override field (for use in OS threads).
@@ -317,22 +319,46 @@ pub(crate) fn effective_known_hosts_path_from_override(
             return Some(p.clone());
         }
     }
-    default_known_hosts_path()
+    None
 }
 
-fn default_known_hosts_path() -> Option<PathBuf> {
-    let home = std::env::var("HOME")
-        .or_else(|_| std::env::var("USERPROFILE"))
-        .ok()?;
-    if home.is_empty() {
-        return None;
-    }
-    Some(PathBuf::from(&home).join(".ssh").join("known_hosts"))
+pub(crate) fn init_app_private_known_hosts_path(
+    app_handle: &tauri::AppHandle,
+) -> Result<PathBuf, String> {
+    let app_data_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("resolve app data dir err: {}", e))?;
+    let ssh_dir = app_data_dir.join("ssh");
+    fs::create_dir_all(&ssh_dir).map_err(|e| format!("create app ssh dir err: {}", e))?;
+    Ok(ssh_dir.join("known_hosts"))
 }
 
 // ---------------------------------------------------------------------------
 // Tauri commands
 // ---------------------------------------------------------------------------
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct HostKeyInfo {
+    host: String,
+    port: u16,
+    fingerprint: String,
+    key_type: String,
+    known_hosts_path: String,
+    hash_known_hosts: bool,
+    first_trust_warning: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct SecuritySettingsInfo {
+    hash_known_hosts: bool,
+    known_hosts_path: String,
+    credential_store: String,
+    auto_reconnect_default: bool,
+    log_redaction_enabled: bool,
+}
 
 /// Return the fingerprint of a pending host key.
 #[tauri::command]
@@ -350,6 +376,69 @@ pub async fn get_host_key_fingerprint(
         .find(|k| k.host == host && k.port == port)
         .ok_or_else(|| format!("no pending host key for {}:{}", host, port))?;
     Ok(entry.fingerprint.clone())
+}
+
+#[tauri::command]
+pub async fn get_pending_host_key_info(
+    state: tauri::State<'_, AppState>,
+    host: String,
+    port: u16,
+) -> Result<HostKeyInfo, String> {
+    let entry = {
+        let cache = state
+            .pending_host_keys
+            .lock()
+            .map_err(|e| format!("lock err: {}", e))?;
+        cache
+            .iter()
+            .find(|k| k.host == host && k.port == port)
+            .cloned()
+            .ok_or_else(|| format!("no pending host key for {}:{}", host, port))?
+    };
+    let known_hosts_path = effective_known_hosts_path(&state)
+        .and_then(|path| path.to_str().map(|value| value.to_string()))
+        .unwrap_or_default();
+    Ok(HostKeyInfo {
+        host: entry.host,
+        port: entry.port,
+        fingerprint: entry.fingerprint,
+        key_type: entry.key_type,
+        known_hosts_path,
+        hash_known_hosts: state.hash_known_hosts.load(Ordering::Relaxed),
+        first_trust_warning:
+            "Only accept this host key after verifying the fingerprint out-of-band.".to_string(),
+    })
+}
+
+#[tauri::command]
+pub async fn get_security_settings(
+    state: tauri::State<'_, AppState>,
+) -> Result<SecuritySettingsInfo, String> {
+    let known_hosts_path = effective_known_hosts_path(&state)
+        .and_then(|path| path.to_str().map(|value| value.to_string()))
+        .unwrap_or_default();
+    Ok(SecuritySettingsInfo {
+        hash_known_hosts: state.hash_known_hosts.load(Ordering::Relaxed),
+        known_hosts_path,
+        credential_store: "system-keyring".to_string(),
+        auto_reconnect_default: false,
+        log_redaction_enabled: true,
+    })
+}
+
+#[tauri::command]
+pub async fn remove_known_host(
+    state: tauri::State<'_, AppState>,
+    host: String,
+    port: u16,
+) -> Result<Vec<String>, String> {
+    let kh_path = effective_known_hosts_path(&state)
+        .ok_or_else(|| "cannot determine known_hosts path".to_string())?;
+    if kh_path.exists() {
+        let backup = backup_path(&kh_path);
+        fs::copy(&kh_path, &backup).map_err(|e| format!("backup known_hosts err: {}", e))?;
+    }
+    remove_known_host_entry(&kh_path, &host, port)
 }
 
 /// Accept a pending host key.
@@ -420,6 +509,11 @@ pub async fn accept_host_key(
 
     writeln!(file, "{}", line).map_err(|e| format!("write known_hosts err: {}", e))?;
 
+    // Auto-resolve any pending interactive HostKeyVerification requests for the
+    // same host:port so they don't show a duplicate trust dialog.
+    let interaction_ctx = crate::interaction::InteractionContext::from_state(&state);
+    crate::interaction::resolve_pending_host_keys(&interaction_ctx, &host, port);
+
     Ok(())
 }
 
@@ -478,17 +572,22 @@ pub async fn get_known_hosts_path(
         .and_then(|p| p.to_str().map(|s| s.to_string())))
 }
 
-/// Set a custom known_hosts path (pass `None` / `null` to reset to default).
+/// Set a custom known_hosts path (pass `None` / `null` to reset to the app-private default).
 #[tauri::command]
 pub async fn set_known_hosts_path(
+    app_handle: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
     path: Option<String>,
 ) -> Result<(), String> {
+    let next_path = match path {
+        Some(path) => PathBuf::from(path),
+        None => init_app_private_known_hosts_path(&app_handle)?,
+    };
     let mut guard = state
         .known_hosts_path_override
         .lock()
         .map_err(|e| format!("lock err: {}", e))?;
-    *guard = path.map(PathBuf::from);
+    *guard = Some(next_path);
     Ok(())
 }
 

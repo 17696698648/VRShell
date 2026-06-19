@@ -1,6 +1,7 @@
-ï»¿<template>
+<template>
   <main
     class="app-shell"
+    data-testid="app-shell"
     :class="['theme-' + activeTheme, { 'drawer-closed': activeDrawer === null, 'no-session': !hasActiveSession }]"
     :style="{ '--drawer-width': drawerWidth + 'px' }"
     @click="closeContextMenu(); closeWindowMenu(); hideSftpInfoPopover()"
@@ -79,12 +80,14 @@
         :searching="sftpRemoteSearching"
         :result-mode="sftpSearchResultMode"
         :progress="sftpTransferProgress"
+        :tasks="sftpTaskHistory"
         :loading="sftpTreeLoading"
         @upload="triggerUploadToCurrentPath"
         @refresh="refreshSftpTreePath()"
         @remote-search="remoteSearchSftpTree"
         @cancel-search="cancelRemoteSearch"
         @cancel-transfer="cancelCurrentSftpTask"
+        @clear-task-history="clearSftpTaskHistory"
         @clear-search="clearSftpSearchResults"
         @sort="setSftpSort"
         @open-path="openSftpPath"
@@ -147,6 +150,21 @@
       @close="paletteVisible = false"
       @execute="handlePaletteAction"
     />
+
+    <div v-if="shortcutHelpVisible" class="modal-backdrop shortcut-help-backdrop" @click="shortcutHelpVisible = false">
+      <section class="shortcut-help-dialog" @click.stop>
+        <header>
+          <strong>Keyboard Shortcuts</strong>
+          <button @click="shortcutHelpVisible = false">¡Á</button>
+        </header>
+        <dl>
+          <template v-for="item in shortcutHelpItems" :key="item.key">
+            <dt>{{ item.key }}</dt>
+            <dd>{{ item.label }}</dd>
+          </template>
+        </dl>
+      </section>
+    </div>
 
     <div v-if="quickOpenVisible" class="modal-backdrop quick-open-backdrop" @click="closeQuickOpen">
       <div class="quick-open-dialog" @click.stop @keydown.escape="closeQuickOpen">
@@ -239,7 +257,7 @@
           :current-theme-name="currentThemeName"
           :recent-connections="recentConnections"
           @create-session="openCreateSessionDialog(sessionGroups[0]?.id ?? '')"
-          @import-config="showComingSoon('Import config')"
+          @import-config="previewSshConfigImportFromHome"
           @open-local-terminal="openCreateSessionDialog(sessionGroups[0]?.id ?? '')"
           @create-group="createRootGroup"
           @connect-session="connectSession"
@@ -273,31 +291,30 @@
           ></div>
 
           <section class="terminal-pane">
-            <div class="pane-tabs terminal-tabs">
-              <button v-for="terminal in terminalTabs" :key="terminal.id" class="pane-tab terminal-tab"
+            <div class="pane-tabs terminal-tabs workspace-tab-bar">
+              <button v-for="terminal in terminalTabs" :key="terminal.id" class="pane-tab terminal-tab workspace-tab-item"
                       :class="{ selected: terminal.selected }" :title="getTerminalTabTitle(terminal)"
                       @click="selectTerminalTab(terminal.id)" @dblclick="renameTerminalTab(terminal.id)"
                       @contextmenu="openTerminalTabContextMenu($event, terminal.id)">
                 <span class="terminal-status-dot" :class="'status-' + terminal.status"></span>
-                <span class="pane-tab-title">{{ terminal.name }}</span>
-                <span class="pane-tab-close" title="Close" @click.stop="closeTerminalTab(terminal.id)"><X
-                  :size="12"/></span>
+                <span class="pane-tab-title workspace-tab-title">{{ terminal.name }}</span>
+                <span class="pane-tab-close workspace-tab-close" role="button" tabindex="0" title="Close" @click.stop="closeTerminalTab(terminal.id)">¡Á</span>
               </button>
-              <select v-if="terminalTabs.length > 1" class="tab-more-select" title="More terminal tabs"
+              <select v-if="terminalTabs.length > 1" class="tab-more-select workspace-tab-control" title="More terminal tabs"
                       @change="handleTerminalMoreSelect">
                 <option value="">More ?</option>
                 <option v-for="terminal in terminalTabs" :key="'terminal-more-' + terminal.id" :value="terminal.id">
                   {{ terminal.name }}
                 </option>
               </select>
-              <button class="pane-add" title="New terminal" @click="createTerminalTab">+</button>
+              <button class="pane-add workspace-tab-control" title="New terminal" @click="createTerminalTab">+</button>
               <button
                 v-if="hasActiveSession"
-                class="pane-add broadcast-toggle"
+                class="pane-add broadcast-toggle workspace-tab-control"
                 :class="{ active: broadcastEnabled }"
                 :title="broadcastEnabled ? 'Broadcast enabled - input goes to all terminals' : 'Broadcast disabled - input goes to active terminal only'"
-                @click="broadcastEnabled = !broadcastEnabled"
-              >Broadcast
+                @click="toggleBroadcastInput"
+              >{{ broadcastEnabled ? `Broadcast (${broadcastTargetSessionIds.length})` : 'Broadcast' }}
               </button>
             </div>
 
@@ -337,14 +354,10 @@
 </template>
 
 <script setup lang="ts">
-import {invoke} from '@tauri-apps/api/core'
-import {listen} from '@tauri-apps/api/event'
-import {computed, defineAsyncComponent, nextTick, onMounted, onUnmounted, ref, watch} from 'vue'
+import {computed, defineAsyncComponent, nextTick, ref, watch} from 'vue'
 import ActivityBar from './components/ActivityBar.vue'
-import CommandPalette from './components/CommandPalette.vue'
 import {ConfirmDialog, PromptDialog} from './components/dialog'
 import {EmptyState, StatusBar, UiButton} from './components/ui'
-import EditorWorkbench from './components/EditorWorkbench.vue'
 import HomeDashboard from './components/HomeDashboard.vue'
 import SessionDrawer from './components/SessionDrawer.vue'
 import SessionDialog from './components/session/SessionDialog.vue'
@@ -355,66 +368,74 @@ import type {
   SessionGroup,
   SessionHost
 } from './components/SessionTreeGroup.vue'
-import SftpDrawer from './components/sftp/SftpDrawer.vue'
 import SftpInfoPopover from './components/sftp/SftpInfoPopover.vue'
-import TerminalComponent from './components/TerminalComponent.vue'
 import ToastStack from './components/ToastStack.vue'
 import WorkspaceTabs from './components/WorkspaceTabs.vue'
 import WindowChrome from './components/window/WindowChrome.vue'
 import {SFTP_TREE_OVERSCAN, SFTP_TREE_ROW_HEIGHT} from './constants'
-import {collapseSftpTree, createSftpTreeNode} from './composables/sftp/useSftpTree'
 import {useConfirmDialog} from './composables/dialog/useConfirmDialog'
 import {usePromptDialog} from './composables/dialog/usePromptDialog'
 import {useContextMenu} from './composables/interaction/useContextMenu'
 import {useEditorTabs} from './composables/ui/useEditorTabs'
-import {useSessionCleanup} from './composables/session/useSessionCleanup'
-import {useSessionTreeAccess} from './composables/session/useSessionTreeAccess'
-import {useSessionTreeDragState} from './composables/session/useSessionTreeDragState'
-import {useSessionForm} from './composables/session/useSessionForm'
 import {
   ALL_SESSIONS_GROUP_ID,
   ALL_SESSIONS_GROUP_NAME,
-  useSessionPersistence
-} from './composables/session/useSessionPersistence'
+  useSessionCleanup,
+  useSessionForm,
+  useSessionPersistence,
+  useSessionTreeAccess,
+  useSessionTreeDragState,
+} from './stores/sessionStore'
 import {useGlobalShortcuts} from './composables/interaction/useGlobalShortcuts'
+import {useAppCommandActions} from './composables/ui/useAppCommandActions'
+import {useAppLifecycle} from './composables/ui/useAppLifecycle'
+import {useAppSftpTreeActions} from './composables/ui/useAppSftpTreeActions'
+import {useAppTerminalTabs} from './composables/ui/useAppTerminalTabs'
 import {useHomeDashboardState} from './composables/ui/useHomeDashboardState'
 import {useQuickOpen} from './composables/ui/useQuickOpen'
-import {useResizablePane} from './composables/ui/useResizablePane'
-import {useSftpActions} from './composables/sftp/useSftpActions'
-import {useSftpBookmarks} from './composables/sftp/useSftpBookmarks'
-import {useSftpDropUpload} from './composables/sftp/useSftpDropUpload'
-import {useSftpInfoPopover} from './composables/sftp/useSftpInfoPopover'
-import {useSftpItemOpen} from './composables/sftp/useSftpItemOpen'
-import {useSftpNavigation} from './composables/sftp/useSftpNavigation'
-import {useSftpTask} from './composables/sftp/useSftpTask'
-import {useSftpTreeLoader} from './composables/sftp/useSftpTreeLoader'
-import {useSftpViewState} from './composables/sftp/useSftpViewState'
-import {copyText, useTerminalCommands} from './composables/terminal/useTerminalCommands'
-import {useTerminalActivity} from './composables/terminal/useTerminalActivity'
-import {useTerminalRegistry} from './composables/terminal/useTerminalRegistry'
-import {useTerminalViewState} from './composables/terminal/useTerminalViewState'
-import {useThemeState, type ThemeName} from './composables/ui/useThemeState'
-import {useToasts} from './composables/ui/useToasts'
-import {useUiStatePersistence} from './composables/ui/useUiStatePersistence'
+import {
+  activityBarWidth,
+  maxDrawerWidth,
+  maxEditorPaneHeight,
+  minDrawerWidth,
+  minEditorPaneHeight,
+  resetWorkspaceState,
+  type AppDrawerName,
+  useAppLayoutState,
+  useThemeState,
+  useToasts,
+  useUiStatePersistence,
+  useWorkspaceStore,
+} from './stores/layoutStore'
+import {
+  collapseSftpTree,
+  createSftpTreeNode,
+  useSftpActions,
+  useSftpBookmarks,
+  useSftpDropUpload,
+  useSftpInfoPopover,
+  useSftpItemOpen,
+  useSftpNavigation,
+  useSftpTask,
+  useSftpTreeLoader,
+  useSftpViewState,
+} from './stores/sftpStore'
+import {
+  copyText,
+  getTerminalTabTitle,
+  useTerminalActivity,
+  useTerminalCommands,
+  useTerminalRegistry,
+  useTerminalViewState,
+} from './stores/terminalStore'
 import {useWindowControls} from './composables/window/useWindowControls'
 import {useWindowMenuState} from './composables/window/useWindowMenuState'
-import {
-  addTerminalTab,
-  applyTerminalTabAction as dispatchTerminalTabAction,
-  closeTerminalTab as closeTerminalTabState,
-  createTerminalTabState as createTerminalTabModel,
-  getTerminalTabTitle,
-  renameTerminalTab as renameTerminalTabState,
-  selectTerminalTab as selectTerminalTabState,
-  updateTerminalSessionId as updateTerminalTabSessionId,
-  updateTerminalStatus as updateTerminalTabStatus,
-} from './composables/terminal/useTerminalTabs'
-import {resetWorkspaceState, useWorkspaceStore} from './composables/ui/useWorkspaceStore'
 import type {ContextMenuScope} from './menuTypes'
 import {
   disconnectSftpConnection,
   type SftpConnection,
 } from './services/sftp'
+import {measureTcpLatency, previewSshConfigImport, testSshConnection as testSshConnectionCommand} from './services/ssh'
 import type {
   EditorFile,
   SftpFileItem,
@@ -427,7 +448,6 @@ import {getContextMenuItems, type ContextMenuItem} from './utils/contextMenuItem
 import {applyContextMenuAction} from './utils/contextMenuActions'
 import {fileToBase64 as readFileAsBase64} from './utils/fileTransfer'
 import {createId} from './utils/id'
-import {applyPaletteAction} from './utils/paletteActions'
 import {
   appendNewSessionGroup,
   createSessionGroup,
@@ -452,16 +472,12 @@ import {
 } from './utils/sessionTreeMove'
 import {applySessionTreeAction as dispatchSessionTreeAction} from './utils/sessionTreeActions'
 import {buildTerminalConfig} from './utils/terminalConfig'
-import {runWindowMenuAction as dispatchWindowMenuAction} from './utils/windowMenuActions'
-import type {WindowMenuAction} from './windowMenus'
 
-type DrawerName = 'sessions' | 'sftp'
+const CommandPalette = defineAsyncComponent(() => import('./components/CommandPalette.vue'))
+const EditorWorkbench = defineAsyncComponent(() => import('./components/EditorWorkbench.vue'))
+const SftpDrawer = defineAsyncComponent(() => import('./components/sftp/SftpDrawer.vue'))
+const TerminalComponent = defineAsyncComponent(() => import('./components/TerminalComponent.vue'))
 
-const activityBarWidth = 48
-const minDrawerWidth = 280
-const maxDrawerWidth = 420
-const minEditorPaneHeight = 120
-const maxEditorPaneHeight = 420
 
 const {
   isWindowMaximized,
@@ -477,36 +493,21 @@ const {
   windowMenuOpen,
   windowMenus,
 } = useWindowMenuState()
-const activeDrawer = ref<DrawerName | null>('sessions')
 const paletteVisible = ref(false)
+const shortcutHelpVisible = ref(false)
+const shortcutHelpItems = [
+  {key: 'Ctrl+P', label: 'Open command palette'},
+  {key: 'Ctrl+N', label: 'Create a new session'},
+  {key: 'Ctrl+W', label: 'Close current session tab'},
+  {key: 'Ctrl+F', label: 'Search in terminal'},
+  {key: 'Ctrl+/', label: 'Show shortcuts'},
+  {key: 'Broadcast', label: 'Requires confirmation before sending input to multiple terminals'},
+]
 const hasActiveSession = ref(false)
 const openedSessionNames = ref<string[]>([])
 const broadcastEnabled = ref(false)
 const autoReconnectEnabled = ref(false)
 const {activeTheme, currentThemeName, themes} = useThemeState()
-const {size: drawerWidth, startResize} = useResizablePane({
-  initialSize: minDrawerWidth,
-  minSize: minDrawerWidth,
-  maxSize: maxDrawerWidth,
-  axis: 'x',
-  onResize: () => scheduleActiveTerminalFit(),
-})
-const showEditorArea = computed({
-  get: () => activeWorkspace.value.showEditorArea,
-  set: (value) => (activeWorkspace.value.showEditorArea = value)
-})
-const editorPaneHeight = computed({
-  get: () => activeWorkspace.value.editorPaneHeight,
-  set: (value) => (activeWorkspace.value.editorPaneHeight = value)
-})
-const {startResize: startWorkbenchResize} = useResizablePane({
-  initialSize: 230,
-  minSize: minEditorPaneHeight,
-  maxSize: maxEditorPaneHeight,
-  axis: 'y',
-  sizeRef: editorPaneHeight,
-  onResize: () => scheduleActiveTerminalFit(),
-})
 const editingGroupId = ref('')
 const allSessionsGroupId = ALL_SESSIONS_GROUP_ID
 const {
@@ -567,28 +568,6 @@ const contextMenuItems = computed<ContextMenuItem[]>(() => getContextMenuItems(
   contextMenu.type,
   contextMenu.type === 'group' && isAllSessionsGroup(contextMenu.targetId),
 ))
-
-function runWindowMenuAction(action: WindowMenuAction) {
-  dispatchWindowMenuAction(action, {
-    closeWindowMenu,
-    openCreateSessionDialog: () => openCreateSessionDialog(sessionGroups[0]?.id ?? ''),
-    closeActiveSession: () => {
-      if (activeSession.value) {
-        closeSessionTab(activeSession.value.name)
-      }
-    },
-    toggleSessionsDrawer: () => toggleDrawer('sessions'),
-    openSftpDrawer: (mode) => {
-      activeDrawer.value = 'sftp'
-      if (activeSession.value) {
-        mode === 'refresh' ? refreshSftpTreePath() : loadSftpTreeRoot()
-      }
-    },
-    collapseAllGroups,
-    testSessionConnection,
-    showAbout: () => showToast('VRShell'),
-  })
-}
 
 const {
   sftpBookmarks,
@@ -662,6 +641,17 @@ const {
   getWorkspaceState,
   deleteWorkspaceState
 } = useWorkspaceStore(() => activeSession.value?.name)
+const {
+  activeDrawer,
+  drawerWidth,
+  editorPaneHeight,
+  showEditorArea,
+  startResize,
+  startWorkbenchResize,
+} = useAppLayoutState({
+  activeWorkspace,
+  onResize: () => scheduleActiveTerminalFit(),
+})
 const terminalTabs = computed(() => (hasActiveSession.value ? activeWorkspace.value.terminalTabs : []))
 const pendingUploadDirectory = ref('/')
 const sftpDrawerElementRef = ref<HTMLElement | { $el?: HTMLElement } | null>(null)
@@ -677,6 +667,7 @@ const {
   finishTask: finishSftpTask,
   failTask: failSftpTask,
   cancelCurrentTask: cancelCurrentSftpTask,
+  clearTaskHistory: clearSftpTaskHistory,
 } = useSftpTask(getSftpConnection, (message) => {
   sftpStatus.value = message
 })
@@ -700,6 +691,23 @@ const sftpStatus = computed({
   get: () => activeWorkspace.value.sftpStatus,
   set: (value) => (activeWorkspace.value.sftpStatus = value)
 })
+
+function ensureActiveSftpLoaded() {
+  return appSftpTreeActions.ensureActiveSftpLoaded()
+}
+
+function findSftpTreeNode(path: string, nodes?: SftpTreeNode[]) {
+  return appSftpTreeActions.findSftpTreeNode(path, nodes)
+}
+
+function refreshSftpTreePath(path = sftpPath.value) {
+  return appSftpTreeActions.refreshSftpTreePath(path)
+}
+
+function openSftpPath(path: string, options: { recordHistory?: boolean } = {}) {
+  return appSftpTreeActions.openSftpPath(path, options)
+}
+
 const {
   navigateSftpBack,
   navigateSftpForward,
@@ -722,13 +730,6 @@ const activeEditorFile = computed(() => editorTabs.value.find((file) => file.sel
 function handleEditorMoreSelect(event: Event) {
   const nextPath = (event.target as HTMLSelectElement).value
   if (nextPath) selectEditorFile(nextPath)
-  ;
-  (event.target as HTMLSelectElement).value = ''
-}
-
-function handleTerminalMoreSelect(event: Event) {
-  const nextTerminalId = (event.target as HTMLSelectElement).value
-  if (nextTerminalId) selectTerminalTab(nextTerminalId)
   ;
   (event.target as HTMLSelectElement).value = ''
 }
@@ -775,6 +776,18 @@ const {
   getSftpConnection,
   openSftpFile,
   pushSftpPath,
+})
+const appSftpTreeActions = useAppSftpTreeActions({
+  activeSession,
+  findSftpTreeNodeState,
+  loadSftpTreeRoot,
+  openSftpPathState,
+  refreshSftpTreePathState,
+  sftpFiles,
+  sftpPath,
+  sftpStatus,
+  sftpTree,
+  sftpTreeLoading,
 })
 const {
   setSftpSort,
@@ -936,6 +949,29 @@ const {
   markTerminalActivity,
   tabActivitySet,
 } = useTerminalActivity(() => activeTerminalTab.value?.id)
+const {
+  applyTerminalTabAction,
+  closeTerminalTab,
+  createTerminalTab,
+  createTerminalTabState,
+  handleTerminalClosed,
+  handleTerminalMoreSelect,
+  renameTerminalTab,
+  selectTerminalTab,
+  updateTerminalSessionId,
+  updateTerminalStatus,
+} = useAppTerminalTabs({
+  activeSession,
+  activeWorkspace,
+  clearTabActivity,
+  copySshCommand,
+  createTerminalId: () => createId('terminal'),
+  disconnectTerminalRef,
+  getWorkspaceState,
+  onTerminalStatusChange: syncHostTerminalStatus,
+  reconnectTerminalRef,
+  scheduleActiveTerminalFit,
+})
 const editorStatusText = computed(() => {
   if (!activeEditorFile.value) {
     return ''
@@ -951,44 +987,28 @@ const allGroupNames = computed(() => {
   return names
 })
 
-function handlePaletteAction(action: string, payload?: string) {
-  // SSH settings are handled directly since they call invoke.
-  if (action === 'ssh_hash_known_hosts') {
-    invoke<boolean>('get_hash_known_hosts').then((enabled) => {
-      invoke('set_hash_known_hosts', {enabled: !enabled}).then(() => {
-        showToast(`HashKnownHosts ${!enabled ? 'enabled' : 'disabled'}`, 'success')
-      })
-    })
-    return
-  }
-  if (action === 'ssh_auto_reconnect') {
-    autoReconnectEnabled.value = !autoReconnectEnabled.value
-    showToast(`Auto reconnect ${autoReconnectEnabled.value ? 'enabled' : 'disabled'}`, 'success')
-    return
-  }
-
-  applyPaletteAction({
-    action,
-    payload,
-    openCreateSessionDialog: () => openCreateSessionDialog(sessionGroups[0]?.id ?? ''),
-    closeActiveSession: () => {
-      if (activeSession.value) {
-        closeSessionTab(activeSession.value.name)
-      }
-    },
-    toggleSessions: () => toggleDrawer('sessions'),
-    openSftp: (mode) => {
-      activeDrawer.value = 'sftp'
-      if (activeSession.value) {
-        mode === 'refresh' ? refreshSftpTreePath() : ensureActiveSftpLoaded()
-      }
-    },
-    collapseAllGroups,
-    connectSession,
-    switchTheme: (themeName) => (activeTheme.value = themeName as ThemeName),
-  })
-}
-
+const {
+  handlePaletteAction,
+  runWindowMenuAction,
+} = useAppCommandActions({
+  activeDrawer,
+  activeSession,
+  activeTheme,
+  autoReconnectEnabled,
+  closeSessionTab,
+  closeWindowMenu,
+  collapseAllGroups,
+  connectSession,
+  ensureActiveSftpLoaded,
+  loadSftpTreeRoot,
+  openCreateSessionDialog,
+  refreshSftpTreePath,
+  sessionGroups,
+  showShortcutHelp: () => (shortcutHelpVisible.value = true),
+  showToast,
+  testSessionConnection,
+  toggleDrawer,
+})
 useGlobalShortcuts({
   togglePalette: () => {
     paletteVisible.value = !paletteVisible.value
@@ -1027,41 +1047,18 @@ const {restoreUiState, saveUiState, stopPersistence} = useUiStatePersistence({
   minEditorPaneHeight,
   maxEditorPaneHeight,
 })
-let unlistenSftpProgress: (() => void) | null = null
-
-onMounted(async () => {
-  restoreUiState()
-  loadBookmarks()
-  loadPersistedSessionTree()
-  registerTauriDragDrop()
-  registerSftpProgressListener()
-  window.addEventListener('beforeunload', disconnectAllSessionsBeforeExit)
+useAppLifecycle<Parameters<typeof applySftpTaskProgress>[0]>({
+  applySftpTaskProgress,
+  disconnectAllSessionsBeforeExit,
+  loadBookmarks,
+  loadPersistedSessionTree,
+  registerTauriDragDrop,
+  restoreUiState,
+  saveUiState,
+  stopPersistence,
+  unregisterTauriDragDrop,
 })
-
-onUnmounted(() => {
-  saveUiState()
-  stopPersistence()
-  window.removeEventListener('beforeunload', disconnectAllSessionsBeforeExit)
-  unlistenSftpProgress?.()
-  unlistenSftpProgress = null
-  unregisterTauriDragDrop()
-  disconnectAllSessionsBeforeExit()
-})
-
-async function registerSftpProgressListener() {
-  if (unlistenSftpProgress) return
-
-  try {
-    unlistenSftpProgress = await listen('sftp-progress', (event) => {
-      applySftpTaskProgress(event.payload as Parameters<typeof applySftpTaskProgress>[0])
-    })
-  } catch (error) {
-    console.warn('register sftp progress failed:', error)
-  }
-}
-
-
-function toggleDrawer(drawerName: DrawerName) {
+function toggleDrawer(drawerName: AppDrawerName) {
   activeDrawer.value = activeDrawer.value === drawerName ? null : drawerName
 
   if (drawerName === 'sftp' && activeDrawer.value === 'sftp') {
@@ -1070,60 +1067,40 @@ function toggleDrawer(drawerName: DrawerName) {
 }
 
 
-async function ensureActiveSftpLoaded() {
-  if (!activeSession.value) {
-    sftpFiles.value = []
-    sftpStatus.value = 'Please connect a session first'
-    return
-  }
-
-  if (sftpTree.value.length === 0 && !sftpTreeLoading.value) {
-    await loadSftpTreeRoot()
-    return
-  }
-
-  if (sftpFiles.value.length === 0 && sftpTree.value.length > 0) {
-    sftpPath.value = '/'
-    sftpFiles.value = sftpTree.value
-  }
-}
-
-function findSftpTreeNode(path: string, nodes?: SftpTreeNode[]) {
-  return findSftpTreeNodeState(path, nodes)
-}
-
-function refreshSftpTreePath(path = sftpPath.value) {
-  return refreshSftpTreePathState(path)
-}
-
-function openSftpPath(path: string, options: { recordHistory?: boolean } = {}) {
-  return openSftpPathState(path, options)
-}
-
-
 function resetWorkbenchState() {
   resetWorkspaceState(activeWorkspace.value)
 }
 
-function createTerminalTab() {
-  addTerminalTab(activeWorkspace.value.terminalTabs, () => createId('terminal'))
+async function toggleBroadcastInput() {
+  if (broadcastEnabled.value) {
+    broadcastEnabled.value = false
+    return
+  }
+
+  const targetCount = broadcastTargetSessionIds.value.length
+  if (targetCount <= 1) {
+    showToast('Open another terminal before enabling broadcast input', 'info')
+    return
+  }
+
+  const confirmed = await askConfirm(
+    'Enable Broadcast Input?',
+    `Your keystrokes will be sent to ${targetCount} terminals. Use this only when every target should receive the same commands.`,
+  )
+  if (confirmed) {
+    broadcastEnabled.value = true
+  }
 }
 
-function createTerminalTabState(name: string, selected = false): TerminalTab {
-  return createTerminalTabModel(createId('terminal'), name, selected)
-}
-
-function selectTerminalTab(terminalId: string) {
-  selectTerminalTabState(activeWorkspace.value.terminalTabs, terminalId)
-  scheduleActiveTerminalFit(terminalId)
-}
-
-function renameTerminalTab(terminalId: string) {
-  const terminal = activeWorkspace.value.terminalTabs.find((item) => item.id === terminalId)
-  const nextName = window.prompt('Enter terminal name', terminal?.name ?? '')?.trim()
-
-  if (nextName) {
-    renameTerminalTabState(activeWorkspace.value.terminalTabs, terminalId, nextName)
+async function previewSshConfigImportFromHome() {
+  try {
+    const preview = await previewSshConfigImport(allSessionNames.value)
+    showToast(
+      `SSH config preview: ${preview.hosts.length} hosts, ${preview.duplicateHosts.length} duplicates`,
+      preview.hosts.length > 0 ? 'success' : 'info',
+    )
+  } catch (error) {
+    showToast(`SSH config preview failed: ${String(error)}`, 'error')
   }
 }
 
@@ -1131,24 +1108,11 @@ function handleTerminalActivity(_sessionName: string, terminalId: string) {
   markTerminalActivity(terminalId)
 }
 
-function handleTerminalClosed(sessionName: string, terminalId: string) {
-  updateTerminalStatus(sessionName, terminalId, 'disconnected')
-  clearTabActivity(terminalId)
-}
-
-function updateTerminalSessionId(sessionName: string, terminalId: string, sessionId: string) {
-  updateTerminalTabSessionId(getWorkspaceState(sessionName).terminalTabs, terminalId, sessionId)
-}
-
-function updateTerminalStatus(sessionName: string, terminalId: string, status: TerminalStatus, error = '') {
-  updateTerminalTabStatus(getWorkspaceState(sessionName).terminalTabs, terminalId, status, error)
-
-  // Sync session host status
+function syncHostTerminalStatus(sessionName: string, status: TerminalStatus) {
   const host = findHost(sessionName)
   if (host) {
     if (status === 'connected') {
       host.status = 'connected'
-      // Measure latency in background
       measureHostLatency(host)
     } else if (status === 'error') host.status = 'error'
     else if (status === 'connecting' || status === 'reconnecting') host.status = 'connecting'
@@ -1158,7 +1122,7 @@ function updateTerminalStatus(sessionName: string, terminalId: string, status: T
 
 async function measureHostLatency(host: SessionHost) {
   try {
-    const ms = await invoke<number>('tcp_latency', {host: host.address, port: host.port})
+    const ms = await measureTcpLatency(host.address, host.port)
     host.latency = `${ms}ms`
   } catch {
     host.latency = '-'
@@ -1167,38 +1131,6 @@ async function measureHostLatency(host: SessionHost) {
 
 function getTerminalConfig(sessionName: string) {
   return buildTerminalConfig(findHost(sessionName))
-}
-
-function closeTerminalTab(terminalId: string, sessionName = activeSession.value?.name) {
-  if (!sessionName) {
-    return
-  }
-
-  const workspace = getWorkspaceState(sessionName)
-
-  if (!workspace.terminalTabs.some((terminal) => terminal.id === terminalId)) {
-    return
-  }
-
-  disconnectTerminalRef(sessionName, terminalId)
-  closeTerminalTabState(workspace.terminalTabs, terminalId, () => createId('terminal'))
-}
-
-function applyTerminalTabAction(terminalId: string, action: string) {
-  dispatchTerminalTabAction({
-    terminals: activeWorkspace.value.terminalTabs,
-    terminalId,
-    action,
-    createId: () => createId('terminal'),
-    reconnectTerminal: (id) => {
-      if (activeSession.value) {
-        reconnectTerminalRef(activeSession.value.name, id)
-      }
-    },
-    copySshCommand,
-    closeTerminalTab,
-    selectTerminalTab,
-  })
 }
 
 async function handleContextMenuAction(action: string) {
@@ -1309,8 +1241,7 @@ async function testSessionConnection() {
   try {
     if (!validateRequiredSessionFields()) return
 
-    // Use real SSH connection test
-    const latency = await invoke<number>('test_ssh_connection', {
+    const latency = await testSshConnectionCommand({
       host: sessionForm.address,
       port: sessionForm.port,
       username: sessionForm.user,
@@ -2716,7 +2647,7 @@ const tabs = computed(() =>
 .editor-pane,
 .terminal-pane {
   display: grid;
-  grid-template-rows: 28px minmax(0, 1fr);
+  grid-template-rows: 34px minmax(0, 1fr);
   min-height: 0;
   overflow: hidden;
 }
@@ -2754,7 +2685,7 @@ const tabs = computed(() =>
 }
 
 .terminal-pane {
-  grid-template-rows: 28px minmax(0, 1fr);
+  grid-template-rows: 34px minmax(0, 1fr);
   position: relative;
   background: var(--workspace-bg);
   box-shadow: none;
@@ -2766,13 +2697,16 @@ const tabs = computed(() =>
 }
 
 .pane-tabs {
-  gap: 2px;
+  align-items: center;
+  gap: 6px;
   min-width: 0;
+  height: 34px;
   overflow-x: auto;
   overflow-y: hidden;
-  padding: 2px 8px;
-  border-bottom: 1px solid var(--idea-border);
-  background: var(--idea-chrome);
+  padding: 4px 6px;
+  box-sizing: border-box;
+  border-bottom: 1px solid #111418;
+  background: #1b1d21;
   scrollbar-width: none;
 }
 
@@ -2784,26 +2718,27 @@ const tabs = computed(() =>
   position: relative;
   display: flex;
   align-items: center;
-  gap: 6px;
-  height: 24px;
+  gap: 7px;
+  height: 26px;
   flex: 0 0 auto;
   max-width: 180px;
-  padding: 0 8px;
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  border-top: 2px solid transparent;
-  border-radius: 7px 7px 0 0;
-  background: color-mix(in srgb, var(--surface-soft) 62%, transparent);
-  color: var(--idea-text-muted);
+  padding: 0 12px;
+  margin: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: rgba(39,43,49,0.46);
+  color: #9ba7b7;
   font-size: 12px;
+  line-height: 1;
   transition: border-color var(--motion-fast), background var(--motion-fast), color var(--motion-fast), box-shadow var(--motion-fast);
 }
 
-.pane-tab.selected {
-  border-color: color-mix(in srgb, var(--accent) 34%, var(--idea-border));
-  border-top-color: var(--accent);
-  background: color-mix(in srgb, var(--idea-bg) 88%, transparent);
-  color: var(--idea-text);
-  box-shadow: inset 0 1px rgba(255, 255, 255, 0.04);
+.pane-tab.selected,
+.pane-tab:hover {
+  border-color: rgba(72,98,125,0.82);
+  background: linear-gradient(180deg, rgba(41,65,94,0.78) 0%, rgba(32,54,80,0.72) 100%);
+  color: #8ec7ff;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 4px 12px rgba(0,0,0,0.18);
 }
 
 .editor-file-tab {
@@ -2854,9 +2789,10 @@ const tabs = computed(() =>
   place-items: center;
   border-radius: 5px;
   color: #94a3b8;
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 700;
   line-height: 1;
-  opacity: 0.78;
+  opacity: 1;
   transition: opacity var(--motion-fast), background var(--motion-fast), color var(--motion-fast);
 }
 
@@ -2885,25 +2821,19 @@ const tabs = computed(() =>
   color: #fde68a;
 }
 
-.pane-tab:hover {
-  border-color: color-mix(in srgb, var(--accent) 24%, var(--idea-border));
-  background: color-mix(in srgb, var(--accent) 9%, transparent);
-  color: #dbeafe;
-}
-
 .pane-tab small {
   color: #64748b;
 }
 
 .tab-more-select {
   flex: 0 0 auto;
-  max-width: 108px;
-  height: 24px;
-  padding: 0 22px 0 8px;
-  border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--idea-border));
-  border-radius: 7px 7px 0 0;
-  background: color-mix(in srgb, var(--accent) 12%, var(--idea-chrome));
-  color: var(--idea-text);
+  max-width: 112px;
+  height: 26px;
+  padding: 0 22px 0 10px;
+  border: 1px solid rgba(72,98,125,0.72);
+  border-radius: 6px;
+  background: rgba(39,43,49,0.46);
+  color: #9ba7b7;
   font-size: 11px;
   font-weight: 700;
   outline: 0;
@@ -2912,26 +2842,28 @@ const tabs = computed(() =>
 
 .tab-more-select:hover,
 .tab-more-select:focus {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 18%, var(--idea-chrome));
-  color: #f8fafc;
+  border-color: rgba(72,98,125,0.82);
+  background: linear-gradient(180deg, rgba(41,65,94,0.78) 0%, rgba(32,54,80,0.72) 100%);
+  color: #8ec7ff;
 }
 
 .pane-add,
 .pane-action {
-  height: 22px;
-  padding: 0 7px;
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  border-radius: 0;
-  background: rgba(15, 23, 42, 0.42);
-  color: #94a3b8;
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid rgba(72,98,125,0.72);
+  border-radius: 6px;
+  background: rgba(39,43,49,0.46);
+  color: #9ba7b7;
   font-size: 12px;
+  line-height: 1;
 }
 
 .pane-add:hover,
 .pane-action:hover {
-  background: rgba(148, 163, 184, 0.08);
-  color: #dbeafe;
+  border-color: rgba(72,98,125,0.82);
+  background: linear-gradient(180deg, rgba(41,65,94,0.78) 0%, rgba(32,54,80,0.72) 100%);
+  color: #8ec7ff;
 }
 
 .pane-action {
@@ -3161,6 +3093,134 @@ const tabs = computed(() =>
 }
 
 /* --- Quick Open (Ctrl+P) --- */
+.shortcut-help-backdrop {
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 50% 24%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 38%),
+    rgba(2, 6, 23, 0.62);
+  backdrop-filter: blur(6px);
+}
+
+.shortcut-help-dialog {
+  width: min(520px, calc(100vw - 32px));
+  max-height: min(680px, calc(100vh - 48px));
+  border: 1px solid color-mix(in srgb, var(--idea-border) 82%, #ffffff 8%);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--idea-panel) 92%, #ffffff 4%), var(--idea-panel)),
+    var(--idea-panel);
+  box-shadow: var(--shadow-popover);
+  animation: shortcut-help-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes shortcut-help-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.shortcut-help-dialog header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+  background: color-mix(in srgb, var(--idea-chrome) 76%, transparent);
+}
+
+.shortcut-help-dialog header strong {
+  color: var(--idea-text);
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.shortcut-help-dialog header button {
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--idea-text-muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease,
+    color 0.16s ease;
+}
+
+.shortcut-help-dialog header button:hover {
+  border-color: rgba(148, 163, 184, 0.16);
+  background: var(--idea-hover);
+  color: var(--idea-text);
+}
+
+.shortcut-help-dialog dl {
+  display: grid;
+  grid-template-columns: minmax(116px, max-content) minmax(0, 1fr);
+  gap: 0;
+  max-height: calc(min(680px, 100vh - 48px) - 57px);
+  margin: 0;
+  padding: 8px;
+  overflow-y: auto;
+}
+
+.shortcut-help-dialog dt,
+.shortcut-help-dialog dd {
+  min-height: 38px;
+  margin: 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+}
+
+.shortcut-help-dialog dt {
+  display: flex;
+  align-items: center;
+  padding: 7px 12px 7px 8px;
+  color: color-mix(in srgb, var(--accent) 84%, #ffffff);
+  font-family: "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.shortcut-help-dialog dt::before {
+  content: '';
+  display: inline-block;
+  width: 3px;
+  height: 18px;
+  margin-right: 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 72%, transparent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+.shortcut-help-dialog dd {
+  display: flex;
+  align-items: center;
+  padding: 7px 10px;
+  color: var(--idea-text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.shortcut-help-dialog dt:last-of-type,
+.shortcut-help-dialog dd:last-of-type {
+  border-bottom: 0;
+}
+
 .quick-open-backdrop {
   display: flex;
   align-items: flex-start;

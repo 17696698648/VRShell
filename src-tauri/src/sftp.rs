@@ -1,120 +1,45 @@
-use crate::connect;
+use crate::config;
 use crate::sessions::AppState;
+use crate::sftp_error::{SftpError, SftpResult};
+use crate::sftp_path::{join_remote_path, normalize_remote_path, parent_remote_path};
+use crate::sftp_session::{remove_sftp_session_state, with_sftp, SftpConnectionArgs};
+use crate::sftp_task::{
+    check_sftp_task_cancelled, emit_sftp_progress, emit_sftp_progress_with_rate, finish_sftp_task,
+    get_sftp_task_queue, register_sftp_task, SftpUploadFailure, SftpUploadSummary,
+};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
 use std::{
-    fs::File,
-    io::{Cursor, Read, Write},
-    path::Path,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc, Mutex,
-    },
-    time::{Duration, Instant},
+    fs::{self, File},
+    io::{Cursor, Read, Seek, SeekFrom, Write},
+    path::{Path, PathBuf},
+    sync::atomic::{AtomicBool, Ordering},
+    time::Instant,
 };
-use tauri::{Emitter, State};
+use tauri::State;
 
-const SFTP_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
-pub(crate) const DEFAULT_SFTP_IDLE_TIMEOUT_SECS: u64 = 10 * 60;
+pub(crate) use crate::sftp_session::sftp_session_key;
 
-/// Default buffer size for SFTP stream copies (64 KiB).
-const SFTP_COPY_BUFFER_SIZE: usize = 64 * 1024;
-const SFTP_PROGRESS_EMIT_INTERVAL: Duration = Duration::from_millis(100);
-
-#[derive(Debug, Clone, Serialize)]
+#[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SftpError {
-    code: String,
-    message: String,
-    recoverable: bool,
-    #[serde(skip_serializing_if = "Map::is_empty")]
-    details: Map<String, Value>,
+pub(crate) struct SftpEntry {
+    name: String,
+    path: String,
+    size: String,
+    size_bytes: u64,
+    modified: u64,
+    is_directory: bool,
+    is_symlink: bool,
 }
 
-type SftpResult<T> = Result<T, SftpError>;
-
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SftpConnectionArgs {
-    host: String,
-    port: u16,
-    username: String,
-    password: Option<String>,
-    private_key_path: Option<String>,
-    passphrase: Option<String>,
-}
-
-impl SftpConnectionArgs {
-    fn session_key(&self) -> String {
-        sftp_session_key(&self.host, self.port, &self.username)
-    }
-}
-
-impl SftpError {
-    fn new(
-        code: impl Into<String>,
-        message: impl Into<String>,
-        path: Option<String>,
-        recoverable: bool,
-    ) -> Self {
-        let mut details = Map::new();
-        if let Some(path) = path {
-            details.insert("path".to_string(), Value::String(path));
-        }
-        Self {
-            code: code.into(),
-            message: message.into(),
-            recoverable,
-            details,
-        }
-    }
-
-    fn size_mismatch(path: &str, expected: u64, actual: u64) -> Self {
-        Self::new(
-            "size_mismatch",
-            format!(
-                "transfer size mismatch: expected {} bytes, got {} bytes",
-                expected, actual
-            ),
-            Some(path.to_string()),
-            true,
-        )
-    }
-}
-
-impl From<String> for SftpError {
-    fn from(message: String) -> Self {
-        let lower = message.to_lowercase();
-        let code = if lower.contains("canceled") {
-            "canceled"
-        } else if lower.contains("auth") {
-            "auth_failed"
-        } else if lower.contains("timeout")
-            || lower.contains("connect")
-            || lower.contains("session")
-            || lower.contains("handshake")
-        {
-            "connection"
-        } else if lower.contains("not found") || lower.contains("no such") {
-            "not_found"
-        } else if lower.contains("permission") || lower.contains("denied") {
-            "permission_denied"
-        } else {
-            "sftp_error"
-        };
-        let recoverable = matches!(
-            code,
-            "canceled" | "connection" | "sftp_error" | "size_mismatch"
-        );
-        Self::new(code, message, None, recoverable)
-    }
-}
-
-impl From<&str> for SftpError {
-    fn from(message: &str) -> Self {
-        message.to_string().into()
-    }
+pub(crate) struct SftpListPage {
+    entries: Vec<SftpEntry>,
+    offset: usize,
+    limit: usize,
+    total: usize,
+    has_more: bool,
 }
 
 #[tauri::command]
@@ -123,139 +48,90 @@ pub async fn sftp_list(
     state: State<'_, AppState>,
     connection: SftpConnectionArgs,
     path: String,
-) -> SftpResult<Vec<serde_json::Value>> {
+) -> SftpResult<Vec<SftpEntry>> {
     let remote_path = normalize_remote_path(&path);
     with_sftp(&state, &connection, |sftp| {
-        let entries = sftp
-            .readdir(Path::new(&remote_path))
-            .map_err(|e| format!("readdir {} err: {}", remote_path, e))?;
-        let mut out: Vec<serde_json::Value> = Vec::new();
+        read_sftp_entries(sftp, &remote_path)
+    })
+}
 
-        for (path, stat) in entries {
-            let name = path
-                .file_name()
-                .and_then(|name| name.to_str().map(|value| value.to_string()))
-                .unwrap_or_default();
+#[tauri::command]
+pub async fn sftp_list_page(
+    _app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    connection: SftpConnectionArgs,
+    path: String,
+    offset: Option<usize>,
+    limit: Option<usize>,
+) -> SftpResult<SftpListPage> {
+    let remote_path = normalize_remote_path(&path);
+    let offset = offset.unwrap_or(0);
+    let limit = limit.unwrap_or(500).clamp(1, 5000);
+    with_sftp(&state, &connection, |sftp| {
+        let entries = read_sftp_entries(sftp, &remote_path)?;
+        let total = entries.len();
+        let page_entries = entries
+            .into_iter()
+            .skip(offset)
+            .take(limit)
+            .collect::<Vec<_>>();
+        let returned = page_entries.len();
+        Ok(SftpListPage {
+            entries: page_entries,
+            offset,
+            limit,
+            total,
+            has_more: offset + returned < total,
+        })
+    })
+}
 
-            if name.is_empty() || name == "." || name == ".." {
-                continue;
-            }
+fn read_sftp_entries(sftp: &ssh2::Sftp, remote_path: &str) -> SftpResult<Vec<SftpEntry>> {
+    let entries = sftp
+        .readdir(Path::new(remote_path))
+        .map_err(|e| format!("readdir {} err: {}", remote_path, e))?;
+    let mut out: Vec<SftpEntry> = Vec::new();
 
-            let size = stat.size.unwrap_or(0);
-            let modified = stat.mtime.unwrap_or(0);
-            let is_symlink = stat.perm.is_some_and(|p| (p & 0o170000) == 0o120000);
-            let full_path = join_remote_path(&remote_path, &name);
-            out.push(serde_json::json!({
-                "name": name,
-                "path": full_path,
-                "size": format!("{} bytes", size),
-                "sizeBytes": size,
-                "modified": modified,
-                "isDirectory": stat.is_dir(),
-                "isSymlink": is_symlink
-            }));
+    for (path, stat) in entries {
+        let name = path
+            .file_name()
+            .and_then(|name| name.to_str().map(|value| value.to_string()))
+            .unwrap_or_default();
+
+        if name.is_empty() || name == "." || name == ".." {
+            continue;
         }
 
-        out.sort_by(|left, right| {
-            let left_dir = left["isDirectory"].as_bool().unwrap_or(false);
-            let right_dir = right["isDirectory"].as_bool().unwrap_or(false);
-            right_dir
-                .cmp(&left_dir)
-                .then_with(|| left["name"].as_str().cmp(&right["name"].as_str()))
+        let size = stat.size.unwrap_or(0);
+        let modified = stat.mtime.unwrap_or(0);
+        let is_symlink = stat.perm.is_some_and(|p| (p & 0o170000) == 0o120000);
+        let full_path = join_remote_path(remote_path, &name);
+        out.push(SftpEntry {
+            name,
+            path: full_path,
+            size: format!("{} bytes", size),
+            size_bytes: size,
+            modified,
+            is_directory: stat.is_dir(),
+            is_symlink,
         });
-
-        Ok(out)
-    })
-}
-
-fn connect_sftp(
-    connection: &SftpConnectionArgs,
-    host_key_cache: Option<&crate::sessions::HostKeyCache>,
-) -> Result<ssh2::Session, String> {
-    connect::connect_ssh_session(connect::ConnectOptions {
-        host: &connection.host,
-        port: connection.port,
-        auth: connect::AuthOptions {
-            username: &connection.username,
-            password: connection.password.as_deref(),
-            private_key_path: connection.private_key_path.as_deref(),
-            passphrase: connection.passphrase.as_deref(),
-        },
-        connect_timeout: Some(SFTP_CONNECT_TIMEOUT),
-        verify_known_hosts: true,
-        host_key_cache,
-        interaction: connect::InteractionOptions::none(),
-    })
-    .map(|conn| conn.session)
-    .map_err(|e| e.to_string())
-}
-
-pub(crate) fn sftp_session_key(host: &str, port: u16, username: &str) -> String {
-    format!("{}@{}:{}", username, host, port)
-}
-
-fn register_sftp_task(
-    state: &State<'_, AppState>,
-    task_id: &str,
-) -> Result<Arc<AtomicBool>, String> {
-    let cancel_flag = Arc::new(AtomicBool::new(false));
-    state
-        .sftp_tasks
-        .lock()
-        .map_err(|e| format!("sftp task registry lock err: {}", e))?
-        .insert(task_id.to_string(), cancel_flag.clone());
-    Ok(cancel_flag)
-}
-
-fn finish_sftp_task(state: &State<'_, AppState>, task_id: &str) {
-    if let Ok(mut tasks) = state.sftp_tasks.lock() {
-        tasks.remove(task_id);
     }
-}
 
-fn check_sftp_task_cancelled(cancel_flag: &AtomicBool) -> Result<(), String> {
-    if cancel_flag.load(Ordering::Relaxed) {
-        Err("SFTP task canceled".into())
-    } else {
-        Ok(())
-    }
-}
-
-fn get_sftp_task_queue(
-    state: &State<'_, AppState>,
-    session_key: &str,
-) -> Result<Arc<Mutex<()>>, String> {
-    let mut queues = state
-        .sftp_task_queues
-        .lock()
-        .map_err(|e| format!("sftp task queue lock err: {}", e))?;
-    Ok(queues
-        .entry(session_key.to_string())
-        .or_insert_with(|| Arc::new(Mutex::new(())))
-        .clone())
-}
-
-fn is_sftp_session_healthy(session: &ssh2::Session) -> bool {
-    // Lightweight check: no remote round鈥憈rip.
-    // - A dead session will fail on the next real operation anyway.
-    // - Avoid the stat("/") that would add a full SFTP RTT.
-    session.sftp().is_ok()
-}
-
-fn remove_sftp_session_state(state: &State<'_, AppState>, session_key: &str) {
-    if let Ok(mut sessions) = state.sftp_sessions.lock() {
-        sessions.remove(session_key);
-    }
-    if let Ok(mut queues) = state.sftp_task_queues.lock() {
-        queues.remove(session_key);
-    }
+    out.sort_by(|left, right| {
+        right
+            .is_directory
+            .cmp(&left.is_directory)
+            .then_with(|| left.name.cmp(&right.name))
+    });
+    Ok(out)
 }
 
 #[tauri::command]
 pub async fn set_sftp_idle_timeout(state: State<'_, AppState>, seconds: u64) -> SftpResult<()> {
-    state
-        .sftp_idle_timeout_secs
-        .store(seconds.max(1), Ordering::Relaxed);
+    state.sftp_idle_timeout_secs.store(
+        config::normalize_sftp_idle_timeout_secs(seconds),
+        Ordering::Relaxed,
+    );
     Ok(())
 }
 
@@ -272,78 +148,6 @@ pub async fn cancel_sftp_task(state: State<'_, AppState>, task_id: String) -> Sf
     Ok(())
 }
 
-fn with_sftp<T>(
-    state: &State<'_, AppState>,
-    connection: &SftpConnectionArgs,
-    operation: impl FnOnce(&ssh2::Sftp) -> SftpResult<T>,
-) -> SftpResult<T> {
-    let key = connection.session_key();
-    let now = Instant::now();
-    let idle_timeout =
-        Duration::from_secs(state.sftp_idle_timeout_secs.load(Ordering::Relaxed).max(1));
-
-    let handle = {
-        let mut sessions = state
-            .sftp_sessions
-            .lock()
-            .map_err(|e| format!("sftp session cache lock err: {}", e))?;
-        let mut expired_keys = Vec::new();
-        sessions.retain(|session_key, handle| {
-            let keep = handle
-                .lock()
-                .map(|handle| now.duration_since(handle.last_used) < idle_timeout)
-                .unwrap_or(false);
-            if !keep {
-                expired_keys.push(session_key.clone());
-            }
-            keep
-        });
-        if !expired_keys.is_empty() {
-            if let Ok(mut queues) = state.sftp_task_queues.lock() {
-                for expired_key in expired_keys {
-                    queues.remove(&expired_key);
-                }
-            }
-        }
-
-        if let Some(handle) = sessions.get(&key) {
-            handle.clone()
-        } else {
-            let handle = Arc::new(Mutex::new(crate::sessions::SftpSessionHandle {
-                session: connect_sftp(connection, Some(&state.pending_host_keys))?,
-                last_used: now,
-            }));
-            sessions.insert(key.clone(), handle.clone());
-            handle
-        }
-    };
-
-    let mut handle = handle
-        .lock()
-        .map_err(|e| format!("sftp session lock err: {}", e))?;
-
-    if !is_sftp_session_healthy(&handle.session) {
-        drop(handle);
-        remove_sftp_session_state(state, &key);
-        return with_sftp(state, connection, operation);
-    }
-
-    handle.last_used = now;
-    let sftp = handle.session.sftp().map_err(|e| {
-        drop(handle);
-        remove_sftp_session_state(state, &key);
-        format!("sftp init err: {}", e)
-    })?;
-
-    match operation(&sftp) {
-        Ok(value) => Ok(value),
-        Err(error) => {
-            remove_sftp_session_state(state, &key);
-            Err(error)
-        }
-    }
-}
-
 #[tauri::command]
 pub async fn disconnect_sftp_session(
     state: State<'_, AppState>,
@@ -354,6 +158,109 @@ pub async fn disconnect_sftp_session(
     let key = sftp_session_key(&host, port, &username);
     remove_sftp_session_state(&state, &key);
     Ok(())
+}
+
+fn ensure_safe_recursive_delete_path(remote_path: &str) -> SftpResult<String> {
+    let normalized = normalize_remote_path(remote_path);
+    let lower = normalized.to_lowercase();
+    let dangerous = normalized == "/"
+        || normalized == "~"
+        || lower == "/home"
+        || lower.starts_with("/home/") && lower.matches('/').count() <= 2
+        || lower == "/etc"
+        || lower == "/usr"
+        || lower == "/var"
+        || lower == "/bin"
+        || lower == "/sbin"
+        || lower == "/opt"
+        || lower.contains('*')
+        || lower.contains('?');
+
+    if dangerous {
+        return Err(SftpError::new(
+            "dangerous_remote_path",
+            format!(
+                "refusing recursive delete for protected path: {}",
+                normalized
+            ),
+            false,
+        )
+        .with_detail("path", normalized));
+    }
+    Ok(normalized)
+}
+
+fn validate_local_file_path(path: &str, operation: &str) -> SftpResult<PathBuf> {
+    let local_path = PathBuf::from(path);
+    if local_path.as_os_str().is_empty() {
+        return Err(SftpError::new(
+            "invalid_local_path",
+            format!("{} local path is empty", operation),
+            false,
+        ));
+    }
+    if local_path
+        .components()
+        .any(|component| matches!(component, std::path::Component::ParentDir))
+    {
+        return Err(SftpError::new(
+            "invalid_local_path",
+            format!("{} local path must not contain parent traversal", operation),
+            false,
+        )
+        .with_detail("path", path.to_string()));
+    }
+    Ok(local_path)
+}
+
+fn validate_local_upload_path(path: &str) -> SftpResult<PathBuf> {
+    let local_path = validate_local_file_path(path, "upload")?;
+    let metadata = fs::symlink_metadata(&local_path)
+        .map_err(|e| format!("stat local file {} err: {}", local_path.display(), e))?;
+    if metadata.file_type().is_symlink() {
+        return Err(SftpError::new(
+            "local_symlink_forbidden",
+            "refusing to upload a symbolic link",
+            false,
+        )
+        .with_detail("path", local_path.display().to_string()));
+    }
+    if !metadata.is_file() {
+        return Err(SftpError::new(
+            "invalid_local_path",
+            "upload path must be a regular file",
+            false,
+        )
+        .with_detail("path", local_path.display().to_string()));
+    }
+    Ok(local_path)
+}
+
+fn validate_local_download_path(path: &str) -> SftpResult<PathBuf> {
+    let local_path = validate_local_file_path(path, "download")?;
+    if let Some(parent) = local_path.parent() {
+        if !parent.as_os_str().is_empty() && !parent.exists() {
+            return Err(SftpError::new(
+                "invalid_local_path",
+                "download parent directory does not exist",
+                false,
+            )
+            .with_detail("path", parent.display().to_string()));
+        }
+    }
+    if local_path.exists() {
+        let metadata = fs::symlink_metadata(&local_path)
+            .map_err(|e| format!("stat local file {} err: {}", local_path.display(), e))?;
+        if metadata.file_type().is_symlink() || !metadata.is_file() {
+            return Err(SftpError::new(
+                "invalid_local_path",
+                "download target must be a regular file when it already exists",
+                false,
+            )
+            .with_detail("path", local_path.display().to_string()));
+        }
+    }
+    Ok(local_path)
 }
 
 fn ensure_sftp_directory(sftp: &ssh2::Sftp, remote_path: &str) -> SftpResult<()> {
@@ -374,52 +281,6 @@ fn ensure_sftp_directory(sftp: &ssh2::Sftp, remote_path: &str) -> SftpResult<()>
     }
 
     Ok(())
-}
-
-fn normalize_remote_path(remote_path: &str) -> String {
-    let normalized_input = remote_path.replace('\\', "/");
-    let mut parts: Vec<&str> = Vec::new();
-
-    for part in normalized_input.split('/') {
-        match part {
-            "" | "." => {}
-            ".." => {
-                parts.pop();
-            }
-            value => parts.push(value),
-        }
-    }
-
-    if parts.is_empty() {
-        "/".into()
-    } else {
-        format!("/{}", parts.join("/"))
-    }
-}
-
-fn parent_remote_path(remote_path: &str) -> String {
-    let normalized = normalize_remote_path(remote_path);
-    let parts: Vec<&str> = normalized
-        .split('/')
-        .filter(|part| !part.is_empty())
-        .collect();
-
-    if parts.len() <= 1 {
-        return "/".into();
-    }
-
-    format!("/{}", parts[..parts.len() - 1].join("/"))
-}
-
-fn join_remote_path(parent_path: &str, name: &str) -> String {
-    let parent = normalize_remote_path(parent_path);
-    let clean_name = name.trim_matches('/');
-
-    if parent == "/" {
-        normalize_remote_path(&format!("/{}", clean_name))
-    } else {
-        normalize_remote_path(&format!("{}/{}", parent, clean_name))
-    }
 }
 
 fn remote_is_directory(sftp: &ssh2::Sftp, remote_path: &str) -> Result<bool, String> {
@@ -501,55 +362,106 @@ pub(crate) struct SftpPathUploadItem {
     remote_path: String,
 }
 
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct SftpUploadFailure {
-    remote_path: String,
-    error: String,
+#[derive(Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum SftpConflictPolicy {
+    Overwrite,
+    Skip,
+    Resume,
+    Rename,
+    Newer,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Copy, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct SftpUploadSummary {
-    uploaded: usize,
-    failed: Vec<SftpUploadFailure>,
+pub(crate) struct SftpTransferOptions {
+    #[serde(default = "default_conflict_policy")]
+    conflict_policy: SftpConflictPolicy,
+    #[serde(default)]
+    resume: bool,
 }
 
-#[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct SftpProgressEvent {
-    task_id: String,
-    session_key: String,
-    operation: String,
-    file: String,
-    transferred: u64,
-    total: u64,
-    deleted: u64,
+fn default_conflict_policy() -> SftpConflictPolicy {
+    SftpConflictPolicy::Overwrite
 }
 
-#[allow(clippy::too_many_arguments)]
-fn emit_sftp_progress(
-    app: &tauri::AppHandle,
-    task_id: &str,
-    session_key: &str,
-    operation: &str,
-    file: &str,
-    transferred: u64,
-    total: u64,
-    deleted: u64,
-) {
-    let _ = app.emit(
-        "sftp-progress",
-        SftpProgressEvent {
-            task_id: task_id.into(),
-            session_key: session_key.into(),
-            operation: operation.into(),
-            file: file.into(),
-            transferred,
-            total,
-            deleted,
-        },
-    );
+impl Default for SftpTransferOptions {
+    fn default() -> Self {
+        Self {
+            conflict_policy: default_conflict_policy(),
+            resume: false,
+        }
+    }
+}
+
+enum TransferDecision {
+    Write { path: String, offset: u64 },
+    Skip,
+}
+
+fn next_available_remote_path(sftp: &ssh2::Sftp, remote_path: &str) -> String {
+    let normalized = normalize_remote_path(remote_path);
+    let slash = normalized.rfind('/').unwrap_or(0);
+    let (dir, file) = normalized.split_at(slash + 1);
+    let name = file.trim_start_matches('/');
+    let (stem, ext) = name
+        .rsplit_once('.')
+        .map(|(left, right)| (left.to_string(), format!(".{right}")))
+        .unwrap_or_else(|| (name.to_string(), String::new()));
+
+    for index in 1..1000 {
+        let candidate = format!("{dir}{stem} ({index}){ext}");
+        if sftp.stat(Path::new(&candidate)).is_err() {
+            return candidate;
+        }
+    }
+    format!("{dir}{stem} ({}){ext}", uuid::Uuid::new_v4())
+}
+
+fn resolve_remote_write_decision(
+    sftp: &ssh2::Sftp,
+    remote_path: &str,
+    local_size: u64,
+    options: SftpTransferOptions,
+) -> SftpResult<TransferDecision> {
+    let stat = sftp.stat(Path::new(remote_path)).ok();
+    let Some(stat) = stat else {
+        return Ok(TransferDecision::Write {
+            path: remote_path.to_string(),
+            offset: 0,
+        });
+    };
+
+    let remote_size = stat.size.unwrap_or(0);
+    if options.resume || options.conflict_policy == SftpConflictPolicy::Resume {
+        if remote_size < local_size {
+            return Ok(TransferDecision::Write {
+                path: remote_path.to_string(),
+                offset: remote_size,
+            });
+        }
+        if remote_size == local_size {
+            return Ok(TransferDecision::Skip);
+        }
+    }
+
+    match options.conflict_policy {
+        SftpConflictPolicy::Skip => Ok(TransferDecision::Skip),
+        SftpConflictPolicy::Rename => Ok(TransferDecision::Write {
+            path: next_available_remote_path(sftp, remote_path),
+            offset: 0,
+        }),
+        SftpConflictPolicy::Newer => Err(SftpError::new(
+            "conflict_requires_metadata",
+            "newer-only upload requires comparable modified timestamps",
+            false,
+        )
+        .with_detail("path", remote_path.to_string())),
+        SftpConflictPolicy::Overwrite | SftpConflictPolicy::Resume => Ok(TransferDecision::Write {
+            path: remote_path.to_string(),
+            offset: 0,
+        }),
+    }
 }
 
 fn verify_transfer_size(path: &str, expected: u64, actual: u64) -> SftpResult<()> {
@@ -564,14 +476,16 @@ fn copy_with_progress<R: Read, W: Write>(
     mut reader: R,
     mut writer: W,
     total: u64,
+    initial_transferred: u64,
     cancel_flag: &AtomicBool,
-    mut on_progress: impl FnMut(u64),
+    mut on_progress: impl FnMut(u64, Option<u64>),
     buffer_size: usize,
 ) -> Result<u64, String> {
     let mut buf = vec![0u8; buffer_size];
-    let mut transferred = 0u64;
+    let mut transferred = initial_transferred;
+    let transfer_started_at = Instant::now();
     let mut last_progress_emit = Instant::now()
-        .checked_sub(SFTP_PROGRESS_EMIT_INTERVAL)
+        .checked_sub(config::sftp_progress_emit_interval())
         .unwrap_or_else(Instant::now);
     let mut last_progress_value = 0u64;
 
@@ -588,18 +502,35 @@ fn copy_with_progress<R: Read, W: Write>(
             .write_all(&buf[..read])
             .map_err(|e| format!("write err: {}", e))?;
         transferred += read as u64;
-        if last_progress_emit.elapsed() >= SFTP_PROGRESS_EMIT_INTERVAL || transferred >= total {
-            on_progress(transferred);
+        if last_progress_emit.elapsed() >= config::sftp_progress_emit_interval()
+            || transferred >= total
+        {
+            on_progress(
+                transferred,
+                transfer_rate_bytes_per_second(transfer_started_at, transferred),
+            );
             last_progress_emit = Instant::now();
             last_progress_value = transferred;
         }
     }
 
     if transferred != last_progress_value {
-        on_progress(transferred);
+        on_progress(
+            transferred,
+            transfer_rate_bytes_per_second(transfer_started_at, transferred),
+        );
     }
 
     Ok(transferred.max(total.min(transferred)))
+}
+
+fn transfer_rate_bytes_per_second(started_at: Instant, transferred: u64) -> Option<u64> {
+    let elapsed = started_at.elapsed().as_secs_f64();
+    if elapsed <= 0.0 || transferred == 0 {
+        None
+    } else {
+        Some((transferred as f64 / elapsed).round() as u64)
+    }
 }
 
 #[tauri::command]
@@ -610,7 +541,9 @@ pub async fn sftp_upload(
     remote_path: String,
     data_base64: String,
     task_id: String,
+    options: Option<SftpTransferOptions>,
 ) -> SftpResult<()> {
+    let options = options.unwrap_or_default();
     let remote_path = normalize_remote_path(&remote_path);
     let session_key = connection.session_key();
     let cancel_flag = register_sftp_task(&state, &task_id)?;
@@ -626,27 +559,46 @@ pub async fn sftp_upload(
                 .decode(&data_base64)
                 .map_err(|e| format!("base64 decode err: {}", e))?;
             let total = bytes.len() as u64;
+            let TransferDecision::Write {
+                path: remote_path,
+                offset,
+            } = resolve_remote_write_decision(sftp, &remote_path, total, options)?
+            else {
+                return Ok(());
+            };
             let mut reader = Cursor::new(bytes);
-            let mut remote_file = sftp
-                .create(Path::new(&remote_path))
-                .map_err(|e| format!("create remote file err: {}", e))?;
+            reader
+                .seek(SeekFrom::Start(offset))
+                .map_err(|e| format!("seek upload buffer err: {}", e))?;
+            let mut remote_file = if offset > 0 {
+                sftp.open_mode(
+                    Path::new(&remote_path),
+                    ssh2::OpenFlags::WRITE | ssh2::OpenFlags::APPEND,
+                    0o644,
+                    ssh2::OpenType::File,
+                )
+            } else {
+                sftp.create(Path::new(&remote_path))
+            }
+            .map_err(|e| format!("open remote file {} err: {}", remote_path, e))?;
             emit_sftp_progress(
                 &app,
                 &task_id,
                 &session_key,
                 "upload",
                 &remote_path,
-                0,
+                offset,
                 total,
-                0,
+                offset,
             );
             let transferred = copy_with_progress(
                 &mut reader,
                 &mut remote_file,
                 total,
+                0,
                 &cancel_flag,
-                |transferred| {
-                    emit_sftp_progress(
+                |transferred, bytes_per_second| {
+                    emit_sftp_progress_with_rate(
                         &app,
                         &task_id,
                         &session_key,
@@ -655,9 +607,10 @@ pub async fn sftp_upload(
                         transferred,
                         total,
                         0,
+                        bytes_per_second,
                     );
                 },
-                SFTP_COPY_BUFFER_SIZE,
+                config::SFTP_COPY_BUFFER_SIZE,
             )
             .map_err(|e| format!("stream upload {} err: {}", remote_path, e))?;
             verify_transfer_size(&remote_path, total, transferred)?;
@@ -683,7 +636,9 @@ pub async fn sftp_upload_many(
     connection: SftpConnectionArgs,
     files: Vec<SftpUploadItem>,
     task_id: String,
+    options: Option<SftpTransferOptions>,
 ) -> SftpResult<SftpUploadSummary> {
+    let options = options.unwrap_or_default();
     let session_key = connection.session_key();
     let cancel_flag = register_sftp_task(&state, &task_id)?;
     let queue = get_sftp_task_queue(&state, &session_key)?;
@@ -705,27 +660,46 @@ pub async fn sftp_upload_many(
                         .decode(&file.data_base64)
                         .map_err(|e| format!("base64 decode err: {}", e))?;
                     let total = bytes.len() as u64;
+                    let TransferDecision::Write {
+                        path: remote_path,
+                        offset,
+                    } = resolve_remote_write_decision(sftp, &remote_path, total, options)?
+                    else {
+                        return Ok(());
+                    };
                     let mut reader = Cursor::new(bytes);
-                    let mut remote_file = sftp
-                        .create(Path::new(&remote_path))
-                        .map_err(|e| format!("create err: {}", e))?;
+                    reader
+                        .seek(SeekFrom::Start(offset))
+                        .map_err(|e| format!("seek upload buffer err: {}", e))?;
+                    let mut remote_file = if offset > 0 {
+                        sftp.open_mode(
+                            Path::new(&remote_path),
+                            ssh2::OpenFlags::WRITE | ssh2::OpenFlags::APPEND,
+                            0o644,
+                            ssh2::OpenType::File,
+                        )
+                    } else {
+                        sftp.create(Path::new(&remote_path))
+                    }
+                    .map_err(|e| format!("open remote file {} err: {}", remote_path, e))?;
                     emit_sftp_progress(
                         &app,
                         &task_id,
                         &session_key,
                         "upload",
                         &remote_path,
-                        0,
+                        offset,
                         total,
-                        0,
+                        offset,
                     );
                     let transferred = copy_with_progress(
                         &mut reader,
                         &mut remote_file,
                         total,
+                        0,
                         &cancel_flag,
-                        |transferred| {
-                            emit_sftp_progress(
+                        |transferred, bytes_per_second| {
+                            emit_sftp_progress_with_rate(
                                 &app,
                                 &task_id,
                                 &session_key,
@@ -734,9 +708,10 @@ pub async fn sftp_upload_many(
                                 transferred,
                                 total,
                                 0,
+                                bytes_per_second,
                             );
                         },
-                        SFTP_COPY_BUFFER_SIZE,
+                        config::SFTP_COPY_BUFFER_SIZE,
                     )
                     .map_err(|e| format!("stream upload {} err: {}", remote_path, e))?;
                     verify_transfer_size(&remote_path, total, transferred)?;
@@ -775,7 +750,9 @@ pub async fn sftp_upload_paths(
     connection: SftpConnectionArgs,
     files: Vec<SftpPathUploadItem>,
     task_id: String,
+    options: Option<SftpTransferOptions>,
 ) -> SftpResult<SftpUploadSummary> {
+    let options = options.unwrap_or_default();
     let session_key = connection.session_key();
     let cancel_flag = register_sftp_task(&state, &task_id)?;
     let queue = get_sftp_task_queue(&state, &session_key)?;
@@ -793,32 +770,53 @@ pub async fn sftp_upload_paths(
                 let remote_path = normalize_remote_path(&file.remote_path);
                 let result = (|| -> SftpResult<()> {
                     ensure_sftp_directory(sftp, &parent_remote_path(&remote_path))?;
-                    let mut local_file = File::open(&file.local_path)
-                        .map_err(|e| format!("open local file {} err: {}", file.local_path, e))?;
+                    let local_path = validate_local_upload_path(&file.local_path)?;
+                    let mut local_file = File::open(&local_path).map_err(|e| {
+                        format!("open local file {} err: {}", local_path.display(), e)
+                    })?;
                     let total = local_file
                         .metadata()
                         .map(|metadata| metadata.len())
                         .unwrap_or(0);
-                    let mut remote_file = sftp
-                        .create(Path::new(&remote_path))
-                        .map_err(|e| format!("create remote file {} err: {}", remote_path, e))?;
+                    let TransferDecision::Write {
+                        path: remote_path,
+                        offset,
+                    } = resolve_remote_write_decision(sftp, &remote_path, total, options)?
+                    else {
+                        return Ok(());
+                    };
+                    local_file.seek(SeekFrom::Start(offset)).map_err(|e| {
+                        format!("seek local file {} err: {}", local_path.display(), e)
+                    })?;
+                    let mut remote_file = if offset > 0 {
+                        sftp.open_mode(
+                            Path::new(&remote_path),
+                            ssh2::OpenFlags::WRITE | ssh2::OpenFlags::APPEND,
+                            0o644,
+                            ssh2::OpenType::File,
+                        )
+                    } else {
+                        sftp.create(Path::new(&remote_path))
+                    }
+                    .map_err(|e| format!("open remote file {} err: {}", remote_path, e))?;
                     emit_sftp_progress(
                         &app,
                         &task_id,
                         &session_key,
                         "upload",
                         &remote_path,
-                        0,
+                        offset,
                         total,
-                        0,
+                        offset,
                     );
                     let transferred = copy_with_progress(
                         &mut local_file,
                         &mut remote_file,
                         total,
+                        0,
                         &cancel_flag,
-                        |transferred| {
-                            emit_sftp_progress(
+                        |transferred, bytes_per_second| {
+                            emit_sftp_progress_with_rate(
                                 &app,
                                 &task_id,
                                 &session_key,
@@ -827,9 +825,10 @@ pub async fn sftp_upload_paths(
                                 transferred,
                                 total,
                                 0,
+                                bytes_per_second,
                             );
                         },
-                        SFTP_COPY_BUFFER_SIZE,
+                        config::SFTP_COPY_BUFFER_SIZE,
                     )
                     .map_err(|e| format!("stream upload {} err: {}", remote_path, e))?;
                     verify_transfer_size(&remote_path, total, transferred)?;
@@ -902,9 +901,10 @@ pub async fn sftp_download(
                 &mut remote_file,
                 &mut buf,
                 total,
+                0,
                 &cancel_flag,
-                |transferred| {
-                    emit_sftp_progress(
+                |transferred, bytes_per_second| {
+                    emit_sftp_progress_with_rate(
                         &app,
                         &task_id,
                         &session_key,
@@ -913,9 +913,10 @@ pub async fn sftp_download(
                         transferred,
                         total,
                         0,
+                        bytes_per_second,
                     );
                 },
-                SFTP_COPY_BUFFER_SIZE,
+                config::SFTP_COPY_BUFFER_SIZE,
             )
             .map_err(|e| format!("stream download {} err: {}", remote_path, e))?;
             verify_transfer_size(&remote_path, total, transferred)?;
@@ -935,8 +936,18 @@ pub async fn sftp_download_to_path(
     remote_path: String,
     local_path: String,
     task_id: String,
+    options: Option<SftpTransferOptions>,
 ) -> SftpResult<()> {
+    let options = options.unwrap_or_default();
     let remote_path = normalize_remote_path(&remote_path);
+    let local_path = validate_local_download_path(&local_path)?;
+    let part_path = local_path.with_extension(format!(
+        "{}.part",
+        local_path
+            .extension()
+            .and_then(|value| value.to_str())
+            .unwrap_or("download")
+    ));
     let session_key = connection.session_key();
     let cancel_flag = register_sftp_task(&state, &task_id)?;
     let queue = get_sftp_task_queue(&state, &session_key)?;
@@ -954,25 +965,56 @@ pub async fn sftp_download_to_path(
                 .ok()
                 .and_then(|stat| stat.size)
                 .unwrap_or(0);
-            let mut local_file = File::create(&local_path)
-                .map_err(|e| format!("create local file {} err: {}", local_path, e))?;
+            let write_path =
+                if options.resume || options.conflict_policy == SftpConflictPolicy::Resume {
+                    &local_path
+                } else {
+                    &part_path
+                };
+            let existing_size = fs::metadata(write_path)
+                .map(|metadata| metadata.len())
+                .unwrap_or(0);
+            if options.conflict_policy == SftpConflictPolicy::Skip && existing_size > 0 {
+                return Ok(());
+            }
+            let offset = if options.resume || options.conflict_policy == SftpConflictPolicy::Resume
+            {
+                existing_size.min(total)
+            } else {
+                0
+            };
+            if offset >= total && total > 0 {
+                return Ok(());
+            }
+            let mut local_file = if offset > 0 {
+                File::options().append(true).open(write_path)
+            } else {
+                File::create(write_path)
+            }
+            .map_err(|e| format!("open local file {} err: {}", write_path.display(), e))?;
+            if offset > 0 {
+                remote_file
+                    .seek(SeekFrom::Start(offset))
+                    .map_err(|e| format!("seek remote file {} err: {}", remote_path, e))?;
+            }
             emit_sftp_progress(
                 &app,
                 &task_id,
                 &session_key,
                 "download",
                 &remote_path,
-                0,
+                offset,
                 total,
-                0,
+                offset,
             );
             let transferred = copy_with_progress(
                 &mut remote_file,
                 &mut local_file,
                 total,
+                0,
                 &cancel_flag,
-                |transferred| {
-                    emit_sftp_progress(
+                |transferred, bytes_per_second| {
+                    emit_sftp_progress_with_rate(
                         &app,
                         &task_id,
                         &session_key,
@@ -981,21 +1023,35 @@ pub async fn sftp_download_to_path(
                         transferred,
                         total,
                         0,
+                        bytes_per_second,
                     );
                 },
-                SFTP_COPY_BUFFER_SIZE,
+                config::SFTP_COPY_BUFFER_SIZE,
             )
             .map_err(|e| format!("stream download {} err: {}", remote_path, e))?;
             verify_transfer_size(&remote_path, total, transferred)?;
             drop(local_file);
-            let local_size = std::fs::metadata(&local_path)
-                .map_err(|e| format!("stat local file {} err: {}", local_path, e))?
+            let local_size = fs::metadata(write_path)
+                .map_err(|e| format!("stat local file {} err: {}", write_path.display(), e))?
                 .len();
             verify_transfer_size(&remote_path, total, local_size)?;
+            if write_path != &local_path {
+                fs::rename(write_path, &local_path).map_err(|e| {
+                    format!(
+                        "replace local file {} with {} err: {}",
+                        write_path.display(),
+                        local_path.display(),
+                        e
+                    )
+                })?;
+            }
             Ok(())
         })
     })();
     finish_sftp_task(&state, &task_id);
+    if result.is_err() {
+        let _ = fs::remove_file(&part_path);
+    }
     result
 }
 
@@ -1074,7 +1130,7 @@ pub async fn sftp_delete_recursive(
     remote_path: String,
     task_id: String,
 ) -> SftpResult<()> {
-    let remote_path = normalize_remote_path(&remote_path);
+    let remote_path = ensure_safe_recursive_delete_path(&remote_path)?;
     let session_key = connection.session_key();
     let cancel_flag = register_sftp_task(&state, &task_id)?;
     let queue = get_sftp_task_queue(&state, &session_key)?;
@@ -1108,124 +1164,4 @@ pub async fn sftp_delete_recursive(
     })();
     finish_sftp_task(&state, &task_id);
     result
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn normalize_root() {
-        assert_eq!(normalize_remote_path("/"), "/");
-    }
-
-    #[test]
-    fn normalize_simple_path() {
-        assert_eq!(normalize_remote_path("/home/user"), "/home/user");
-    }
-
-    #[test]
-    fn normalize_parent_refs() {
-        assert_eq!(normalize_remote_path("/home/user/../../var"), "/var");
-    }
-
-    #[test]
-    fn normalize_dot_segments() {
-        assert_eq!(normalize_remote_path("/home/./user/./"), "/home/user");
-    }
-
-    #[test]
-    fn normalize_double_slash() {
-        assert_eq!(normalize_remote_path("home//user"), "/home/user");
-    }
-
-    #[test]
-    fn normalize_parent_past_root() {
-        assert_eq!(normalize_remote_path("/./../.."), "/");
-    }
-
-    #[test]
-    fn normalize_windows_backslash() {
-        assert_eq!(normalize_remote_path("\\\\home\\\\user"), "/home/user");
-    }
-
-    #[test]
-    fn join_remote_path_basic() {
-        assert_eq!(join_remote_path("/home", "user"), "/home/user");
-    }
-
-    #[test]
-    fn join_remote_path_root() {
-        assert_eq!(join_remote_path("/", "etc"), "/etc");
-    }
-
-    #[test]
-    fn join_remote_path_dot_prefix() {
-        assert_eq!(
-            join_remote_path("/home/user", "./config"),
-            "/home/user/config"
-        );
-    }
-
-    #[test]
-    fn join_remote_path_trailing_slash() {
-        assert_eq!(join_remote_path("/home/", "user"), "/home/user");
-    }
-
-    #[test]
-    fn parent_remote_path_simple() {
-        assert_eq!(parent_remote_path("/home/user"), "/home");
-    }
-
-    #[test]
-    fn parent_remote_path_root() {
-        assert_eq!(parent_remote_path("/"), "/");
-    }
-
-    #[test]
-    fn parent_remote_path_top_level() {
-        assert_eq!(parent_remote_path("/home"), "/");
-    }
-
-    #[test]
-    fn sftp_session_key_format() {
-        let key = sftp_session_key("example.com", 22, "admin");
-        assert_eq!(key, "admin@example.com:22");
-    }
-
-    #[test]
-    fn sftp_error_from_string() {
-        let err: SftpError = "auth failed".to_string().into();
-        assert_eq!(err.code, "auth_failed");
-        assert!(!err.recoverable);
-    }
-
-    #[test]
-    fn sftp_error_from_canceled() {
-        let err: SftpError = "task canceled by user".to_string().into();
-        assert_eq!(err.code, "canceled");
-        assert!(err.recoverable);
-    }
-
-    #[test]
-    fn sftp_error_details_contains_path() {
-        let err = SftpError::size_mismatch("/tmp/file.txt", 10, 8);
-        assert_eq!(
-            err.details.get("path").and_then(|value| value.as_str()),
-            Some("/tmp/file.txt")
-        );
-    }
-
-    #[test]
-    fn sftp_connection_args_session_key() {
-        let connection = SftpConnectionArgs {
-            host: "example.com".to_string(),
-            port: 2222,
-            username: "admin".to_string(),
-            password: None,
-            private_key_path: None,
-            passphrase: None,
-        };
-        assert_eq!(connection.session_key(), "admin@example.com:2222");
-    }
 }

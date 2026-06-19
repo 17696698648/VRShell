@@ -1,4 +1,4 @@
-﻿import { invoke } from '@tauri-apps/api/core'
+﻿import {typedInvoke} from '../../services/ipc'
 import { reactive, ref, watch } from 'vue'
 import type { SessionGroup, SessionHost } from '../../components/SessionTreeGroup.vue'
 
@@ -125,7 +125,7 @@ export function useSessionPersistence() {
 
   async function loadPersistedSessionTree() {
     try {
-      const persistedGroups = await invoke<PersistedSessionGroup[]>('load_session_tree')
+      const persistedGroups = await typedInvoke<PersistedSessionGroup[]>('load_session_tree')
       const nextGroups = persistedGroups.length > 0 ? normalizeTopLevelGroups(persistedGroups.map(fromPersistedGroup)) : createDefaultSessionGroups()
       isApplyingPersistedSessionTree.value = true
       sessionGroups.splice(0, sessionGroups.length, ...nextGroups)
@@ -148,7 +148,7 @@ export function useSessionPersistence() {
     rebuildIndexes(sessionGroups)
 
     try {
-      await invoke('save_session_tree', { groups: sessionGroups.map(toPersistedGroup) })
+      await typedInvoke<void>('save_session_tree', { groups: sessionGroups.map(toPersistedGroup) })
     } catch (error) {
       console.error('save session tree failed:', error)
     }

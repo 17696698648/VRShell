@@ -1,4 +1,4 @@
-import {invoke} from '@tauri-apps/api/core'
+import {typedInvoke} from './ipc'
 import type {SftpUploadSummary} from '../types'
 import {formatAppError} from './errors'
 import {createId} from '../utils/id'
@@ -37,6 +37,21 @@ export type SftpEntry = {
   isDirectory: boolean
 }
 
+export type SftpListPage = {
+  entries: SftpEntry[]
+  offset: number
+  limit: number
+  total: number
+  hasMore: boolean
+}
+
+export type SftpConflictPolicy = 'overwrite' | 'skip' | 'resume' | 'rename' | 'newer'
+
+export type SftpTransferOptions = {
+  conflictPolicy?: SftpConflictPolicy
+  resume?: boolean
+}
+
 export function createSftpTaskId(operation: string) {
   return createId(operation)
 }
@@ -55,13 +70,13 @@ async function invokeSftp<T>(command: string, connection: SftpConnection, args: 
   const invokeConnection = getSftpInvokeConnection(connection)
   const sessionKey = getSftpSessionKey(connection)
   try {
-    const result = await invoke<T>(command, {connection: invokeConnection, ...args})
+    const result = await typedInvoke<T>(command, {connection: invokeConnection, ...args})
     establishedSftpSessions.add(sessionKey)
     return result
   } catch (error) {
     if (establishedSftpSessions.has(sessionKey) && isRecoverableSftpSessionError(error)) {
       establishedSftpSessions.delete(sessionKey)
-      const result = await invoke<T>(command, {connection, ...args})
+      const result = await typedInvoke<T>(command, {connection, ...args})
       establishedSftpSessions.add(sessionKey)
       return result
     }
@@ -85,30 +100,34 @@ export async function listSftpDirectory(connection: SftpConnection, path: string
   return invokeSftp<SftpEntry[]>('sftp_list', connection, {path})
 }
 
-export async function uploadSftpFile(connection: SftpConnection, remotePath: string, dataBase64: string, taskId = createSftpTaskId('upload')) {
-  await invokeSftp('sftp_upload', connection, {remotePath, dataBase64, taskId})
+export async function listSftpDirectoryPage(connection: SftpConnection, path: string, offset = 0, limit = 500) {
+  return invokeSftp<SftpListPage>('sftp_list_page', connection, {path, offset, limit})
+}
+
+export async function uploadSftpFile(connection: SftpConnection, remotePath: string, dataBase64: string, taskId = createSftpTaskId('upload'), options?: SftpTransferOptions) {
+  await invokeSftp('sftp_upload', connection, {remotePath, dataBase64, taskId, options})
 }
 
 export async function uploadSftpFiles(connection: SftpConnection, files: Array<{
   remotePath: string;
   dataBase64: string
-}>, taskId = createSftpTaskId('upload')) {
-  return invokeSftp<SftpUploadSummary>('sftp_upload_many', connection, {files, taskId})
+}>, taskId = createSftpTaskId('upload'), options?: SftpTransferOptions) {
+  return invokeSftp<SftpUploadSummary>('sftp_upload_many', connection, {files, taskId, options})
 }
 
 export async function uploadSftpLocalPaths(connection: SftpConnection, files: Array<{
   localPath: string;
   remotePath: string
-}>, taskId = createSftpTaskId('upload')) {
-  return invokeSftp<SftpUploadSummary>('sftp_upload_paths', connection, {files, taskId})
+}>, taskId = createSftpTaskId('upload'), options?: SftpTransferOptions) {
+  return invokeSftp<SftpUploadSummary>('sftp_upload_paths', connection, {files, taskId, options})
 }
 
 export async function downloadSftpFile(connection: SftpConnection, remotePath: string, taskId = createSftpTaskId('download')) {
   return invokeSftp<string>('sftp_download', connection, {remotePath, taskId})
 }
 
-export async function downloadSftpFileToPath(connection: SftpConnection, remotePath: string, localPath: string, taskId = createSftpTaskId('download')) {
-  await invokeSftp('sftp_download_to_path', connection, {remotePath, localPath, taskId})
+export async function downloadSftpFileToPath(connection: SftpConnection, remotePath: string, localPath: string, taskId = createSftpTaskId('download'), options?: SftpTransferOptions) {
+  await invokeSftp('sftp_download_to_path', connection, {remotePath, localPath, taskId, options})
 }
 
 export async function createSftpFile(connection: SftpConnection, remotePath: string) {
@@ -132,14 +151,14 @@ export async function deleteSftpDirectoryRecursive(connection: SftpConnection, r
 }
 
 export async function cancelSftpTask(taskId: string) {
-  await invoke('cancel_sftp_task', {taskId})
+  await typedInvoke<void>('cancel_sftp_task', {taskId})
 }
 
 export async function setSftpIdleTimeout(seconds: number) {
-  await invoke('set_sftp_idle_timeout', {seconds})
+  await typedInvoke<void>('set_sftp_idle_timeout', {seconds})
 }
 
 export async function disconnectSftpConnection(connection: SftpSessionRef) {
-  await invoke('disconnect_sftp_session', connection)
+  await typedInvoke<void>('disconnect_sftp_session', connection)
   establishedSftpSessions.delete(getSftpSessionKey(connection))
 }
