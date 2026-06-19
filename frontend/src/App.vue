@@ -1097,8 +1097,15 @@ async function toggleBroadcastInput() {
 async function previewSshConfigImportFromHome() {
   try {
     const preview = await previewSshConfigImport(allSessionNames.value)
+    const details = [
+      `${preview.hosts.length} hosts`,
+      `${preview.duplicateHosts.length} duplicates`,
+      preview.proxyHosts.length ? `${preview.proxyHosts.length} via proxy` : '',
+      preview.agentForwardHosts.length ? `${preview.agentForwardHosts.length} agent forwarding` : '',
+      preview.insecureHostKeyHosts.length ? `${preview.insecureHostKeyHosts.length} relaxed host keys` : '',
+    ].filter(Boolean).join(', ')
     showToast(
-      `SSH config preview: ${preview.hosts.length} hosts, ${preview.duplicateHosts.length} duplicates`,
+      `SSH config preview: ${details}`,
       preview.hosts.length > 0 ? 'success' : 'info',
     )
   } catch (error) {

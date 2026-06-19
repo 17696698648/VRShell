@@ -40,12 +40,19 @@ export type SshConfigHost = {
   user: string
   port: number
   identityFile?: string | null
+  proxyJump?: string | null
+  proxyCommand?: string | null
+  forwardAgent?: boolean | null
+  strictHostKeyChecking?: string | null
 }
 
 export type SshConfigImportPreview = {
   hosts: SshConfigHost[]
   duplicateHosts: string[]
   missingIdentityFiles: string[]
+  proxyHosts: string[]
+  agentForwardHosts: string[]
+  insecureHostKeyHosts: string[]
 }
 
 export function measureTcpLatency(host: string, port: number) {
@@ -112,7 +119,16 @@ export async function previewSshConfigImport(existingNames: string[] = []): Prom
     hosts,
     duplicateHosts: hosts.filter((host) => existing.has(host.host.toLowerCase())).map((host) => host.host),
     missingIdentityFiles: hosts
-      .filter((host) => host.identityFile && !host.identityFile.trim())
+      .filter((host) => host.identityFile !== null && host.identityFile !== undefined && !host.identityFile.trim())
+      .map((host) => host.host),
+    proxyHosts: hosts
+      .filter((host) => Boolean(host.proxyJump || host.proxyCommand))
+      .map((host) => host.host),
+    agentForwardHosts: hosts
+      .filter((host) => host.forwardAgent === true)
+      .map((host) => host.host),
+    insecureHostKeyHosts: hosts
+      .filter((host) => ['no', 'off', 'false', 'accept-new'].includes(String(host.strictHostKeyChecking || '').toLowerCase()))
       .map((host) => host.host),
   }
 }

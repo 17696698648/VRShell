@@ -342,6 +342,14 @@ pub(crate) struct SshConfigHost {
     pub(crate) port: u16,
     #[serde(default)]
     pub(crate) identity_file: Option<String>,
+    #[serde(default)]
+    pub(crate) proxy_jump: Option<String>,
+    #[serde(default)]
+    pub(crate) proxy_command: Option<String>,
+    #[serde(default)]
+    pub(crate) forward_agent: Option<bool>,
+    #[serde(default)]
+    pub(crate) strict_host_key_checking: Option<String>,
 }
 
 /// Expand `~` in a path to the user's home directory.
@@ -361,6 +369,14 @@ fn expand_tilde(path: &str) -> String {
     path.to_string()
 }
 
+fn parse_ssh_bool(value: &str) -> Option<bool> {
+    match value.to_lowercase().as_str() {
+        "yes" | "true" | "on" => Some(true),
+        "no" | "false" | "off" => Some(false),
+        _ => None,
+    }
+}
+
 /// Parse ~/.ssh/config and return a list of discovered hosts
 #[tauri::command]
 pub async fn parse_ssh_config() -> Result<Vec<SshConfigHost>, String> {
@@ -377,6 +393,10 @@ pub async fn parse_ssh_config() -> Result<Vec<SshConfigHost>, String> {
     let content =
         fs::read_to_string(&config_path).map_err(|e| format!("read ssh config err: {}", e))?;
 
+    Ok(parse_ssh_config_content(&content, &home))
+}
+
+fn parse_ssh_config_content(content: &str, home: &str) -> Vec<SshConfigHost> {
     let mut hosts: Vec<SshConfigHost> = Vec::new();
     let mut current: Option<SshConfigHost> = None;
 
@@ -399,19 +419,22 @@ pub async fn parse_ssh_config() -> Result<Vec<SshConfigHost>, String> {
                 if let Some(host) = current.take() {
                     hosts.push(host);
                 }
-                // Exclude wildcard hosts
-                let host_name = if value.contains('*') || value.contains('!') {
-                    String::new()
-                } else {
-                    value.split(' ').next().unwrap_or(value).to_string()
-                };
-                if !host_name.is_empty() {
+                let host_names: Vec<String> = value
+                    .split_whitespace()
+                    .filter(|name| !name.contains('*') && !name.contains('?') && !name.starts_with('!'))
+                    .map(ToString::to_string)
+                    .collect();
+                if let Some(host_name) = host_names.first() {
                     current = Some(SshConfigHost {
-                        host: host_name,
+                        host: host_name.clone(),
                         hostname: String::new(),
                         user: String::new(),
                         port: 22,
                         identity_file: None,
+                        proxy_jump: None,
+                        proxy_command: None,
+                        forward_agent: None,
+                        strict_host_key_checking: None,
                     });
                 }
             }
@@ -448,6 +471,26 @@ pub async fn parse_ssh_config() -> Result<Vec<SshConfigHost>, String> {
                     }
                 }
             }
+            "proxyjump" => {
+                if let Some(ref mut h) = current {
+                    h.proxy_jump = Some(value.to_string());
+                }
+            }
+            "proxycommand" => {
+                if let Some(ref mut h) = current {
+                    h.proxy_command = Some(value.to_string());
+                }
+            }
+            "forwardagent" => {
+                if let Some(ref mut h) = current {
+                    h.forward_agent = parse_ssh_bool(value);
+                }
+            }
+            "stricthostkeychecking" => {
+                if let Some(ref mut h) = current {
+                    h.strict_host_key_checking = Some(value.to_string());
+                }
+            }
             _ => {}
         }
     }
@@ -457,7 +500,7 @@ pub async fn parse_ssh_config() -> Result<Vec<SshConfigHost>, String> {
 
     // Filter out entries without hostname
     hosts.retain(|h| !h.hostname.is_empty());
-    Ok(hosts)
+    hosts
 }
 
 /// Look up the `IdentityFile` for a given hostname in `~/.ssh/config`.
@@ -578,5 +621,42 @@ Host prod
             lookup_identity_file_in_config("prod", config, "/home/alice"),
             Some("/home/alice/.ssh/id_prod".to_string())
         );
+    }
+
+    #[test]
+    fn parse_ssh_config_content_reads_extended_fields() {
+        let config = r#"
+Host prod *.internal !blocked
+  HostName prod.example.com
+  User deploy
+  Port 2222
+  IdentityFile id_prod
+  ProxyJump bastion
+  ForwardAgent yes
+  StrictHostKeyChecking accept-new
+
+Host via-command
+  HostName command.example.com
+  ProxyCommand ssh bastion -W %h:%p
+"#;
+
+        let hosts = parse_ssh_config_content(config, "/home/alice");
+        assert_eq!(hosts.len(), 2);
+        assert_eq!(hosts[0].host, "prod");
+        assert_eq!(hosts[0].hostname, "prod.example.com");
+        assert_eq!(hosts[0].user, "deploy");
+        assert_eq!(hosts[0].port, 2222);
+        assert_eq!(hosts[0].identity_file.as_deref(), Some("/home/alice/.ssh/id_prod"));
+        assert_eq!(hosts[0].proxy_jump.as_deref(), Some("bastion"));
+        assert_eq!(hosts[0].forward_agent, Some(true));
+        assert_eq!(hosts[0].strict_host_key_checking.as_deref(), Some("accept-new"));
+        assert_eq!(hosts[1].proxy_command.as_deref(), Some("ssh bastion -W %h:%p"));
+    }
+
+    #[test]
+    fn parse_ssh_bool_handles_common_values() {
+        assert_eq!(parse_ssh_bool("yes"), Some(true));
+        assert_eq!(parse_ssh_bool("off"), Some(false));
+        assert_eq!(parse_ssh_bool("maybe"), None);
     }
 }
