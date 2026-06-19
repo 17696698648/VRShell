@@ -34,12 +34,21 @@
           <small>{{ taskSummary }}</small>
           <button type="button" class="task-clear" @click.prevent="emit('clear-task-history')">Clear</button>
         </summary>
+        <div class="task-filters">
+          <button
+            v-for="filter in taskFilters"
+            :key="filter.value"
+            type="button"
+            :class="{ active: taskFilter === filter.value }"
+            @click="taskFilter = filter.value"
+          >{{ filter.label }} <small>{{ filter.count }}</small></button>
+        </div>
         <ul>
-          <li v-for="task in tasks.slice(0, 6)" :key="task.id" :class="`task-${task.status}`">
-            <span class="task-main">
+          <li v-for="task in visibleTasks" :key="task.id" :class="`task-${task.status}`">
+            <button type="button" class="task-main" @click="toggleTaskDetails(task.id)">
               <strong>{{ task.type }}</strong>
               <em>{{ task.currentFile || task.status }}</em>
-            </span>
+            </button>
             <span class="task-actions">
               <span v-if="task.errorCategory" class="task-category" :class="`severity-${task.errorSeverity || 'error'}`">
                 {{ task.errorCategory }}
@@ -53,6 +62,12 @@
                 @click="emit('retry-task', task.id)"
               >Retry</button>
             </span>
+            <div v-if="expandedTaskId === task.id" class="task-detail">
+              <div><strong>Status</strong><span>{{ task.status }}</span></div>
+              <div v-if="task.error"><strong>Error</strong><span>{{ task.error }}</span></div>
+              <div v-if="getTaskSuggestion(task)"><strong>Suggestion</strong><span>{{ getTaskSuggestion(task) }}</span></div>
+              <div v-if="task.retryLabel"><strong>Retry</strong><span>{{ task.retryLabel }}</span></div>
+            </div>
           </li>
         </ul>
       </details>
@@ -114,7 +129,8 @@
 </template>
 
 <script setup lang="ts">
-import {computed} from 'vue'
+import {computed, ref} from 'vue'
+import {toAppError} from '../../services/errors'
 import type {SftpSortKey, SftpTask, SftpTreeNode} from '../../types'
 import SftpBreadcrumbs from './SftpBreadcrumbs.vue'
 import SftpSearch from './SftpSearch.vue'
@@ -183,6 +199,32 @@ const searchTextModel = computed({
   set: (value) => emit('update:search-text', value),
 })
 
+const taskFilter = ref<'all' | 'active' | 'failed' | 'done'>('all')
+const expandedTaskId = ref('')
+
+const visibleTasks = computed(() => props.tasks.filter((task) => {
+  if (taskFilter.value === 'active') return ['queued', 'running', 'canceling'].includes(task.status)
+  if (taskFilter.value === 'failed') return task.status === 'error'
+  if (taskFilter.value === 'done') return ['success', 'canceled'].includes(task.status)
+  return true
+}).slice(0, 8))
+
+const taskFilters = computed(() => [
+  {value: 'all' as const, label: 'All', count: props.tasks.length},
+  {value: 'active' as const, label: 'Active', count: props.tasks.filter((task) => ['queued', 'running', 'canceling'].includes(task.status)).length},
+  {value: 'failed' as const, label: 'Failed', count: props.tasks.filter((task) => task.status === 'error').length},
+  {value: 'done' as const, label: 'Done', count: props.tasks.filter((task) => ['success', 'canceled'].includes(task.status)).length},
+])
+
+function toggleTaskDetails(taskId: string) {
+  expandedTaskId.value = expandedTaskId.value === taskId ? '' : taskId
+}
+
+function getTaskSuggestion(task: SftpTask) {
+  if (!task.error) return ''
+  return toAppError({code: task.errorCategory || 'unknown', message: task.error, recoverable: Boolean(task.retryable)}).suggestion ?? ''
+}
+
 const progressLabel = computed(() => {
   if (props.progress.operation === 'download') return 'Download'
   if (props.progress.operation === 'delete') return 'Delete'
@@ -194,19 +236,19 @@ const taskSummary = computed(() => {
   const running = props.tasks.filter((task) => ['queued', 'running', 'canceling'].includes(task.status)).length
   return [running ? `${running} active` : '', failed ? `${failed} failed` : '', `${props.tasks.length} total`]
     .filter(Boolean)
-    .join(' �� ')
+    .join(' - ')
 })
 
 const progressDetail = computed(() => {
   const parts: string[] = []
   if (props.progress.bytesPerSecond) parts.push(`${formatBytes(props.progress.bytesPerSecond)}/s`)
   if (props.progress.etaSeconds !== undefined) parts.push(`ETA ${formatDuration(props.progress.etaSeconds)}`)
-  return parts.join(' �� ')
+  return parts.join(' - ')
 })
 
 function formatTaskMeta(task: SftpTask) {
   const value = task.type === 'delete' ? `${task.deleted} items` : `${task.progress}%`
-  return task.status === 'error' && task.error ? `${value} �� ${task.error}` : `${value} �� ${task.status}`
+  return task.status === 'error' && task.error ? `${value} - ${task.error}` : `${value} - ${task.status}`
 }
 
 function formatBytes(bytes: number) {
@@ -373,6 +415,37 @@ function formatDuration(seconds: number) {
   cursor: pointer;
 }
 
+.task-filters {
+  display: flex;
+  gap: 4px;
+  padding: 0 8px 6px;
+  overflow-x: auto;
+}
+
+.task-filters button {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  padding: 2px 7px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.06);
+  color: #94a3b8;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.task-filters button.active {
+  border-color: rgba(125, 211, 252, 0.3);
+  background: rgba(14, 165, 233, 0.12);
+  color: #bae6fd;
+}
+
+.task-filters small {
+  color: inherit;
+  opacity: 0.8;
+}
+
 .task-retry {
   border: 1px solid rgba(125, 211, 252, 0.28);
   border-radius: 999px;
@@ -430,6 +503,11 @@ function formatDuration(seconds: number) {
   display: flex;
   gap: 6px;
   min-width: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
 }
 
 .task-main strong {
@@ -451,6 +529,31 @@ function formatDuration(seconds: number) {
   align-items: center;
   gap: 6px;
   min-width: 0;
+}
+
+.task-detail {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 4px;
+  padding: 6px;
+  border-top: 1px solid rgba(148, 163, 184, 0.08);
+  color: #94a3b8;
+}
+
+.task-detail div {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.task-detail strong {
+  color: #cbd5e1;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.task-detail span {
+  overflow-wrap: anywhere;
 }
 
 .task-error .task-meta {
