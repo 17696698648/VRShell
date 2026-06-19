@@ -23,6 +23,12 @@
       <span>{{ connectionLog }}</span>
     </div>
 
+    <div v-if="reconnectNotice" class="connection-log reconnect-log">
+      <span class="connection-log-dot connecting"></span>
+      <span>{{ reconnectNotice }}</span>
+      <button type="button" @click="cancelReconnect">Cancel</button>
+    </div>
+
     <TerminalSearchBar
       :visible="searchVisible"
       :query="searchQuery"
@@ -150,7 +156,11 @@ const rightClickPaste = ref(true)
 const autoReconnectSetting = ref(false)
 const idleTimeoutSecsSetting = ref(0)
 const connectionLog = ref('')
+const reconnectNotice = ref('')
 let connectionLogTimer: number | null = null
+let reconnectTimer: number | null = null
+let reconnectAttempts = 0
+let manualDisconnectRequested = false
 // theme: minimal | professional | colorful
 const theme = ref<'minimal' | 'professional' | 'colorful'>('professional')
 
@@ -321,6 +331,46 @@ function showConnectionError(message: string) {
   }, 5000)
 }
 
+function clearReconnectTimer() {
+  if (reconnectTimer !== null) {
+    window.clearTimeout(reconnectTimer)
+    reconnectTimer = null
+  }
+}
+
+function resetReconnectState() {
+  clearReconnectTimer()
+  reconnectAttempts = 0
+  reconnectNotice.value = ''
+}
+
+function getReconnectDelayMs(attempt: number) {
+  return Math.min(30000, 1000 * 2 ** Math.max(0, attempt - 1))
+}
+
+function scheduleReconnect(reason = 'connection closed') {
+  if (!autoReconnectSetting.value || manualDisconnectRequested || reconnectTimer !== null) return
+
+  reconnectAttempts += 1
+  const delayMs = getReconnectDelayMs(reconnectAttempts)
+  const delaySeconds = Math.ceil(delayMs / 1000)
+  terminalConnection.markReconnecting()
+  reconnectNotice.value = `Reconnect attempt ${reconnectAttempts} in ${delaySeconds}s (${reason})`
+  writeTerminalLine(`[VRShell] ${reconnectNotice.value}`)
+  reconnectTimer = setManagedTimeout(() => {
+    reconnectTimer = null
+    reconnectNotice.value = `Reconnecting attempt ${reconnectAttempts}...`
+    void reconnect()
+  }, delayMs)
+}
+
+function cancelReconnect() {
+  manualDisconnectRequested = true
+  resetReconnectState()
+  terminalConnection.markDisconnected('auto reconnect canceled')
+  writeTerminalLine('[VRShell] Auto reconnect canceled.')
+}
+
 async function handleTerminalErrorPayload(payload: unknown) {
   if (!isCurrentTerminalMessage(payload, sessionId.value)) return
 
@@ -353,6 +403,7 @@ async function handleTerminalErrorPayload(payload: unknown) {
   terminalConnection.markError(error)
   showConnectionError(error)
   writeTerminalLine(`[VRShell] ${error}`)
+  scheduleReconnect(norm.message)
 }
 
 async function handleQueuedTerminalEvent(queuedEvent: string) {
@@ -442,6 +493,7 @@ function startPollingFallback() {
 }
 
 async function connect() {
+  manualDisconnectRequested = false
   terminalConnection.markConnecting()
   // Start the interaction listener BEFORE invoking connect_ssh to avoid a
   // race where the backend sends interaction-required before we're listening.
@@ -459,6 +511,7 @@ async function connect() {
       idleTimeoutSecs: idleTimeoutSecsSetting.value,
     })
     terminalConnection.markConnected(nextSessionId)
+    resetReconnectState()
     clearSensitiveAuthFields()
     terminalResize.resetLastSize()
     connectionLog.value = ''
@@ -495,6 +548,7 @@ async function connect() {
         if (sidClosed === sessionId.value) {
           terminalConnection.markDisconnected()
           emit('closed')
+          scheduleReconnect('session closed')
         }
       })
       const l5 = await listenTerminalEvent<ResizeAckPayload>(TERMINAL_EVENTS.ptyResizeAck, (e) => {
@@ -517,6 +571,7 @@ async function connect() {
     showConnectionError(error)
     writeTerminalLine(`[VRShell] ${error}`)
     clearSensitiveAuthFields()
+    scheduleReconnect('connect failed')
   }
 }
 
@@ -527,6 +582,10 @@ async function reconnect() {
 }
 
 async function disconnect(updateStatus = true) {
+  if (updateStatus) {
+    manualDisconnectRequested = true
+    resetReconnectState()
+  }
   if (sessionId.value) {
     try {
       await disconnectSshSession(sessionId.value)
@@ -682,6 +741,7 @@ onBeforeUnmount(() => {
   }
   terminalResize.clearResizeTimer()
   clearTerminalOutputQueue()
+  clearReconnectTimer()
   clearManagedTimeouts()
   clearInputQueue()
   disconnect()
@@ -890,6 +950,22 @@ defineExpose({disconnect, reconnect, scheduleFitAndResize})
 .connection-log-dot.error {
   background: #EF4444;
   box-shadow: 0 0 10px rgba(239, 68, 68, 0.45);
+}
+
+.reconnect-log {
+  border-color: rgba(251, 191, 36, 0.22);
+  background: rgba(120, 53, 15, 0.28);
+  color: #fde68a;
+}
+
+.reconnect-log button {
+  margin-left: auto;
+  border: 1px solid rgba(251, 191, 36, 0.28);
+  border-radius: 999px;
+  background: rgba(251, 191, 36, 0.08);
+  color: #fde68a;
+  font-size: 11px;
+  cursor: pointer;
 }
 
 .terminal {
