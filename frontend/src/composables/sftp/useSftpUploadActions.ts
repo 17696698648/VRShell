@@ -16,7 +16,7 @@ export function useSftpUploadActions(options: {
   getSftpConnection: () => SftpConnection
   refreshSftpTreePath: (path?: string) => Promise<void>
   showToast: (message: string, type?: 'info' | 'success' | 'error') => void
-  beginSftpTask: (type: 'upload') => string
+  beginSftpTask: (type: 'upload', retryAction?: () => Promise<void>, retryLabel?: string) => string
   finishSftpTask: () => void
   failSftpTask: (error: unknown) => void
   readFileAsBase64: (file: File) => Promise<string>
@@ -45,7 +45,11 @@ export function useSftpUploadActions(options: {
         localPath,
         remotePath: joinRemotePath(targetDirectory, getLocalPathFileName(localPath)),
       }))
-      const taskId = options.beginSftpTask('upload')
+      const taskId = options.beginSftpTask(
+        'upload',
+        () => uploadLocalPaths([...localPaths], targetDirectory),
+        `Retry upload ${localPaths.length} file${localPaths.length === 1 ? '' : 's'}`,
+      )
       const summary = await uploadSftpLocalPaths(options.getSftpConnection(), files, taskId)
       options.finishSftpTask()
       reportUploadSummary(summary.uploaded, summary.failed.length)
@@ -74,7 +78,11 @@ export function useSftpUploadActions(options: {
       }
 
       options.sftpStatus.value = `Uploading ${files.length} files...`
-      const taskId = options.beginSftpTask('upload')
+      const taskId = options.beginSftpTask(
+        'upload',
+        () => uploadLocalFiles([...files], targetDirectory),
+        `Retry upload ${files.length} file${files.length === 1 ? '' : 's'}`,
+      )
       const summary = await uploadSftpFiles(options.getSftpConnection(), uploadFiles, taskId)
       options.finishSftpTask()
       reportUploadSummary(summary.uploaded, summary.failed.length)

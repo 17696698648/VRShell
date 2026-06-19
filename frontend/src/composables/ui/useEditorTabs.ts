@@ -15,7 +15,7 @@ type UseEditorTabsOptions = {
   findSftpTreeNode: (path: string) => SftpFileItem | null | undefined
   askConfirm: (title: string, message: string) => Promise<boolean>
   showToast: (message: string, type?: 'info' | 'success' | 'error') => void
-  beginSftpTask: (type: 'upload' | 'download' | 'delete') => string
+  beginSftpTask: (type: 'upload' | 'download' | 'delete', retryAction?: () => Promise<void>, retryLabel?: string) => string
   finishSftpTask: () => void
   failSftpTask: (error: unknown) => void
   refreshSftpTreePath?: (path: string) => Promise<void>

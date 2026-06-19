@@ -3,6 +3,7 @@ import { cancelSftpTask, createSftpTaskId, formatSftpError, getSftpSessionKey, t
 import type { SftpTask } from '../../types'
 
 export function useSftpTask(getConnection: () => SftpConnection, setStatus?: (message: string) => void) {
+  const retryActions = new Map<string, () => Promise<void>>()
   const currentTask = reactive<SftpTask>({
     id: '',
     type: 'upload',
@@ -16,6 +17,7 @@ export function useSftpTask(getConnection: () => SftpConnection, setStatus?: (me
     bytesPerSecond: undefined,
     etaSeconds: undefined,
     retryable: false,
+    retryLabel: undefined,
   })
   const taskHistory = reactive<SftpTask[]>([])
 
@@ -51,7 +53,7 @@ export function useSftpTask(getConnection: () => SftpConnection, setStatus?: (me
     retryable: currentTask.retryable,
   }))
 
-  function beginTask(type: SftpTask['type']) {
+  function beginTask(type: SftpTask['type'], retryAction?: () => Promise<void>, retryLabel?: string) {
     const connection = getConnection()
     currentTask.id = createSftpTaskId(type)
     currentTask.type = type
@@ -64,7 +66,9 @@ export function useSftpTask(getConnection: () => SftpConnection, setStatus?: (me
     currentTask.deleted = 0
     currentTask.bytesPerSecond = undefined
     currentTask.etaSeconds = undefined
-    currentTask.retryable = false
+    currentTask.retryable = Boolean(retryAction)
+    currentTask.retryLabel = retryLabel
+    if (retryAction) retryActions.set(currentTask.id, retryAction)
     upsertCurrentTaskHistory()
     return currentTask.id
   }
@@ -93,6 +97,7 @@ export function useSftpTask(getConnection: () => SftpConnection, setStatus?: (me
     currentTask.progress = currentTask.type === 'delete' ? currentTask.progress : 100
     currentTask.cancelable = false
     currentTask.retryable = false
+    retryActions.delete(currentTask.id)
     upsertCurrentTaskHistory()
     window.setTimeout(() => {
       if (currentTask.status === 'success') {
@@ -106,8 +111,19 @@ export function useSftpTask(getConnection: () => SftpConnection, setStatus?: (me
     currentTask.status = message.toLowerCase().includes('canceled') ? 'canceled' : 'error'
     currentTask.error = message
     currentTask.cancelable = false
-    currentTask.retryable = currentTask.status === 'error'
+    currentTask.retryable = currentTask.status === 'error' && retryActions.has(currentTask.id)
     upsertCurrentTaskHistory()
+  }
+
+  async function retryTask(taskId: string) {
+    const retryAction = retryActions.get(taskId)
+    if (!retryAction) {
+      setStatus?.('This SFTP task cannot be retried')
+      return
+    }
+
+    setStatus?.('Retrying SFTP task...')
+    await retryAction()
   }
 
   async function cancelCurrentTask() {
@@ -133,6 +149,7 @@ export function useSftpTask(getConnection: () => SftpConnection, setStatus?: (me
     applyProgress,
     finishTask,
     failTask,
+    retryTask,
     cancelCurrentTask,
     clearTaskHistory,
   }

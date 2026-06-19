@@ -40,7 +40,16 @@
               <strong>{{ task.type }}</strong>
               <em>{{ task.currentFile || task.status }}</em>
             </span>
-            <span class="task-meta">{{ formatTaskMeta(task) }}</span>
+            <span class="task-actions">
+              <span class="task-meta">{{ formatTaskMeta(task) }}</span>
+              <button
+                v-if="task.retryable"
+                type="button"
+                class="task-retry"
+                :title="task.retryLabel || 'Retry task'"
+                @click="emit('retry-task', task.id)"
+              >Retry</button>
+            </span>
           </li>
         </ul>
       </details>
@@ -52,7 +61,7 @@
           class="bookmark-star"
           :title="props.bookmarks?.includes(path) ? 'Remove bookmark' : 'Add bookmark'"
           @click="props.bookmarks?.includes(path) ? emit('remove-bookmark', path) : emit('add-bookmark', path)"
-        >{{ props.bookmarks?.includes(path) ? '¡ï' : '¡î' }}
+        >{{ props.bookmarks?.includes(path) ? 'ï¿½ï¿½' : 'ï¿½ï¿½' }}
         </button>
       </div>
 
@@ -66,7 +75,7 @@
           @click="emit('open-path', b)"
         >
           {{ b === '/' ? '/' : b.split('/').pop() || b }}
-          <span class="bookmark-remove" @click.stop="emit('remove-bookmark', b)">¡Á</span>
+          <span class="bookmark-remove" @click.stop="emit('remove-bookmark', b)">ï¿½ï¿½</span>
         </button>
       </div>
 
@@ -149,6 +158,7 @@ const emit = defineEmits<{
   (event: 'cancel-search'): void
   (event: 'cancel-transfer'): void
   (event: 'clear-task-history'): void
+  (event: 'retry-task', taskId: string): void
   (event: 'clear-search'): void
   (event: 'sort', key: SftpSortKey): void
   (event: 'open-path', path: string): void
@@ -181,19 +191,19 @@ const taskSummary = computed(() => {
   const running = props.tasks.filter((task) => ['queued', 'running', 'canceling'].includes(task.status)).length
   return [running ? `${running} active` : '', failed ? `${failed} failed` : '', `${props.tasks.length} total`]
     .filter(Boolean)
-    .join(' ¡¤ ')
+    .join(' ï¿½ï¿½ ')
 })
 
 const progressDetail = computed(() => {
   const parts: string[] = []
   if (props.progress.bytesPerSecond) parts.push(`${formatBytes(props.progress.bytesPerSecond)}/s`)
   if (props.progress.etaSeconds !== undefined) parts.push(`ETA ${formatDuration(props.progress.etaSeconds)}`)
-  return parts.join(' ¡¤ ')
+  return parts.join(' ï¿½ï¿½ ')
 })
 
 function formatTaskMeta(task: SftpTask) {
   const value = task.type === 'delete' ? `${task.deleted} items` : `${task.progress}%`
-  return task.status === 'error' && task.error ? `${value} ¡¤ ${task.error}` : `${value} ¡¤ ${task.status}`
+  return task.status === 'error' && task.error ? `${value} ï¿½ï¿½ ${task.error}` : `${value} ï¿½ï¿½ ${task.status}`
 }
 
 function formatBytes(bytes: number) {
@@ -360,6 +370,15 @@ function formatDuration(seconds: number) {
   cursor: pointer;
 }
 
+.task-retry {
+  border: 1px solid rgba(125, 211, 252, 0.28);
+  border-radius: 999px;
+  background: rgba(14, 165, 233, 0.08);
+  color: #7dd3fc;
+  font-size: 10px;
+  cursor: pointer;
+}
+
 .sftp-task-center ul {
   display: grid;
   gap: 4px;
@@ -397,6 +416,13 @@ function formatDuration(seconds: number) {
   font-style: normal;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.task-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
 }
 
 .task-error .task-meta {

@@ -88,6 +88,7 @@
         @cancel-search="cancelRemoteSearch"
         @cancel-transfer="cancelCurrentSftpTask"
         @clear-task-history="clearSftpTaskHistory"
+        @retry-task="retrySftpTask"
         @clear-search="clearSftpSearchResults"
         @sort="setSftpSort"
         @open-path="openSftpPath"
@@ -155,7 +156,7 @@
       <section class="shortcut-help-dialog" @click.stop>
         <header>
           <strong>Keyboard Shortcuts</strong>
-          <button @click="shortcutHelpVisible = false">¡Á</button>
+          <button @click="shortcutHelpVisible = false">ï¿½ï¿½</button>
         </header>
         <dl>
           <template v-for="item in shortcutHelpItems" :key="item.key">
@@ -298,7 +299,7 @@
                       @contextmenu="openTerminalTabContextMenu($event, terminal.id)">
                 <span class="terminal-status-dot" :class="'status-' + terminal.status"></span>
                 <span class="pane-tab-title workspace-tab-title">{{ terminal.name }}</span>
-                <span class="pane-tab-close workspace-tab-close" role="button" tabindex="0" title="Close" @click.stop="closeTerminalTab(terminal.id)">¡Á</span>
+                <span class="pane-tab-close workspace-tab-close" role="button" tabindex="0" title="Close" @click.stop="closeTerminalTab(terminal.id)">ï¿½ï¿½</span>
               </button>
               <select v-if="terminalTabs.length > 1" class="tab-more-select workspace-tab-control" title="More terminal tabs"
                       @change="handleTerminalMoreSelect">
@@ -666,6 +667,7 @@ const {
   applyProgress: applySftpTaskProgress,
   finishTask: finishSftpTask,
   failTask: failSftpTask,
+  retryTask: retrySftpTask,
   cancelCurrentTask: cancelCurrentSftpTask,
   clearTaskHistory: clearSftpTaskHistory,
 } = useSftpTask(getSftpConnection, (message) => {

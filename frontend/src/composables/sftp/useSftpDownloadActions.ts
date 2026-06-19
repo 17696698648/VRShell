@@ -10,7 +10,7 @@ export function useSftpDownloadActions(options: {
   sftpStatus: WritableComputedRef<string>
   getSftpConnection: () => SftpConnection
   showToast: (message: string, type?: 'info' | 'success' | 'error') => void
-  beginSftpTask: (type: 'download') => string
+  beginSftpTask: (type: 'download', retryAction?: () => Promise<void>, retryLabel?: string) => string
   finishSftpTask: () => void
   failSftpTask: (error: unknown) => void
 }) {
@@ -22,9 +22,17 @@ export function useSftpDownloadActions(options: {
       return
     }
 
+    await downloadSftpFileToLocalPath(file, localPath)
+  }
+
+  async function downloadSftpFileToLocalPath(file: SftpFileItem, localPath: string) {
     try {
       options.sftpStatus.value = `Downloading ${file.name}...`
-      const taskId = options.beginSftpTask('download')
+      const taskId = options.beginSftpTask(
+        'download',
+        () => downloadSftpFileToLocalPath(file, localPath),
+        `Retry download ${file.name}`,
+      )
       await downloadSftpFileToPath(options.getSftpConnection(), file.path, localPath, taskId)
       options.finishSftpTask()
       options.sftpStatus.value = `Downloaded ${file.name}`

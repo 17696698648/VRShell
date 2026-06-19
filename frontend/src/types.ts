@@ -64,6 +64,7 @@ export type SftpTask = {
   bytesPerSecond?: number
   etaSeconds?: number
   retryable?: boolean
+  retryLabel?: string
 }
 
 export type WorkspaceState = {

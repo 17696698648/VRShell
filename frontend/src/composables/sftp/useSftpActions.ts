@@ -44,7 +44,7 @@ type UseSftpActionsOptions = {
     showToast: (message: string, type?: 'info' | 'success' | 'error') => void
   }
   task: {
-    beginSftpTask: (type: 'upload' | 'download' | 'delete') => string
+    beginSftpTask: (type: 'upload' | 'download' | 'delete', retryAction?: () => Promise<void>, retryLabel?: string) => string
     finishSftpTask: () => void
     failSftpTask: (error: unknown) => void
   }
