@@ -1,5 +1,6 @@
 ﻿import { computed, reactive } from 'vue'
 import { cancelSftpTask, createSftpTaskId, formatSftpError, getSftpSessionKey, type SftpConnection } from '../../services/sftp'
+import {toAppError} from '../../services/errors'
 import type { SftpTask } from '../../types'
 
 export function useSftpTask(getConnection: () => SftpConnection, setStatus?: (message: string) => void) {
@@ -18,6 +19,8 @@ export function useSftpTask(getConnection: () => SftpConnection, setStatus?: (me
     etaSeconds: undefined,
     retryable: false,
     retryLabel: undefined,
+    errorCategory: undefined,
+    errorSeverity: undefined,
   })
   const taskHistory = reactive<SftpTask[]>([])
 
@@ -68,6 +71,8 @@ export function useSftpTask(getConnection: () => SftpConnection, setStatus?: (me
     currentTask.etaSeconds = undefined
     currentTask.retryable = Boolean(retryAction)
     currentTask.retryLabel = retryLabel
+    currentTask.errorCategory = undefined
+    currentTask.errorSeverity = undefined
     if (retryAction) retryActions.set(currentTask.id, retryAction)
     upsertCurrentTaskHistory()
     return currentTask.id
@@ -107,11 +112,14 @@ export function useSftpTask(getConnection: () => SftpConnection, setStatus?: (me
   }
 
   function failTask(error: unknown) {
+    const appError = toAppError(error, 'SFTP error')
     const message = formatSftpError(error)
     currentTask.status = message.toLowerCase().includes('canceled') ? 'canceled' : 'error'
     currentTask.error = message
     currentTask.cancelable = false
-    currentTask.retryable = currentTask.status === 'error' && retryActions.has(currentTask.id)
+    currentTask.errorCategory = appError.category
+    currentTask.errorSeverity = appError.severity
+    currentTask.retryable = currentTask.status === 'error' && appError.retryable && retryActions.has(currentTask.id)
     upsertCurrentTaskHistory()
   }
 

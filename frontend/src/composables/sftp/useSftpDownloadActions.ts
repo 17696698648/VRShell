@@ -4,6 +4,7 @@ import {
   downloadSftpFileToPath,
   type SftpConnection,
 } from '../../services/sftp'
+import {summarizeAppError} from '../../services/errors'
 import type {SftpFileItem} from '../../types'
 
 export function useSftpDownloadActions(options: {
@@ -39,6 +40,8 @@ export function useSftpDownloadActions(options: {
       options.showToast(`Downloaded ${file.name}`, 'success')
     } catch (error) {
       options.failSftpTask(error)
+      options.sftpStatus.value = `Download failed: ${summarizeAppError(error, 'Download failed')}`
+      options.showToast(summarizeAppError(error, 'Download failed'), 'error')
       throw error
     }
   }

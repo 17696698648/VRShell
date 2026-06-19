@@ -41,6 +41,9 @@
               <em>{{ task.currentFile || task.status }}</em>
             </span>
             <span class="task-actions">
+              <span v-if="task.errorCategory" class="task-category" :class="`severity-${task.errorSeverity || 'error'}`">
+                {{ task.errorCategory }}
+              </span>
               <span class="task-meta">{{ formatTaskMeta(task) }}</span>
               <button
                 v-if="task.retryable"
@@ -377,6 +380,31 @@ function formatDuration(seconds: number) {
   color: #7dd3fc;
   font-size: 10px;
   cursor: pointer;
+}
+
+.task-category {
+  flex: 0 0 auto;
+  padding: 1px 5px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 999px;
+  color: #cbd5e1;
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.severity-warning {
+  border-color: rgba(251, 191, 36, 0.28);
+  color: #facc15;
+}
+
+.severity-error {
+  border-color: rgba(248, 113, 113, 0.3);
+  color: #fca5a5;
+}
+
+.severity-info {
+  border-color: rgba(125, 211, 252, 0.24);
+  color: #7dd3fc;
 }
 
 .sftp-task-center ul {

@@ -8,7 +8,7 @@ import {
 } from '../../services/sftp'
 import type {DroppedUploadFile} from '../../types'
 import {joinRemotePath} from '../../utils/sftp'
-import {redactSensitiveText} from '../../services/errors'
+import {redactSensitiveText, summarizeAppError} from '../../services/errors'
 
 export function useSftpUploadActions(options: {
   sftpStatus: WritableComputedRef<string>
@@ -58,7 +58,7 @@ export function useSftpUploadActions(options: {
     } catch (error) {
       options.failSftpTask(error)
       options.sftpStatus.value = `Upload failed: ${formatSftpError(error)}`
-      options.showToast('Upload failed', 'error')
+      options.showToast(summarizeAppError(error, 'Upload failed'), 'error')
     }
   }
 
@@ -91,7 +91,7 @@ export function useSftpUploadActions(options: {
     } catch (error) {
       options.failSftpTask(error)
       options.sftpStatus.value = `Upload failed: ${formatSftpError(error)}`
-      options.showToast('Upload failed', 'error')
+      options.showToast(summarizeAppError(error, 'Upload failed'), 'error')
     }
   }
 

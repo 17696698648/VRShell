@@ -65,6 +65,8 @@ export type SftpTask = {
   etaSeconds?: number
   retryable?: boolean
   retryLabel?: string
+  errorCategory?: string
+  errorSeverity?: 'info' | 'warning' | 'error'
 }
 
 export type WorkspaceState = {
