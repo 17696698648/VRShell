@@ -40,4 +40,11 @@ describe('errors service', () => {
     expect(summary).toContain('transfer')
     expect(summary).toContain('Retry is available')
   })
+
+  it('classifies invalid path errors as filesystem issues', () => {
+    const error = toAppError({code: 'invalid_path', message: 'unsafe path', recoverable: false})
+    expect(error.category).toBe('filesystem')
+    expect(error.retryable).toBe(false)
+    expect(error.suggestion).toContain('unsafe traversal')
+  })
 })
