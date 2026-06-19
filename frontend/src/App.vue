@@ -436,7 +436,7 @@ import {
   disconnectSftpConnection,
   type SftpConnection,
 } from './services/sftp'
-import {measureTcpLatency, previewSshConfigImport, testSshConnection as testSshConnectionCommand} from './services/ssh'
+import {measureTcpLatency, previewSshConfigImport, testSshConnection as testSshConnectionCommand, type SshConfigHost} from './services/ssh'
 import type {
   EditorFile,
   SftpFileItem,
@@ -1097,19 +1097,98 @@ async function toggleBroadcastInput() {
 async function previewSshConfigImportFromHome() {
   try {
     const preview = await previewSshConfigImport(allSessionNames.value)
+    const importableHosts = preview.hosts.filter((host) => !preview.duplicateHosts.includes(host.host))
     const details = [
       `${preview.hosts.length} hosts`,
       `${preview.duplicateHosts.length} duplicates`,
+      `${importableHosts.length} importable`,
       preview.proxyHosts.length ? `${preview.proxyHosts.length} via proxy` : '',
       preview.agentForwardHosts.length ? `${preview.agentForwardHosts.length} agent forwarding` : '',
       preview.insecureHostKeyHosts.length ? `${preview.insecureHostKeyHosts.length} relaxed host keys` : '',
     ].filter(Boolean).join(', ')
-    showToast(
-      `SSH config preview: ${details}`,
-      preview.hosts.length > 0 ? 'success' : 'info',
+
+    if (importableHosts.length === 0) {
+      showToast(`SSH config preview: ${details}`, preview.hosts.length > 0 ? 'info' : 'info')
+      return
+    }
+
+    const confirmed = await askConfirm(
+      'Import SSH config?',
+      `Found ${details}. Import ${importableHosts.length} new sessions into the SSH Config group? Existing sessions will be skipped.`,
     )
+    if (!confirmed) {
+      showToast(`SSH config preview: ${details}`, 'info')
+      return
+    }
+
+    const imported = importSshConfigHosts(importableHosts)
+    showToast(`Imported ${imported} SSH config sessions`, imported > 0 ? 'success' : 'info')
   } catch (error) {
     showToast(`SSH config preview failed: ${String(error)}`, 'error')
+  }
+}
+
+function importSshConfigHosts(hosts: SshConfigHost[]) {
+  const targetGroup = ensureSshConfigGroup()
+  let imported = 0
+
+  for (const host of hosts) {
+    if (findHost(host.host)) continue
+    targetGroup.hosts.push(mapSshConfigHostToSession(host))
+    imported += 1
+  }
+
+  if (imported > 0) {
+    expandedGroups[targetGroup.id] = true
+    void persistSessionTree()
+  }
+
+  return imported
+}
+
+function ensureSshConfigGroup() {
+  const rootGroup = ensureAllSessionsGroup()
+  const existingGroup = rootGroup.children.find((group) => group.name === 'SSH Config')
+  if (existingGroup) return existingGroup
+
+  const group = buildNewGroup(rootGroup.children, 'SSH Config')
+  rootGroup.children.push(group)
+  expandedGroups[rootGroup.id] = true
+  expandedGroups[group.id] = true
+  return group
+}
+
+function mapSshConfigHostToSession(host: SshConfigHost): SessionHost {
+  const proxyRemark = host.proxyJump
+    ? `ProxyJump: ${host.proxyJump}`
+    : host.proxyCommand
+      ? `ProxyCommand: ${host.proxyCommand}`
+      : ''
+  const securityRemark = host.strictHostKeyChecking
+    ? `StrictHostKeyChecking: ${host.strictHostKeyChecking}`
+    : ''
+  const remark = ['Imported from ~/.ssh/config', proxyRemark, securityRemark]
+    .filter(Boolean)
+    .join('\n')
+
+  return {
+    name: createUniqueHostName(host.host || host.hostname || 'ssh-config-host'),
+    user: host.user || '',
+    address: host.hostname || host.host,
+    port: host.port || 22,
+    authMethod: host.identityFile ? 'key' : 'agent',
+    password: '',
+    passwordKeyringId: createId('credential'),
+    privateKeyPath: host.identityFile ?? '',
+    passphrase: '',
+    remark,
+    latency: '-',
+    status: 'idle',
+    active: false,
+    autoReconnect: false,
+    idleTimeoutSecs: 0,
+    hashKnownHosts: false,
+    identityFile: host.identityFile ?? '',
   }
 }
 
