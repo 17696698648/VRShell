@@ -8,7 +8,7 @@
       </div>
     </div>
     <WindowMenuBar />
-    <WorkspaceTabs />
+    <WorkspaceContext />
     <WindowControls />
   </header>
 </template>
@@ -16,5 +16,5 @@
 <script setup lang="ts">
 import WindowControls from './WindowControls.vue'
 import WindowMenuBar from './WindowMenuBar.vue'
-import WorkspaceTabs from './WorkspaceTabs.vue'
+import WorkspaceContext from './WorkspaceContext.vue'
 </script>

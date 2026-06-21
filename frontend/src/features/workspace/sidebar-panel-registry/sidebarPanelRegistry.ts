@@ -10,7 +10,11 @@ export function registerSidebarPanel(panel: SidebarPanelRegistration) {
 }
 
 export function getSidebarPanels() {
-  return Array.from(sidebarPanels.values())
+  return Array.from(sidebarPanels.values()).sort((left, right) => (left.order ?? 100) - (right.order ?? 100))
+}
+
+export function useSidebarPanels() {
+  return computed(() => getSidebarPanels())
 }
 
 export function useActiveSidebarPanel() {

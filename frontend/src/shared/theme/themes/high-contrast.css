@@ -37,4 +37,24 @@
   --color-text: var(--color-text-primary);
   --color-muted: var(--color-text-muted);
   --color-accent-soft: var(--color-bg-selected);
+  --command-item-hover-bg: rgba(250, 204, 21, 0.2);
+  --list-row-hover-bg: rgba(250, 204, 21, 0.18);
+  --list-row-selected-bg: rgba(250, 204, 21, 0.28);
+  --panel-border: var(--color-border-strong);
+  --tab-active-bg: rgba(250, 204, 21, 0.28);
+  --color-danger-soft: rgba(255, 107, 107, 0.26);
+  --color-warning-soft: rgba(250, 204, 21, 0.28);
+}
+
+:root[data-theme='high-contrast'] .ui-list-row:focus-visible,
+:root[data-theme='high-contrast'] .command-palette__list button:focus-visible,
+:root[data-theme='high-contrast'] .sftp-row.selected {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 1px;
+}
+
+:root[data-theme='high-contrast'] .problems-panel__entry,
+:root[data-theme='high-contrast'] .ui-panel__error,
+:root[data-theme='high-contrast'] .settings-warning {
+  border-color: currentColor;
 }

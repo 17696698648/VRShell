@@ -63,6 +63,10 @@
   color: var(--color-text-primary);
 }
 
+.dock-host__tabs button.active {
+  box-shadow: inset 0 2px 0 var(--color-accent);
+}
+
 .dock-host__tabs .dock-host__close {
   margin-left: auto;
 }

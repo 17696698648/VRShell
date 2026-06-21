@@ -4,6 +4,12 @@ import type {WorkspacePanel} from '../../../entities/workspace'
 export interface SidebarPanelRegistration {
   id: WorkspacePanel
   title: string
+  icon: string
+  order?: number
+  shortcut?: string
+  tooltip?: string
+  badge?: () => {count: number; intent: 'info' | 'warning' | 'danger'; title: string} | undefined
+  commandId?: string
   component: Component
   props?: Record<string, unknown>
 }

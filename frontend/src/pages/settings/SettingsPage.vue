@@ -7,9 +7,14 @@
       </div>
     </header>
 
+    <label class="settings-page__search">
+      <span>Search settings</span>
+      <input v-model="settingsQuery" placeholder="Search sections, keywords, or fields" />
+    </label>
+
     <div class="settings-page__layout">
       <nav class="settings-page__nav" aria-label="Settings sections">
-        <button v-for="section in sections" :key="section.id" :class="{active: activeSectionId === section.id}" type="button" @click="activeSectionId = section.id">
+        <button v-for="section in filteredSections" :key="section.id" :class="{active: activeSectionId === section.id}" type="button" @click="activeSectionId = section.id">
           {{ section.title }}
         </button>
       </nav>
@@ -27,9 +32,15 @@ import {useSettingsSections} from '../../features/settings/settings-registry'
 
 const sections = useSettingsSections()
 const activeSectionId = ref('Appearance')
-const activeSection = computed(() => sections.value.find((section) => section.id === activeSectionId.value) ?? sections.value[0] ?? null)
+const settingsQuery = ref('')
+const filteredSections = computed(() => {
+  const query = settingsQuery.value.trim().toLowerCase()
+  if (!query) return sections.value
+  return sections.value.filter((section) => [section.title, section.id, ...(section.keywords ?? [])].join(' ').toLowerCase().includes(query))
+})
+const activeSection = computed(() => filteredSections.value.find((section) => section.id === activeSectionId.value) ?? filteredSections.value[0] ?? null)
 
 watchEffect(() => {
-  if (!activeSection.value && sections.value[0]) activeSectionId.value = sections.value[0].id
+  if (!activeSection.value && filteredSections.value[0]) activeSectionId.value = filteredSections.value[0].id
 })
 </script>

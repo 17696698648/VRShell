@@ -1,11 +1,11 @@
 <template>
-  <section :class="['panel', 'task-center', {compact}]">
-    <header class="panel__header"><div><strong>Tasks</strong><small>Background jobs</small></div></header>
+  <UiPanel class="task-center" :compact="compact" title="Tasks" subtitle="Background jobs">
     <TaskList :tasks="tasks" />
-  </section>
+  </UiPanel>
 </template>
 
 <script setup lang="ts">
+import {UiPanel} from '../../../shared/ui'
 import {useTaskCenter} from '../model/useTaskCenter'
 import TaskList from './TaskList.vue'
 

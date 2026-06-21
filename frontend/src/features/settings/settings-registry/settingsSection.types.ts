@@ -4,5 +4,6 @@ export interface SettingsSectionRegistration {
   id: string
   title: string
   order?: number
+  keywords?: string[]
   component: Component
 }

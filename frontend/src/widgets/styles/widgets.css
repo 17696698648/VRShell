@@ -72,7 +72,7 @@
 .sftp-row:hover,
 .sftp-row:focus-visible {
   border-color: var(--color-border-subtle);
-  background: var(--color-bg-selected);
+  background: var(--list-row-selected-bg);
 }
 
 .session-node.active::before {
@@ -166,7 +166,7 @@
 
 .sftp-view-switcher button.active,
 .sftp-view-switcher button:hover {
-  background: var(--color-bg-selected);
+  background: var(--list-row-selected-bg);
   color: var(--color-text-primary);
 }
 
@@ -207,7 +207,7 @@
 }
 
 .sftp-directory-pane button:hover {
-  background: var(--color-bg-hover);
+  background: var(--list-row-hover-bg);
   color: var(--color-text-primary);
 }
 
@@ -269,7 +269,7 @@
 
 .sftp-row.selected {
   border-color: var(--color-focus-ring);
-  background: var(--color-bg-selected);
+  background: var(--list-row-selected-bg);
 }
 
 .sftp-row__type {
@@ -317,7 +317,7 @@
 
 .sftp-row__actions button:hover,
 .sftp-row__actions button:focus-visible {
-  background: var(--color-bg-hover);
+  background: var(--list-row-hover-bg);
   color: var(--color-text-primary);
 }
 
@@ -326,7 +326,7 @@
 .skeleton-row small {
   height: 12px;
   border-radius: 999px;
-  background: var(--color-bg-hover);
+  background: var(--list-row-hover-bg);
 }
 
 .skeleton-row {
@@ -362,7 +362,7 @@
 
 .breadcrumbs button:hover,
 .breadcrumbs button:focus-visible {
-  background: var(--color-bg-hover);
+  background: var(--list-row-hover-bg);
   color: var(--color-text-primary);
 }
 
@@ -390,7 +390,7 @@
 .task-mini-panel header button {
   padding: 4px 7px;
   border-radius: var(--radius-sm);
-  background: var(--color-bg-selected);
+  background: var(--list-row-selected-bg);
   color: var(--color-text-primary);
   cursor: pointer;
 }
@@ -447,7 +447,7 @@
   min-height: 26px;
   padding: 0 8px;
   border-radius: var(--radius-md);
-  background: var(--color-bg-selected);
+  background: var(--list-row-selected-bg);
   color: var(--color-text-primary);
   cursor: pointer;
 }
@@ -538,7 +538,7 @@
 .terminal-status button {
   padding: 4px 8px;
   border-radius: var(--radius-md);
-  background: var(--color-bg-selected);
+  background: var(--list-row-selected-bg);
   color: var(--color-text-primary);
   cursor: pointer;
 }
@@ -633,7 +633,7 @@
 .task-item__status {
   padding: 2px 7px;
   border-radius: 999px;
-  background: var(--color-bg-selected);
+  background: var(--list-row-selected-bg);
   color: var(--color-text-secondary);
   font-size: var(--font-size-xs);
   text-transform: capitalize;
@@ -695,6 +695,16 @@
   color: var(--color-text-muted);
 }
 
+.settings-page__search {
+  display: grid;
+  gap: 6px;
+}
+
+.settings-page__search span {
+  color: var(--color-text-secondary);
+  font-weight: 600;
+}
+
 .settings-page__layout {
   display: grid;
   grid-template-columns: 160px minmax(0, 1fr);
@@ -724,7 +734,7 @@
 
 .settings-page__nav button.active,
 .settings-page__nav button:hover {
-  background: var(--color-bg-selected);
+  background: var(--list-row-selected-bg);
   color: var(--color-text-primary);
 }
 
@@ -792,7 +802,7 @@
 }
 
 .settings-keybindings__row:hover {
-  background: var(--color-bg-hover);
+  background: var(--list-row-hover-bg);
 }
 
 .settings-keybindings__row.disabled {
@@ -893,7 +903,7 @@
 
 .search-page__scopes button.active,
 .search-page__scopes button:hover {
-  background: var(--color-bg-selected);
+  background: var(--list-row-selected-bg);
   color: var(--color-text-primary);
 }
 

@@ -131,6 +131,77 @@
   color: var(--color-muted);
 }
 
+.workspace-context {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 220px;
+  max-width: 520px;
+  padding: 5px 8px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elevated);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.workspace-context:hover,
+.workspace-context:focus-visible {
+  border-color: var(--color-focus-ring);
+  background: var(--tab-active-bg);
+}
+
+.workspace-context__status {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--color-text-muted);
+}
+
+.workspace-context__status.connected {
+  background: var(--color-success);
+}
+
+.workspace-context__status.connecting {
+  background: var(--color-warning);
+  animation: pulse 1.2s var(--ease-standard) infinite;
+}
+
+.workspace-context__status.failed,
+.workspace-context__status.disconnected {
+  background: var(--color-danger);
+}
+
+.workspace-context__main {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+  text-align: left;
+}
+
+.workspace-context__main strong,
+.workspace-context__main small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-context__main small {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.workspace-context kbd {
+  padding: 2px 6px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-panel);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
 .workspace-tab {
   display: inline-flex;
   align-items: center;
@@ -256,20 +327,9 @@
   padding: 0 4px;
   border: 1px solid var(--color-bg-shell);
   border-radius: 999px;
-  background: var(--color-info);
-  color: var(--color-bg-workspace);
   font-size: 10px;
   font-weight: 700;
   line-height: 14px;
-}
-
-.activity-bar__badge--warning {
-  background: var(--color-warning);
-}
-
-.activity-bar__badge--danger {
-  background: var(--color-danger);
-  color: white;
 }
 
 .sidebar {

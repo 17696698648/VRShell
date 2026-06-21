@@ -4,36 +4,30 @@
       v-for="item in items"
       :key="item.id"
       :class="['activity-bar__item', {active: workspaceState.activePanel === item.id}]"
-      :title="item.command.shortcut ? `${item.command.title} (${item.command.shortcut})` : item.command.title"
-      :aria-label="item.command.title"
-      @click="executeCommand(item.command.id)"
+      :title="item.shortcut ? `${item.title} (${item.shortcut})` : item.tooltip ?? item.title"
+      :aria-label="item.title"
+      @click="runItem(item)"
     >
       <span aria-hidden="true">{{ item.icon }}</span>
-      <small>{{ item.command.title }}</small>
-      <span
-        v-if="badges[item.id]"
-        :class="['activity-bar__badge', `activity-bar__badge--${badges[item.id]?.intent}`]"
-        :title="badges[item.id]?.title"
-      >
-        {{ formatActivityBarBadge(badges[item.id]?.count ?? 0) }}
-      </span>
+      <small>{{ item.title }}</small>
+      <UiBadge v-if="item.badge?.()" class="activity-bar__badge" :intent="item.badge?.()?.intent" :title="item.badge?.()?.title">
+        {{ formatActivityBarBadge(item.badge?.()?.count ?? 0) }}
+      </UiBadge>
     </button>
   </aside>
 </template>
 
 <script setup lang="ts">
-import {computed} from 'vue'
 import {workspaceState} from '../../entities/workspace'
-import {executeCommand, getCommand} from '../../features/workspace/command-registry'
-import {formatActivityBarBadge, useActivityBarBadges} from './model/activityBarBadges'
-import {activityBarItems} from './model/activityBarItems'
+import {executeCommand} from '../../features/workspace/command-registry'
+import {UiBadge} from '../../shared/ui'
+import {useSidebarPanels, type SidebarPanelRegistration} from '../../features/workspace/sidebar-panel-registry'
+import {formatActivityBarBadge} from './model/activityBarBadges'
 
-const badges = useActivityBarBadges()
+const items = useSidebarPanels()
 
-const items = computed(() =>
-  activityBarItems.flatMap((item) => {
-    const command = getCommand(item.commandId)
-    return command ? [{...item, command}] : []
-  }),
-)
+async function runItem(item: SidebarPanelRegistration) {
+  if (item.commandId) await executeCommand(item.commandId)
+  else workspaceState.activePanel = item.id
+}
 </script>

@@ -1,3 +1,92 @@
+.ui-panel {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-xl);
+  background: var(--panel-bg);
+  box-shadow: var(--shadow-panel);
+}
+
+.ui-panel.compact {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.ui-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--panel-header-bg);
+}
+
+.ui-panel__title {
+  display: grid;
+  gap: 2px;
+}
+
+.ui-panel__title small {
+  color: var(--color-text-muted);
+}
+
+.ui-panel__actions {
+  display: inline-flex;
+  gap: var(--space-2);
+}
+
+.ui-panel__error {
+  margin: 0 var(--space-3) var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+.ui-panel__body {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+}
+
+.ui-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  min-height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--badge-bg);
+  color: var(--badge-color);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+}
+
+.ui-badge--info {
+  background: var(--color-info-soft);
+  color: var(--color-info);
+}
+
+.ui-badge--success {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+}
+
+.ui-badge--warning {
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+}
+
+.ui-badge--danger {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
 .panel,
 .terminal-workbench,
 .settings-page,
@@ -321,7 +410,24 @@
 }
 
 .ui-menu__item:hover:not(:disabled) {
-  background: var(--color-bg-hover);
+  background: var(--menu-item-hover-bg);
+}
+
+.ui-list-row {
+  min-height: var(--size-tree-row-height);
+  border-radius: var(--radius-md);
+  background: transparent;
+  transition: background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
+}
+
+.ui-list-row:hover,
+.ui-list-row:focus-visible {
+  background: var(--list-row-hover-bg);
+}
+
+.ui-list-row.selected,
+.ui-list-row.active {
+  background: var(--list-row-selected-bg);
 }
 
 .ui-menu__item.danger {

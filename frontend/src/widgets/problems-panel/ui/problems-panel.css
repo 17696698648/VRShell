@@ -1,6 +1,8 @@
 .problems-panel,
 .session-detail-panel,
-.sftp-item-detail-panel {
+.sftp-item-detail-panel,
+.task-detail-panel,
+.terminal-info-panel {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   min-width: 0;
@@ -14,7 +16,9 @@
 
 .problems-panel__header,
 .session-detail-panel header,
-.sftp-item-detail-panel header {
+.sftp-item-detail-panel header,
+.task-detail-panel header,
+.terminal-info-panel header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -25,14 +29,18 @@
 
 .problems-panel__header > div,
 .session-detail-panel header > div,
-.sftp-item-detail-panel header > div {
+.sftp-item-detail-panel header > div,
+.task-detail-panel header > div,
+.terminal-info-panel header > div {
   display: grid;
   gap: 2px;
 }
 
 .problems-panel__header small,
 .session-detail-panel small,
-.sftp-item-detail-panel small {
+.sftp-item-detail-panel small,
+.task-detail-panel small,
+.terminal-info-panel small {
   color: var(--color-text-muted);
 }
 
@@ -46,7 +54,9 @@
 
 .problems-panel__list,
 .session-detail-panel__content,
-.sftp-item-detail-panel__content {
+.sftp-item-detail-panel__content,
+.task-detail-panel__content,
+.terminal-info-panel__content {
   display: grid;
   align-content: start;
   gap: var(--space-2);
@@ -54,11 +64,28 @@
   padding: var(--space-3);
 }
 
+.problems-panel__group {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.problems-panel__group h3 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .problems-panel__entry {
   display: grid;
   gap: 2px;
   padding: 8px 10px;
   border-radius: var(--radius-md);
+  border-left: 3px solid currentColor;
   background: var(--color-bg-elevated);
 }
 
@@ -77,26 +104,34 @@
 }
 
 .session-detail-panel dl,
-.sftp-item-detail-panel dl {
+.sftp-item-detail-panel dl,
+.task-detail-panel dl,
+.terminal-info-panel dl {
   display: grid;
   gap: var(--space-2);
   margin: 0;
 }
 
 .session-detail-panel dl > div,
-.sftp-item-detail-panel dl > div {
+.sftp-item-detail-panel dl > div,
+.task-detail-panel dl > div,
+.terminal-info-panel dl > div {
   display: grid;
   grid-template-columns: 76px minmax(0, 1fr);
   gap: var(--space-2);
 }
 
 .session-detail-panel dt,
-.sftp-item-detail-panel dt {
+.sftp-item-detail-panel dt,
+.task-detail-panel dt,
+.terminal-info-panel dt {
   color: var(--color-text-muted);
 }
 
 .session-detail-panel dd,
-.sftp-item-detail-panel dd {
+.sftp-item-detail-panel dd,
+.task-detail-panel dd,
+.terminal-info-panel dd {
   min-width: 0;
   margin: 0;
   overflow: hidden;
