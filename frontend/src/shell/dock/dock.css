@@ -1,0 +1,68 @@
+.dock-host {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.dock-host__resize {
+  position: absolute;
+  z-index: 2;
+  background: transparent;
+}
+
+.dock-host--bottom .dock-host__resize {
+  top: -4px;
+  right: 0;
+  left: 0;
+  height: 8px;
+  cursor: row-resize;
+}
+
+.dock-host--right .dock-host__resize {
+  top: 0;
+  bottom: 0;
+  left: -4px;
+  width: 8px;
+  cursor: col-resize;
+}
+
+.dock-host__resize:hover {
+  background: color-mix(in srgb, var(--color-accent) 28%, transparent);
+}
+
+.dock-host__tabs {
+  display: flex;
+  min-width: 0;
+  gap: 4px;
+  align-items: center;
+  padding: 6px;
+  border: 1px solid var(--panel-border);
+  border-bottom: 0;
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  background: var(--color-bg-shell);
+}
+
+.dock-host__tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+  padding: 0 9px;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.dock-host__tabs button.active,
+.dock-host__tabs button:hover {
+  background: var(--tab-active-bg);
+  color: var(--color-text-primary);
+}
+
+.dock-host__tabs .dock-host__close {
+  margin-left: auto;
+}

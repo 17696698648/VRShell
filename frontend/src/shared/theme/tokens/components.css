@@ -1,0 +1,9 @@
+:root {
+  --button-primary-bg: var(--color-accent);
+  --button-secondary-bg: var(--color-bg-elevated);
+  --panel-bg: var(--color-bg-panel);
+  --panel-border: var(--color-border);
+  --tab-active-bg: var(--color-bg-selected);
+  --tree-row-hover-bg: var(--color-bg-hover);
+  --dock-panel-bg: var(--color-bg-panel);
+}

@@ -1,0 +1,56 @@
+﻿import {reactive} from 'vue'
+import {appendTerminalBuffer, initializeTerminalBuffer, removeTerminalBuffer} from './terminalBufferRegistry'
+import {clearTerminalInputQueue} from './terminalInputQueue'
+import type {TerminalTab} from './terminal.types'
+
+interface TerminalState {
+  activeTerminalId: string
+  tabs: TerminalTab[]
+}
+
+const initialTabs: TerminalTab[] = [
+  {
+    id: 'term-prod-api',
+    sessionId: 'prod-api',
+    backendSessionId: 'mock-deploy-10.42.0.12',
+    title: 'prod-api-01',
+    status: 'connected',
+    cwd: '/srv/app',
+    lines: ['$ ssh deploy@10.42.0.12', 'Connected to prod-api-01', 'deploy@prod-api:/srv/app$'],
+  },
+]
+
+for (const tab of initialTabs) initializeTerminalBuffer(tab.id, tab.lines)
+
+export const terminalState = reactive<TerminalState>({
+  activeTerminalId: 'term-prod-api',
+  tabs: initialTabs,
+})
+
+export function openTerminal(tab: TerminalTab) {
+  const existing = terminalState.tabs.find((item) => item.id === tab.id)
+  initializeTerminalBuffer(tab.id, tab.lines)
+  if (existing) Object.assign(existing, tab)
+  else terminalState.tabs.push(tab)
+  terminalState.activeTerminalId = tab.id
+}
+
+export function appendTerminalLines(tabId: string, lines: string[]) {
+  const tab = terminalState.tabs.find((item) => item.id === tabId)
+  if (!tab) return
+  appendTerminalBuffer(tabId, lines)
+  tab.lines = [...tab.lines, ...lines]
+}
+
+export function patchTerminal(tabId: string, patch: Partial<TerminalTab>) {
+  const tab = terminalState.tabs.find((item) => item.id === tabId)
+  if (tab) Object.assign(tab, patch)
+}
+
+export function closeTerminal(tabId: string) {
+  const index = terminalState.tabs.findIndex((tab) => tab.id === tabId)
+  if (index >= 0) terminalState.tabs.splice(index, 1)
+  removeTerminalBuffer(tabId)
+  clearTerminalInputQueue(tabId)
+  if (terminalState.activeTerminalId === tabId) terminalState.activeTerminalId = terminalState.tabs[0]?.id ?? ''
+}

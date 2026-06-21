@@ -1,0 +1,106 @@
+.problems-panel,
+.session-detail-panel,
+.sftp-item-detail-panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-bg-panel);
+  box-shadow: var(--shadow-panel);
+}
+
+.problems-panel__header,
+.session-detail-panel header,
+.sftp-item-detail-panel header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.problems-panel__header > div,
+.session-detail-panel header > div,
+.sftp-item-detail-panel header > div {
+  display: grid;
+  gap: 2px;
+}
+
+.problems-panel__header small,
+.session-detail-panel small,
+.sftp-item-detail-panel small {
+  color: var(--color-text-muted);
+}
+
+.problems-panel__header button {
+  padding: 5px 8px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-selected);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.problems-panel__list,
+.session-detail-panel__content,
+.sftp-item-detail-panel__content {
+  display: grid;
+  align-content: start;
+  gap: var(--space-2);
+  overflow: auto;
+  padding: var(--space-3);
+}
+
+.problems-panel__entry {
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+}
+
+.problems-panel__entry span,
+.problems-panel__entry small {
+  color: var(--color-text-muted);
+}
+
+.problems-panel__entry--warning {
+  color: var(--color-warning);
+}
+
+.problems-panel__entry--error,
+.problems-panel__entry--fatal {
+  color: var(--color-danger);
+}
+
+.session-detail-panel dl,
+.sftp-item-detail-panel dl {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.session-detail-panel dl > div,
+.sftp-item-detail-panel dl > div {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: var(--space-2);
+}
+
+.session-detail-panel dt,
+.sftp-item-detail-panel dt {
+  color: var(--color-text-muted);
+}
+
+.session-detail-panel dd,
+.sftp-item-detail-panel dd {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--color-text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

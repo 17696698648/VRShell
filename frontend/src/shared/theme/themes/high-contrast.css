@@ -1,0 +1,40 @@
+﻿:root[data-theme='high-contrast'] {
+  color-scheme: dark;
+
+  --color-bg-app: #000000;
+  --color-bg-shell: #050505;
+  --color-bg-panel: #050505;
+  --color-bg-workspace: #000000;
+  --color-bg-elevated: #111111;
+  --color-bg-hover: rgba(255, 255, 255, 0.14);
+  --color-bg-selected: rgba(250, 204, 21, 0.24);
+
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #f3f4f6;
+  --color-text-muted: #d1d5db;
+  --color-text-disabled: #9ca3af;
+
+  --color-border-subtle: rgba(255, 255, 255, 0.42);
+  --color-border-strong: rgba(255, 255, 255, 0.7);
+  --color-focus-ring: #facc15;
+
+  --color-accent: #facc15;
+  --color-success: #4ade80;
+  --color-warning: #facc15;
+  --color-danger: #ff6b6b;
+  --color-info: #93c5fd;
+
+  --color-terminal-bg: #000000;
+  --color-terminal-text: #ffffff;
+  --color-terminal-muted: #d1d5db;
+  --color-terminal-selection: rgba(250, 204, 21, 0.34);
+  --color-terminal-cursor: #facc15;
+
+  --color-bg: var(--color-bg-app);
+  --color-surface: var(--color-bg-panel);
+  --color-surface-2: var(--color-bg-elevated);
+  --color-border: var(--color-border-subtle);
+  --color-text: var(--color-text-primary);
+  --color-muted: var(--color-text-muted);
+  --color-accent-soft: var(--color-bg-selected);
+}

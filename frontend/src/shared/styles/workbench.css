@@ -1,0 +1,30 @@
+﻿.workbench-shell__main,
+.terminal-pane,
+.editor-workbench {
+  min-width: 0;
+  min-height: 0;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.48;
+  }
+}
+
+@keyframes skeletonPulse {
+  50% {
+    opacity: 0.56;
+  }
+}

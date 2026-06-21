@@ -1,0 +1,40 @@
+﻿:root[data-theme='light'] {
+  color-scheme: light;
+
+  --color-bg-app: #eef3fb;
+  --color-bg-shell: #f8fafc;
+  --color-bg-panel: #ffffff;
+  --color-bg-workspace: #05080f;
+  --color-bg-elevated: #f4f7fb;
+  --color-bg-hover: rgba(51, 65, 85, 0.08);
+  --color-bg-selected: rgba(49, 95, 221, 0.12);
+
+  --color-text-primary: #172033;
+  --color-text-secondary: #334155;
+  --color-text-muted: #64748b;
+  --color-text-disabled: #94a3b8;
+
+  --color-border-subtle: rgba(51, 65, 85, 0.16);
+  --color-border-strong: rgba(51, 65, 85, 0.28);
+  --color-focus-ring: rgba(49, 95, 221, 0.62);
+
+  --color-accent: #315fdd;
+  --color-success: #16a34a;
+  --color-warning: #d97706;
+  --color-danger: #e11d48;
+  --color-info: #2563eb;
+
+  --color-terminal-bg: #05080f;
+  --color-terminal-text: #d1fae5;
+  --color-terminal-muted: #93c5fd;
+  --color-terminal-selection: rgba(49, 95, 221, 0.32);
+  --color-terminal-cursor: #f8fafc;
+
+  --color-bg: var(--color-bg-app);
+  --color-surface: var(--color-bg-panel);
+  --color-surface-2: var(--color-bg-elevated);
+  --color-border: var(--color-border-subtle);
+  --color-text: var(--color-text-primary);
+  --color-muted: var(--color-text-muted);
+  --color-accent-soft: var(--color-bg-selected);
+}

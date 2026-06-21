@@ -1,5 +1,0 @@
-export {default as GroupTreeSelect} from './GroupTreeSelect.vue'
-export {default as SessionAdvancedFields} from './SessionAdvancedFields.vue'
-export {default as SessionAuthFields} from './SessionAuthFields.vue'
-export {default as SessionDialog} from './SessionDialog.vue'
-export {default as SessionNotesFields} from './SessionNotesFields.vue'

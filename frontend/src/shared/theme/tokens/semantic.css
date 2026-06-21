@@ -1,0 +1,20 @@
+:root {
+  --size-titlebar-height: 36px;
+  --size-activitybar-width: 48px;
+  --size-sidebar-default-width: 280px;
+  --size-sidebar-min-width: 220px;
+  --size-sidebar-max-width: 420px;
+  --size-statusbar-height: 24px;
+  --size-toolbar-height: 32px;
+  --size-tab-height: 34px;
+  --size-tree-row-height: 28px;
+  --size-form-control-height: 32px;
+  --size-bottom-panel-min-height: 220px;
+
+  --space-workbench-padding: var(--space-3);
+  --space-workbench-gap: 12px;
+
+  --shadow-popover: 0 12px 32px rgba(0, 0, 0, 0.32);
+  --shadow-dialog: 0 24px 64px rgba(0, 0, 0, 0.42);
+  --shadow-panel: 0 18px 48px rgba(0, 0, 0, 0.28);
+}

@@ -1,4 +1,0 @@
-export const MAX_EDITABLE_FILE_SIZE = 1024 * 1024
-export const MAX_REMOTE_SEARCH_DIRECTORIES = 300
-export const SFTP_TREE_ROW_HEIGHT = 30
-export const SFTP_TREE_OVERSCAN = 8

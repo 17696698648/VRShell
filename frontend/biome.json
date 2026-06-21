@@ -45,6 +45,7 @@
     }
   },
   "javascript": {
+    "globals": ["T"],
     "formatter": {
       "quoteStyle": "single",
       "semicolons": "asNeeded",

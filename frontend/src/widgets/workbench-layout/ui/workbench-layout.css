@@ -1,0 +1,83 @@
+.workbench-layout,
+.workbench-layout__primary,
+.workbench-layout__secondary,
+.workbench-layout__dock {
+  min-width: 0;
+  min-height: 0;
+}
+
+.workbench-layout {
+  display: grid;
+  height: 100%;
+  gap: var(--space-workbench-gap);
+}
+
+.workbench-layout--single {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.workbench-layout--single .workbench-layout__secondary {
+  display: none;
+}
+
+.workbench-layout--horizontal-split {
+  grid-template-rows: minmax(0, 1.5fr) minmax(var(--size-bottom-panel-min-height), 0.85fr);
+}
+
+.workbench-layout--vertical-split {
+  grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.8fr);
+}
+
+.workbench-layout--dock-bottom {
+  grid-template-areas:
+    'primary'
+    'secondary'
+    'dock';
+  grid-template-rows: minmax(0, 1.5fr) minmax(var(--size-bottom-panel-min-height), 0.85fr) minmax(160px, var(--dock-bottom-height, 220px));
+}
+
+.workbench-layout--dock-right {
+  grid-template-areas:
+    'primary dock'
+    'secondary dock';
+  grid-template-columns: minmax(0, 1fr) minmax(260px, var(--dock-right-width, 340px));
+}
+
+.workbench-layout__primary {
+  grid-area: primary;
+}
+
+.workbench-layout__secondary {
+  grid-area: secondary;
+}
+
+.workbench-layout__dock {
+  grid-area: dock;
+  overflow: hidden;
+}
+
+.workbench-layout--single:not(.workbench-layout--dock-bottom):not(.workbench-layout--dock-right) .workbench-layout__primary,
+.workbench-layout--horizontal-split:not(.workbench-layout--dock-bottom):not(.workbench-layout--dock-right) .workbench-layout__primary,
+.workbench-layout--vertical-split:not(.workbench-layout--dock-bottom):not(.workbench-layout--dock-right) .workbench-layout__primary,
+.workbench-layout--single:not(.workbench-layout--dock-bottom):not(.workbench-layout--dock-right) .workbench-layout__secondary,
+.workbench-layout--horizontal-split:not(.workbench-layout--dock-bottom):not(.workbench-layout--dock-right) .workbench-layout__secondary,
+.workbench-layout--vertical-split:not(.workbench-layout--dock-bottom):not(.workbench-layout--dock-right) .workbench-layout__secondary {
+  grid-area: auto;
+}
+
+@media (max-width: 1100px) {
+  .workbench-layout,
+  .workbench-layout--horizontal-split,
+  .workbench-layout--vertical-split,
+  .workbench-layout--dock-bottom,
+  .workbench-layout--dock-right {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    grid-template-areas: 'primary';
+  }
+
+  .workbench-layout__secondary,
+  .workbench-layout__dock {
+    display: none;
+  }
+}

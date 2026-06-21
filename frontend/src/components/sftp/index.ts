@@ -1,8 +1,0 @@
-export {default as SftpBreadcrumbs} from './SftpBreadcrumbs.vue'
-export {default as SftpDrawer} from './SftpDrawer.vue'
-export {default as SftpInfoPopover} from './SftpInfoPopover.vue'
-export {default as SftpSearch} from './SftpSearch.vue'
-export {default as SftpToolbar} from './SftpToolbar.vue'
-export {default as SftpTreePanel} from './SftpTreePanel.vue'
-export {default as SftpTreeRow} from './SftpTreeRow.vue'
-export {default as SftpTreeSkeleton} from './SftpTreeSkeleton.vue'
