@@ -1,12 +1,33 @@
-import {afterEach, describe, expect, it} from 'vitest'
-import {sessionState, SessionValidationError} from '../../../../entities/session'
+import {afterEach, beforeEach, describe, expect, it} from 'vitest'
+import {sessionState, SessionValidationError, type SessionHost} from '../../../../entities/session'
 import {editSession} from '../editSession'
 
-const originalSession = JSON.parse(JSON.stringify(sessionState.sessions[0])) as (typeof sessionState.sessions)[number]
+const originalSession: SessionHost = {
+  id: 'edit-test-host',
+  name: 'edit-test-host',
+  host: '10.0.0.8',
+  port: 22,
+  username: 'deploy',
+  protocol: 'ssh',
+  groupId: 'all',
+  tags: [],
+  status: 'idle',
+}
+const defaultGroups = JSON.parse(JSON.stringify(sessionState.groups)) as typeof sessionState.groups
+const defaultSessions = JSON.parse(JSON.stringify(sessionState.sessions)) as typeof sessionState.sessions
+const defaultActiveSessionId = sessionState.activeSessionId
 
 describe('editSession', () => {
+  beforeEach(() => {
+    sessionState.groups.splice(0, sessionState.groups.length, {id: 'all', name: '所有', sessionIds: [originalSession.id]})
+    sessionState.sessions.splice(0, sessionState.sessions.length, JSON.parse(JSON.stringify(originalSession)))
+    sessionState.activeSessionId = originalSession.id
+  })
+
   afterEach(() => {
-    Object.assign(sessionState.sessions[0], JSON.parse(JSON.stringify(originalSession)))
+    sessionState.groups.splice(0, sessionState.groups.length, ...JSON.parse(JSON.stringify(defaultGroups)))
+    sessionState.sessions.splice(0, sessionState.sessions.length, ...JSON.parse(JSON.stringify(defaultSessions)))
+    sessionState.activeSessionId = defaultActiveSessionId
   })
 
   it('trims and patches editable session fields', () => {

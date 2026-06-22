@@ -36,6 +36,7 @@ export function applyLayoutPreset(preset: WorkspaceLayoutPreset) {
   }
   if (preset === 'file-transfer') {
     workspaceState.activePanel = 'sftp'
+    workspaceState.activeDockPanel = 'task-detail'
     workspaceState.mainAreaMode = 'horizontal-split'
     workspaceState.mainSplitRatio = 52
     workspaceState.panelPlacement = 'right'

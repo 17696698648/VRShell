@@ -8,6 +8,6 @@
 </template>
 
 <script setup lang="ts">
-import {executeCommand} from '../../../features/workspace/command-registry'
+import {executeCommand} from '../../../shared/command'
 import {EmptyState, UiButton} from '../../../shared/ui'
 </script>

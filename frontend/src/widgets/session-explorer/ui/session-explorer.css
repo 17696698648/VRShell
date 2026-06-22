@@ -1,0 +1,421 @@
+.session-explorer,
+.session-explorer .ui-workbench-panel__body {
+  --session-explorer-edge: var(--space-panel-padding);
+  display: grid;
+  min-height: 0;
+  height: 100%;
+}
+
+.session-explorer .ui-workbench-panel__header {
+  padding-inline: var(--session-explorer-edge);
+}
+
+.session-explorer .ui-workbench-panel__toolbar .ui-toolbar {
+  padding-inline: 0;
+}
+
+.session-explorer__layout {
+  --session-tree-row-height: 32px;
+  --session-tree-indent: 16px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  min-height: 0;
+  height: 100%;
+}
+
+.session-explorer__search,
+.session-explorer__feedback {
+  min-width: 0;
+}
+
+.session-explorer__search {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding-inline: var(--session-explorer-edge);
+}
+
+.session-explorer__body {
+  display: grid;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.session-explorer__feedback {
+  display: -webkit-box;
+  max-height: calc(2lh + 16px);
+  padding: 7px 9px;
+  overflow: hidden;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-bg-card) 72%, transparent);
+  box-shadow: var(--shadow-soft);
+  color: var(--color-text-muted);
+  font-size: 12px;
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.session-tree {
+  display: grid;
+  align-content: stretch;
+  gap: 6px;
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
+  scrollbar-color: color-mix(in srgb, var(--color-text-muted) 28%, transparent) transparent;
+  scrollbar-width: thin;
+  padding-inline: var(--session-explorer-edge);
+}
+
+.session-tree .ui-tree,
+.session-tree .ui-virtual-list {
+  min-height: 0;
+  height: 100%;
+}
+
+.session-tree::-webkit-scrollbar {
+  width: 8px;
+}
+
+.session-tree::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-text-muted) 24%, transparent);
+  background-clip: content-box;
+}
+
+.session-tree .ui-tree__item {
+  padding-left: calc((var(--ui-tree-level, 1) - 1) * var(--session-tree-indent) + var(--space-row-padding-x));
+}
+
+.session-group {
+  position: relative;
+  min-height: var(--session-tree-row-height);
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  transition:
+    box-shadow var(--duration-normal) var(--ease-standard);
+}
+
+.session-group .ui-disclosure__summary {
+  min-height: var(--session-tree-row-height);
+  padding: 4px var(--space-row-padding-x) 4px 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  background: transparent;
+  transition:
+    background var(--duration-normal) var(--ease-standard),
+    border-color var(--duration-normal) var(--ease-standard),
+    box-shadow var(--duration-normal) var(--ease-standard),
+    color var(--duration-normal) var(--ease-standard);
+}
+
+.session-group .ui-disclosure__summary:hover,
+.session-group .ui-disclosure__summary:focus-visible,
+.session-node:hover,
+.session-node:focus-visible {
+  border-color: var(--color-border-subtle);
+  background: color-mix(in srgb, var(--list-row-hover-bg) 82%, var(--color-bg-card));
+  box-shadow: var(--shadow-soft);
+}
+
+.session-group .ui-disclosure__summary:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.session-group .ui-disclosure__badge {
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-hover);
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.session-group--empty {
+  opacity: 0.62;
+}
+
+.session-group__title {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  width: 100%;
+}
+
+.session-group__icon {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-bg-elevated) 76%, transparent);
+  color: var(--color-accent);
+}
+
+.session-group__title strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-search {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-bg-card) 86%, transparent);
+  box-shadow: var(--shadow-soft);
+  color: var(--color-text-muted);
+  transition:
+    border-color var(--duration-normal) var(--ease-standard),
+    box-shadow var(--duration-normal) var(--ease-standard),
+    background var(--duration-normal) var(--ease-standard);
+}
+
+.session-search:focus-within {
+  border-color: var(--color-focus-ring);
+  background: var(--color-bg-card-hover);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-focus-ring) 20%, transparent), var(--shadow-soft);
+}
+
+.session-search input {
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--color-text-primary);
+}
+
+.session-search input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.session-search__count {
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--color-bg-selected);
+  color: var(--color-text-muted);
+  font-size: 11px;
+  text-align: center;
+}
+
+.session-search button {
+  display: inline-grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+
+.session-search button:hover,
+.session-search button:focus-visible {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.session-search button:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.session-empty-state {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 9px;
+  min-height: 180px;
+  padding: 32px 16px;
+  border: 1px dashed var(--color-border-subtle);
+  border-radius: var(--radius-xl);
+  background:
+    radial-gradient(circle at 50% 0, var(--color-bg-selected), transparent 54%),
+    color-mix(in srgb, var(--color-bg-card) 68%, transparent);
+  box-shadow: var(--shadow-soft);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.session-empty-state--search {
+  min-height: 140px;
+  padding-block: 24px;
+}
+
+.session-empty-state strong {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-lg);
+}
+
+.session-empty-state small {
+  max-width: 260px;
+}
+
+.session-empty-state__actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.session-node {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: var(--session-tree-row-height);
+  padding-block: 4px;
+  padding-right: var(--space-row-padding-x);
+  padding-left: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background var(--duration-normal) var(--ease-standard),
+    border-color var(--duration-normal) var(--ease-standard),
+    box-shadow var(--duration-normal) var(--ease-standard),
+    color var(--duration-normal) var(--ease-standard);
+}
+
+.session-node__icon {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-bg-elevated) 76%, transparent);
+}
+
+.session-node__status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--color-muted);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-muted) 16%, transparent);
+}
+
+.session-node--connected .session-node__status-dot {
+  background: var(--color-success);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-success) 18%, transparent);
+}
+
+.session-node--connecting .session-node__status-dot {
+  background: var(--color-warning);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-warning) 12%, transparent);
+  animation: pulse 1.8s var(--ease-standard) infinite;
+}
+
+.session-node--failed .session-node__status-dot,
+.session-node--disconnected .session-node__status-dot {
+  background: var(--color-danger);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-danger) 18%, transparent);
+}
+
+.session-node::before {
+  position: absolute;
+  left: -1px;
+  width: 2px;
+  height: 18px;
+  border-radius: 999px;
+  background: transparent;
+  content: '';
+}
+
+.session-node:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.session-node.active {
+  border-color: var(--color-glow-ring);
+  background: linear-gradient(90deg, var(--list-row-selected-bg), color-mix(in srgb, var(--color-bg-card) 82%, transparent));
+  box-shadow: var(--shadow-soft);
+}
+
+.session-node.active::before {
+  background: var(--color-accent);
+}
+
+.session-node--failed {
+  background: color-mix(in srgb, var(--color-danger) 8%, transparent);
+}
+
+.session-node strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-create-dialog {
+  width: min(420px, calc(100vw - 32px));
+}
+
+.session-create-dialog footer {
+  justify-content: flex-start;
+}
+
+.session-form {
+  display: grid;
+  gap: 8px;
+}
+
+.session-form input,
+.session-form select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 9px;
+  outline: none;
+  background: var(--color-surface-2);
+  color: var(--color-text);
+}
+
+.session-form__field {
+  display: grid;
+  gap: 6px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.session-form button {
+  padding: 8px 10px;
+  border-radius: 9px;
+  background: var(--color-accent-soft);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.session-form__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.session-form__errors {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 8px 10px 8px 24px;
+  border: 1px solid color-mix(in srgb, var(--color-danger) 34%, transparent);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--color-danger) 10%, transparent);
+  color: var(--color-danger-strong-text);
+  font-size: 12px;
+}

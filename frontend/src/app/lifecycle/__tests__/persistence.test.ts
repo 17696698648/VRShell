@@ -4,6 +4,7 @@ import {workspaceState} from '../../../entities/workspace'
 import {migratePersistedState, persistState, restorePersistedState} from '../persistence'
 
 const storageKey = 'vrshell-ui-state-v1'
+const backupStorageKey = `${storageKey}:migration-backup`
 const cloneState = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T
 const defaultGroups = cloneState(sessionState.groups)
 const defaultSessions = cloneState(sessionState.sessions)
@@ -57,19 +58,43 @@ describe('persistence', () => {
 
     const persisted = JSON.parse(localStorage.getItem(storageKey) ?? '{}')
     expect(persisted).toMatchObject({
-      version: 5,
-      activeSessionId: 'staging-web',
-      workspaceLayout: {
-        activePanel: 'search',
-        sidebarWidth: 360,
-        bottomPanelVisible: true,
-        mainAreaMode: 'vertical-split',
-        density: 'comfortable',
+      schemaVersion: 5,
+      data: {
+        version: 5,
+        activeSessionId: 'staging-web',
+        workspaceLayout: {
+          activePanel: 'search',
+          sidebarWidth: 360,
+          bottomPanelVisible: true,
+          mainAreaMode: 'vertical-split',
+          density: 'comfortable',
+        },
+        theme: 'light',
       },
-      theme: 'light',
     })
-    expect(persisted.sessions).toHaveLength(sessionState.sessions.length)
-    expect(persisted.groups).toHaveLength(sessionState.groups.length)
+    expect(persisted.savedAt).toEqual(expect.any(String))
+    expect(persisted.data.sessions).toHaveLength(sessionState.sessions.length)
+    expect(persisted.data.groups).toHaveLength(sessionState.groups.length)
+  })
+
+  it('scrubs sensitive auth fields before persisting', () => {
+    sessionState.sessions.splice(0, sessionState.sessions.length, {
+      id: 'secret-host',
+      name: 'secret-host',
+      host: 'example.com',
+      port: 22,
+      username: 'deploy',
+      protocol: 'ssh',
+      groupId: 'all',
+      tags: [],
+      status: 'idle',
+      auth: {type: 'password', password: 'secret'},
+    })
+
+    persistState()
+
+    const persisted = JSON.parse(localStorage.getItem(storageKey) ?? '{}')
+    expect(persisted.data.sessions[0].auth).toEqual({type: 'password', password: null})
   })
 
   it('restores persisted compatible state', () => {
@@ -92,20 +117,24 @@ describe('persistence', () => {
     localStorage.setItem(
       storageKey,
       JSON.stringify({
-        version: 5,
-        groups,
-        sessions,
-        activeSessionId: 'custom-host',
-        workspaceLayout: {
-          activePanel: 'sftp',
-          sidebarVisible: true,
-          sidebarWidth: 320,
-          bottomPanelVisible: true,
-          bottomPanelHeight: 260,
-          mainAreaMode: 'horizontal-split',
-          density: 'comfortable',
+        schemaVersion: 5,
+        savedAt: '2026-06-22T00:00:00.000Z',
+        data: {
+          version: 5,
+          groups,
+          sessions,
+          activeSessionId: 'custom-host',
+          workspaceLayout: {
+            activePanel: 'sftp',
+            sidebarVisible: true,
+            sidebarWidth: 320,
+            bottomPanelVisible: true,
+            bottomPanelHeight: 260,
+            mainAreaMode: 'horizontal-split',
+            density: 'comfortable',
+          },
+          theme: 'light',
         },
-        theme: 'light',
       }),
     )
 
@@ -143,7 +172,7 @@ describe('persistence', () => {
       theme: 'high-contrast',
     })
 
-    expect(migrated?.theme).toBe('high-contrast')
+    expect(migrated?.data.theme).toBe('high-contrast')
   })
 
   it('normalizes v3 workspace layout', () => {
@@ -165,7 +194,7 @@ describe('persistence', () => {
       theme: 'dark',
     })
 
-    expect(migrated?.workspaceLayout).toMatchObject({
+    expect(migrated?.data.workspaceLayout).toMatchObject({
       activePanel: 'search',
       activeDockPanel: 'none',
       bottomPanelHeight: 160,
@@ -178,7 +207,7 @@ describe('persistence', () => {
     })
   })
 
-  it('migrates v1 state to current schema', () => {
+  it('migrates v1 state to current schema without dropping valid sessions', () => {
     const migrated = migratePersistedState({
       version: 1,
       groups: [{id: 'custom', name: 'Custom', sessionIds: ['custom-host', 'missing']}],
@@ -188,24 +217,57 @@ describe('persistence', () => {
       theme: 'bad-theme',
     })
 
-    expect(migrated).toMatchObject({version: 5, workspaceLayout: {activePanel: 'sessions'}, theme: 'dark'})
-    expect(migrated?.sessions).toEqual([])
-    expect(migrated?.groups).toEqual([{id: 'all', name: '所有', sessionIds: [], parentId: null}])
+    expect(migrated?.data).toMatchObject({version: 5, workspaceLayout: {activePanel: 'sessions'}, theme: 'dark'})
+    expect(migrated?.data.sessions).toEqual([{id: 'custom-host', name: 'custom-host', host: 'example.com', port: 22, username: 'deploy', protocol: 'ssh', groupId: 'custom', tags: [], status: 'idle'}])
+    expect(migrated?.data.groups).toEqual([
+      {id: 'all', name: '所有', sessionIds: []},
+      {id: 'custom', name: 'Custom', sessionIds: ['custom-host'], parentId: 'all'},
+    ])
   })
 
-  it('removes corrupted persisted state', () => {
+  it('backs up legacy payload when restoring through migration', () => {
+    const legacyPayload = JSON.stringify({version: 5, groups: [], sessions: [], activeSessionId: '', workspaceLayout: {}, theme: 'dark'})
+    localStorage.setItem(storageKey, legacyPayload)
+
+    restorePersistedState()
+
+    expect(localStorage.getItem(backupStorageKey)).toBe(legacyPayload)
+    expect(JSON.parse(localStorage.getItem(storageKey) ?? '{}')).toMatchObject({schemaVersion: 5, data: {version: 5}})
+  })
+
+  it('scrubs sensitive fields during migration', () => {
+    const migrated = migratePersistedState({
+      version: 5,
+      groups: [{id: 'all', name: '所有', sessionIds: ['password-host', 'key-host']}],
+      sessions: [
+        {id: 'password-host', name: 'password-host', host: 'example.com', port: 22, username: 'deploy', protocol: 'ssh', groupId: 'all', tags: [], status: 'idle', auth: {type: 'password', password: 'secret'}},
+        {id: 'key-host', name: 'key-host', host: 'example.net', port: 22, username: 'deploy', protocol: 'ssh', groupId: 'all', tags: [], status: 'idle', auth: {type: 'key', privateKeyPath: '~/.ssh/id_rsa', passphrase: 'secret'}},
+      ],
+      activeSessionId: 'password-host',
+      workspaceLayout: {},
+      theme: 'dark',
+    })
+
+    expect(migrated?.data.sessions[0].auth).toEqual({type: 'password', password: null})
+    expect(migrated?.data.sessions[1].auth).toEqual({type: 'key', privateKeyPath: '~/.ssh/id_rsa', passphrase: null})
+  })
+
+  it('backs up corrupted persisted state without deleting the source', () => {
     localStorage.setItem(storageKey, '{broken')
 
     restorePersistedState()
 
-    expect(localStorage.getItem(storageKey)).toBeNull()
+    expect(localStorage.getItem(storageKey)).toBe('{broken')
+    expect(localStorage.getItem(backupStorageKey)).toBe('{broken')
   })
 
-  it('removes unsupported persisted versions', () => {
-    localStorage.setItem(storageKey, JSON.stringify({version: 99, groups: [], sessions: []}))
+  it('backs up unsupported persisted versions without deleting the source', () => {
+    const unsupportedPayload = JSON.stringify({version: 99, groups: [], sessions: []})
+    localStorage.setItem(storageKey, unsupportedPayload)
 
     restorePersistedState()
 
-    expect(localStorage.getItem(storageKey)).toBeNull()
+    expect(localStorage.getItem(storageKey)).toBe(unsupportedPayload)
+    expect(localStorage.getItem(backupStorageKey)).toBe(unsupportedPayload)
   })
 })

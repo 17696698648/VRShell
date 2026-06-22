@@ -9,7 +9,7 @@
 
 <script setup lang="ts">
 import {computed, ref} from 'vue'
-import {executeCommand, getCommand, getCommandAvailability} from '../../features/workspace/command-registry'
+import {executeCommand, getCommand, getCommandAvailability} from '../../shared/command'
 import UiButton from './UiButton.vue'
 import UiTooltip from './UiTooltip.vue'
 

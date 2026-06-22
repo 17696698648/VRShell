@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div v-if="workspaceState.commandPaletteOpen" class="overlay" @click.self="closeCommandPalette">
     <section class="command-palette" role="dialog" aria-label="Command palette" data-testid="command-palette">
       <label class="command-palette__input">
@@ -21,7 +21,7 @@
           </button>
         </section>
       </div>
-      <EmptyState v-else compact icon="⌕" title="No commands found" description="Try searching for session, terminal, sftp, settings, or workspace." />
+      <EmptyState v-else compact icon="?" title="No commands found" description="Try searching for session, terminal, sftp, settings, or workspace." />
     </section>
   </div>
 </template>
@@ -30,7 +30,7 @@
 import {computed, ref} from 'vue'
 import {workspaceState} from '../../entities/workspace'
 import {closeCommandPalette} from '../../features/workspace/open-command-palette/commandPalette'
-import {executeCommand, getCommandAvailability, getRecentCommandIds, searchCommands} from '../../features/workspace/command-registry'
+import {executeCommand, getCommandAvailability, getRecentCommandIds, searchCommands} from '../../shared/command'
 import {requestConfirm} from '../../shared/dialog'
 import {EmptyState, UiKbd} from '../../shared/ui'
 

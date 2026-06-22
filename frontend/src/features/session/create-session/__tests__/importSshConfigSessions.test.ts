@@ -1,14 +1,21 @@
-﻿import {afterEach, describe, expect, it} from 'vitest'
-import {removeSession, sessionState} from '../../../../entities/session'
+﻿import {afterEach, beforeEach, describe, expect, it} from 'vitest'
+import {addSession, removeSession, sessionState, type SessionHost} from '../../../../entities/session'
 import {setIpcMock} from '../../../../shared/ipc/ipcClient'
 import {importSshConfigSessions} from '../importSshConfigSessions'
+
+const duplicateSession: SessionHost = {id: 'existing-prod-api-01', name: 'prod-api-01', host: '10.0.0.9', port: 22, username: 'deploy', protocol: 'ssh', groupId: 'all', tags: [], status: 'idle'}
 
 describe('importSshConfigSessions', () => {
   const importedIds: string[] = []
 
+  beforeEach(() => {
+    if (!sessionState.sessions.some((session) => session.id === duplicateSession.id)) addSession(JSON.parse(JSON.stringify(duplicateSession)))
+  })
+
   afterEach(() => {
     setIpcMock(null)
     for (const id of importedIds.splice(0)) removeSession(id)
+    removeSession(duplicateSession.id)
   })
 
   it('handles empty mock import without changing sessions', async () => {

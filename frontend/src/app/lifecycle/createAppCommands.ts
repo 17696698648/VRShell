@@ -1,4 +1,4 @@
-import type {AppCommand} from '../../features/workspace/command-registry'
+import type {AppCommand} from '../../shared/command'
 import {createSession} from '../../features/session/create-session/createSession'
 import {connectSession} from '../../features/session/connect-session/connectSession'
 import {importSshConfigSessions} from '../../features/session/create-session/importSshConfigSessions'

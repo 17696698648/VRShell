@@ -8,6 +8,9 @@
   --color-bg-elevated: #f4f7fb;
   --color-bg-hover: rgba(51, 65, 85, 0.08);
   --color-bg-selected: rgba(49, 95, 221, 0.12);
+  --color-bg-card: rgba(255, 255, 255, 0.86);
+  --color-bg-card-hover: rgba(255, 255, 255, 0.96);
+  --color-bg-hero: rgba(255, 255, 255, 0.56);
 
   --color-text-primary: #172033;
   --color-text-secondary: #334155;
@@ -17,8 +20,14 @@
   --color-border-subtle: rgba(51, 65, 85, 0.16);
   --color-border-strong: rgba(51, 65, 85, 0.28);
   --color-focus-ring: rgba(49, 95, 221, 0.62);
+  --color-shadow-soft: rgba(15, 23, 42, 0.12);
+  --color-shadow-card: rgba(15, 23, 42, 0.16);
+  --color-glow: rgba(49, 95, 221, 0.16);
+  --color-glow-ring: rgba(49, 95, 221, 0.22);
 
   --color-accent: #315fdd;
+  --color-accent-strong: #1d4ed8;
+  --color-accent-contrast: #eff6ff;
   --color-success: #16a34a;
   --color-warning: #d97706;
   --color-danger: #e11d48;

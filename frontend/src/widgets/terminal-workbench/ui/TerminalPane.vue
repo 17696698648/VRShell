@@ -4,30 +4,24 @@
       <span>{{ statusMessage }}</span>
       <button v-if="terminal.status === 'failed' || terminal.status === 'disconnected'" type="button" @click="reconnectTerminalTab(terminal)">Reconnect</button>
     </div>
-    <div ref="viewportRef" class="terminal-pane__viewport">
-      <p v-for="(line, index) in lines" :key="index" :class="{match: isMatch(line), 'match-current': isCurrentMatch(index)}">{{ line }}</p>
-      <p><span class="terminal-caret">█</span></p>
-    </div>
-    <form class="terminal-input" @submit.prevent="submitInput">
-      <span>{{ terminal.cwd }}$</span>
-      <input v-model="input" :disabled="terminal.status !== 'connected'" placeholder="Type command and press Enter" />
-    </form>
+    <div ref="viewportRef" class="terminal-pane__viewport" />
   </section>
 </template>
 
 <script setup lang="ts">
-import {computed, onBeforeUnmount, onMounted, ref} from 'vue'
+import {Terminal} from '@xterm/xterm'
+import {FitAddon} from '@xterm/addon-fit'
+import '@xterm/xterm/css/xterm.css'
+import {computed, nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue'
+import type {IDisposable} from '@xterm/xterm'
 import {getTerminalBuffer, type TerminalTab} from '../../../entities/terminal'
 import {reconnectTerminalTab} from '../../../features/terminal/manage-connection/manageTerminalConnection'
-import {getTerminalSearchSummary, terminalSearchState} from '../../../features/terminal/search-terminal/searchTerminal'
 import {scheduleTerminalResize} from '../../../features/terminal/resize-terminal/resizeTerminal'
-import {sendInputToActiveTerminal} from '../../../features/terminal/send-terminal-input/sendTerminalInput'
+import {sendTerminalDataToTerminalTab} from '../../../features/terminal/send-terminal-input/sendTerminalInput'
 
 const props = defineProps<{terminal: TerminalTab}>()
-const input = ref('')
 const viewportRef = ref<HTMLElement | null>(null)
 const lines = computed(() => getTerminalBuffer(props.terminal.id).value)
-const searchSummary = computed(() => getTerminalSearchSummary(props.terminal.id))
 const statusMessage = computed(() => {
   if (props.terminal.status === 'connecting') return `Connecting to ${props.terminal.title}...`
   if (props.terminal.status === 'failed') return `${props.terminal.title} failed. Reconnect or inspect logs.`
@@ -35,11 +29,36 @@ const statusMessage = computed(() => {
   return ''
 })
 let resizeObserver: ResizeObserver | null = null
+let xterm: Terminal | null = null
+let fitAddon: FitAddon | null = null
+let dataDisposable: IDisposable | null = null
+let renderedLineCount = 0
 
 onMounted(() => {
-  if (!viewportRef.value || typeof ResizeObserver === 'undefined') return
+  if (!viewportRef.value) return
+  fitAddon = new FitAddon()
+  xterm = new Terminal({
+    cursorBlink: true,
+    convertEol: true,
+    fontFamily: 'var(--font-mono)',
+    fontSize: 14,
+    theme: {
+      background: readCssToken('--color-terminal-bg'),
+      foreground: readCssToken('--color-terminal-text'),
+      cursor: readCssToken('--color-terminal-cursor'),
+    },
+  })
+  xterm.loadAddon(fitAddon)
+  xterm.open(viewportRef.value)
+  dataDisposable = xterm.onData((data) => {
+    if (props.terminal.status === 'connected') void sendTerminalDataToTerminalTab(props.terminal, data)
+  })
+  renderNewLines()
+  void nextTick(fitAndResize)
+
+  if (typeof ResizeObserver === 'undefined') return
   resizeObserver = new ResizeObserver(([entry]) => {
-    scheduleTerminalResize(props.terminal, {width: entry.contentRect.width, height: entry.contentRect.height})
+    if (entry.contentRect.width > 0 && entry.contentRect.height > 0) fitAndResize()
   })
   resizeObserver.observe(viewportRef.value)
 })
@@ -47,21 +66,37 @@ onMounted(() => {
 onBeforeUnmount(() => {
   resizeObserver?.disconnect()
   resizeObserver = null
+  dataDisposable?.dispose()
+  dataDisposable = null
+  xterm?.dispose()
+  xterm = null
+  fitAddon = null
 })
 
-async function submitInput() {
-  const command = input.value.trim()
-  input.value = ''
-  await sendInputToActiveTerminal(command)
+watch(lines, renderNewLines)
+watch(() => props.terminal.id, resetTerminalViewport)
+
+function renderNewLines() {
+  if (!xterm) return
+  for (const line of lines.value.slice(renderedLineCount)) xterm.write(line)
+  renderedLineCount = lines.value.length
 }
 
-function isMatch(line: string) {
-  const query = terminalSearchState.query.trim().toLowerCase()
-  return terminalSearchState.open && query.length > 0 && line.toLowerCase().includes(query)
+function resetTerminalViewport() {
+  renderedLineCount = 0
+  xterm?.clear()
+  renderNewLines()
+  void nextTick(fitAndResize)
 }
 
-function isCurrentMatch(lineIndex: number) {
-  if (!terminalSearchState.open || searchSummary.value.total === 0) return false
-  return searchSummary.value.matches[terminalSearchState.currentMatchIndex]?.index === lineIndex
+function fitAndResize() {
+  if (!fitAddon || !xterm) return
+  fitAddon.fit()
+  scheduleTerminalResize(props.terminal, {cols: xterm.cols, rows: xterm.rows})
+}
+
+function readCssToken(name: string) {
+  if (typeof window === 'undefined') return ''
+  return window.getComputedStyle(document.documentElement).getPropertyValue(name).trim()
 }
 </script>

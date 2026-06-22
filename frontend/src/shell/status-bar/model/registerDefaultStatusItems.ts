@@ -3,7 +3,7 @@ import {sftpState} from '../../../entities/sftp'
 import {taskItems} from '../../../entities/task'
 import {terminalState} from '../../../entities/terminal'
 import {workspaceState} from '../../../entities/workspace'
-import {executeCommand} from '../../../features/workspace/command-registry'
+import {executeCommand} from '../../../shared/command'
 import {logState} from '../../../shared/lib/logger'
 import {registerStatusBarItem} from './statusItemRegistry'
 

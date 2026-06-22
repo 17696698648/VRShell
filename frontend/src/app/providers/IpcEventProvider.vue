@@ -3,19 +3,20 @@
 <script setup lang="ts">
 import {onBeforeUnmount, onMounted} from 'vue'
 import {registerSftpProgressEvents} from '../../features/sftp/progress-events/sftpProgressEvents'
-import {startTerminalOutputPolling, stopTerminalOutputPolling} from '../../features/terminal/poll-output/pollTerminalOutput'
+import {createTerminalEventProvider} from '../../features/terminal/events/terminalEventProvider'
 
+const terminalEventProvider = createTerminalEventProvider()
 let disposeSftpProgressEvents: (() => void) | null = null
 
 onMounted(() => {
-  startTerminalOutputPolling()
+  terminalEventProvider.start()
   void registerSftpProgressEvents().then((dispose) => {
     disposeSftpProgressEvents = dispose
   })
 })
 
 onBeforeUnmount(() => {
-  stopTerminalOutputPolling()
+  terminalEventProvider.stop()
   disposeSftpProgressEvents?.()
   disposeSftpProgressEvents = null
 })

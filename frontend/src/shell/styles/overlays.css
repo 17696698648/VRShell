@@ -153,8 +153,14 @@
   cursor: not-allowed;
 }
 
+.context-menu__separator {
+  height: 1px;
+  margin: 5px 4px;
+  background: var(--color-border-subtle);
+}
+
 .context-menu__danger {
-  color: #fecaca !important;
+  color: var(--color-danger-strong-text) !important;
 }
 
 .dialog-backdrop {
@@ -164,7 +170,7 @@
   display: grid;
   place-items: center;
   padding: 18px;
-  background: rgba(2, 6, 23, 0.56);
+  background: var(--color-scrim-bg);
 }
 
 .dialog {
@@ -197,7 +203,7 @@
 
 .dialog__error {
   margin-top: 10px;
-  color: #fecaca;
+  color: var(--color-danger-strong-text);
   font-size: 12px;
 }
 
@@ -226,8 +232,8 @@
 }
 
 .dialog__danger {
-  background: rgba(239, 68, 68, 0.16) !important;
-  color: #fecaca !important;
+  background: var(--color-danger-soft) !important;
+  color: var(--color-danger-strong-text) !important;
 }
 
 .toast {
@@ -265,13 +271,13 @@
 }
 
 .toast--success {
-  border-left-color: #22c55e;
+  border-left-color: var(--color-success);
 }
 
 .toast--warning {
-  border-left-color: #f59e0b;
+  border-left-color: var(--color-warning);
 }
 
 .toast--error {
-  border-left-color: #ef4444;
+  border-left-color: var(--color-danger);
 }

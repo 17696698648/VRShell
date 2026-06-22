@@ -24,7 +24,7 @@ impl BackendError {
     pub(crate) fn validation(message: impl Into<String>) -> Self {
         Self {
             code: "validationError".to_string(),
-            message: message.into(),
+            message: scrub_sensitive_message(message.into()),
             recoverable: true,
         }
     }
@@ -32,7 +32,7 @@ impl BackendError {
     pub(crate) fn storage(message: impl Into<String>) -> Self {
         Self {
             code: "storageError".to_string(),
-            message: message.into(),
+            message: scrub_sensitive_message(message.into()),
             recoverable: true,
         }
     }
@@ -40,10 +40,29 @@ impl BackendError {
     pub(crate) fn credential(message: impl Into<String>) -> Self {
         Self {
             code: "credentialError".to_string(),
-            message: message.into(),
+            message: scrub_sensitive_message(message.into()),
             recoverable: true,
         }
     }
+}
+
+fn scrub_sensitive_message(message: String) -> String {
+    message
+        .split_whitespace()
+        .map(|part| {
+            let lower = part.to_ascii_lowercase();
+            if lower.starts_with("password=")
+                || lower.starts_with("passphrase=")
+                || lower.starts_with("secret=")
+                || lower.starts_with("token=")
+            {
+                "[redacted]".to_string()
+            } else {
+                part.to_string()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 impl fmt::Display for BackendError {
@@ -72,5 +91,12 @@ mod tests {
                 "recoverable": true
             })
         );
+    }
+
+    #[test]
+    fn backend_error_scrubs_sensitive_values() {
+        let error = BackendError::credential("failed password=secret token=abc".to_string());
+
+        assert_eq!(error.message, "failed [redacted] [redacted]");
     }
 }

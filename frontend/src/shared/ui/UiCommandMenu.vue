@@ -23,7 +23,7 @@
 
 <script setup lang="ts">
 import {computed, nextTick, onMounted, ref, watch} from 'vue'
-import {executeCommand, getCommand, getCommandAvailability, type AppCommand, type CommandAvailability} from '../../features/workspace/command-registry'
+import {executeCommand, getCommand, getCommandAvailability, type AppCommand, type CommandAvailability} from '../../shared/command'
 
 type CommandMenuEntry = string | {type: 'separator'; id: string} | {type: 'group'; id: string; label: string}
 type ResolvedCommandMenuItem = {id: string; type: 'command'; availability: CommandAvailability; command: AppCommand} | {type: 'separator'; id: string} | {type: 'group'; id: string; label: string}

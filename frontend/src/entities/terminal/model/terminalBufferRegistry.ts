@@ -22,6 +22,10 @@ export function appendTerminalBuffer(tabId: string, lines: string[]) {
   buffer.value = trimLines([...buffer.value, ...lines])
 }
 
+export function getTerminalBufferLines(tabId: string) {
+  return [...getTerminalBuffer(tabId).value]
+}
+
 export function removeTerminalBuffer(tabId: string) {
   buffers.delete(tabId)
 }

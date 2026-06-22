@@ -27,7 +27,7 @@
 
 <script setup lang="ts">
 import {workspaceState} from '../../entities/workspace'
-import {executeCommand} from '../../features/workspace/command-registry'
+import {executeCommand} from '../../shared/command'
 import {UiBadge} from '../../shared/ui'
 import {useSidebarPanels, type SidebarPanelRegistration} from '../../features/workspace/sidebar-panel-registry'
 import {formatActivityBarBadge} from './model/activityBarBadges'

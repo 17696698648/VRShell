@@ -33,7 +33,13 @@ for (const file of listSourceFiles('src')) {
   const source = readProjectFile(file)
   assert(!/[↑↓]/.test(source), `${file} contains raw arrow glyphs; use icon components or text shortcuts`)
   assertNoUnlabelledIconButton(file, source)
+  assertNoHardcodedColors(file, source)
+  assertNoDirectTauriInvoke(file, source)
+  assertNoFeatureCommandRegistryImport(file, source)
 }
+
+assertTerminalOutputStaysOutsideReactiveStore()
+assertSessionNodeDoesNotConnectOnSingleClick()
 
 const statusItems = readProjectFile('src/shell/status-bar/model/registerDefaultStatusItems.ts')
 for (const match of statusItems.matchAll(/label:\s*`([^`]+)`|label:\s*'([^']+)'|label:\s*"([^"]+)"/g)) {
@@ -58,12 +64,49 @@ function assertNoUnlabelledIconButton(file, source) {
   }
 }
 
+function assertNoHardcodedColors(file, source) {
+  if (file.startsWith('src/shared/theme/')) return
+  const matches = [...source.matchAll(/#[0-9a-fA-F]{3,8}\b|rgba?\(/g)]
+    .filter((match) => !isAllowedColorMatch(source, match.index ?? 0))
+    .map((match) => match[0])
+  assert(matches.length === 0, `${file} contains hardcoded colors (${[...new Set(matches)].join(', ')}); use theme tokens`)
+}
+
+function isAllowedColorMatch(source, index) {
+  const lineStart = source.lastIndexOf('\n', index) + 1
+  const lineEnd = source.indexOf('\n', index)
+  const line = source.slice(lineStart, lineEnd === -1 ? source.length : lineEnd)
+  return line.includes('<template #') || line.includes('color-mix(')
+}
+
+function assertNoDirectTauriInvoke(file, source) {
+  if (file.startsWith('src/shared/ipc/')) return
+  assert(!source.includes('@tauri-apps/api/core'), `${file} imports Tauri core directly; use shared/ipc typedInvoke`)
+  assert(!/\btauriInvoke\b|\binvoke\s*\(/.test(source), `${file} may call Tauri invoke directly; use repository APIs`)
+}
+
+function assertNoFeatureCommandRegistryImport(file, source) {
+  if (file === 'src/shared/command/commandRegistry.ts' || file.startsWith('src/features/workspace/')) return
+  assert(!source.includes('features/workspace/command-registry'), `${file} imports feature command registry directly; use shared/command`)
+}
+
+function assertTerminalOutputStaysOutsideReactiveStore() {
+  const store = readProjectFile('src/entities/terminal/model/terminal.store.ts')
+  assert(!/\.lines\s*=/.test(store), 'terminal.store.ts mutates tab.lines; terminal output must stay outside reactive store')
+}
+
+function assertSessionNodeDoesNotConnectOnSingleClick() {
+  const source = readProjectFile('src/widgets/session-explorer/ui/SessionTreeNode.vue')
+  assert(!source.includes('@click="connectSession'), 'SessionTreeNode should not connect on single click; use select on click and connect on double-click/Enter/action')
+  assert(source.includes('@dblclick="connectSession'), 'SessionTreeNode should support double-click to connect')
+}
+
 function listSourceFiles(directory) {
   const absolute = fileURLToPath(new URL(directory, root))
   const files = []
   walk(absolute, files)
   return files
-    .filter((file) => /\.(ts|vue)$/.test(file))
+    .filter((file) => /\.(ts|vue|css)$/.test(file))
     .map((file) => relative(rootPath, file).replaceAll('\\', '/'))
 }
 

@@ -13,13 +13,13 @@
         </article>
       </template>
     </UiDataGrid>
-    <EmptyState v-else compact icon="✓" title="No problems" description="Warnings and errors from logs are grouped here." />
+    <EmptyState v-else compact icon="check" title="No problems" description="Warnings and errors from logs are grouped here." />
   </UiWorkbenchPanel>
 </template>
 
 <script setup lang="ts">
 import {computed} from 'vue'
-import {executeCommand} from '../../../features/workspace/command-registry'
+import {executeCommand} from '../../../shared/command'
 import {logState} from '../../../shared/lib/logger'
 import {EmptyState, UiActionButton, UiDataGrid, UiStatusBadge, UiWorkbenchPanel, type UiDataGridColumn} from '../../../shared/ui'
 

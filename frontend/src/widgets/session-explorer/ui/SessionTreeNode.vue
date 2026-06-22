@@ -1,42 +1,53 @@
 <template>
   <article
-    :class="['session-node', {active: session.id === sessionState.activeSessionId}]"
-    :title="`${session.name} · ${session.username}@${session.host}:${session.port}`"
-    @click="connectSession(session)"
+    :class="['session-node', `session-node--${session.status}`, {active: session.id === sessionState.activeSessionId}]"
+    :aria-label="`${session.name}, ${statusLabel}, ${session.username}@${session.host}:${session.port}`"
+    :title="`${session.name} · ${session.username}@${session.host}:${session.port} · ${statusLabel} · Double-click to connect`"
+    @dblclick="connectSession(session)"
     @keydown.enter.prevent="connectSession(session)"
+    @keydown.delete.prevent="confirmDeleteSession(session)"
+    @keydown.f2.prevent="emit('edit', session)"
     @contextmenu.prevent="openSessionMenu"
   >
-    <UiStatusBadge :status="session.status" :label="session.status" />
-    <div>
-      <strong>{{ session.name }}</strong>
-      <small>{{ session.username }}@{{ session.host }}:{{ session.port }}</small>
-    </div>
-    <UiIconButton :icon="Trash2" label="Delete session" variant="danger" @click.stop="confirmDeleteSession(session)" />
+    <span class="session-node__icon" aria-hidden="true">
+      <span class="session-node__status-dot" />
+    </span>
+    <strong>{{ session.name }}</strong>
   </article>
 </template>
 
 <script setup lang="ts">
-import {Trash2} from '@lucide/vue'
+import {computed} from 'vue'
 import {sessionState, type SessionGroup, type SessionHost} from '../../../entities/session'
 import {connectSession} from '../../../features/session/connect-session/connectSession'
 import {confirmDeleteSession} from '../../../features/session/delete-session/deleteSession'
 import {renameSession} from '../../../features/session/edit-session/renameSession'
 import {moveSessionToGroup} from '../../../features/session/manage-groups/manageSessionGroups'
 import {openContextMenu, type ContextMenuItem} from '../../../shared/context-menu'
-import {UiIconButton, UiStatusBadge} from '../../../shared/ui'
 
 const props = defineProps<{groups: SessionGroup[]; session: SessionHost}>()
 const emit = defineEmits<{edit: [session: SessionHost]}>()
+
+const statusLabels: Record<SessionHost['status'], string> = {
+  connected: 'Connected',
+  connecting: 'Connecting',
+  failed: 'Failed',
+  idle: 'Idle',
+}
+const statusLabel = computed(() => statusLabels[props.session.status])
 
 function openSessionMenu(event: MouseEvent) {
   openContextMenu({
     x: event.clientX,
     y: event.clientY,
     items: [
-      {id: 'connect', label: 'Connect', run: () => connectSession(props.session)},
+      {id: 'connect', label: props.session.status === 'failed' ? 'Reconnect' : 'Connect', disabled: props.session.status === 'connecting', run: () => connectSession(props.session)},
+      {id: 'session-actions', type: 'separator'},
       {id: 'edit', label: 'Edit', run: () => emit('edit', props.session)},
       {id: 'rename', label: 'Rename', run: () => renameSession(props.session)},
+      {id: 'move-actions', type: 'separator'},
       ...createMoveItems(),
+      {id: 'danger-actions', type: 'separator'},
       {id: 'delete', label: 'Delete', danger: true, run: () => confirmDeleteSession(props.session)},
     ],
   })

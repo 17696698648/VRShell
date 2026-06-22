@@ -1,4 +1,4 @@
-﻿import {terminalState, appendTerminalLines, drainTerminalInputQueue, enqueueTerminalInput, patchTerminal, type TerminalTab} from '../../../entities/terminal'
+﻿import {terminalState, appendTerminalLines, drainTerminalInputQueue, enqueueTerminalInput, enqueueTerminalSend, patchTerminal, type TerminalTab} from '../../../entities/terminal'
 import {sendTerminalInput as sendTerminalInputRepository} from '../../../entities/terminal/api/terminalRepository'
 import {pushToast} from '../../../shared/feedback'
 import {encodeTextBase64} from '../../../shared/lib/base64'
@@ -24,8 +24,16 @@ export async function flushTerminalInputQueue(tab: TerminalTab) {
 }
 
 export async function sendInputToTerminalTab(tab: TerminalTab, input: string) {
+  return sendTerminalDataToTerminalTab(tab, `${input}\n`)
+}
+
+export async function sendTerminalDataToTerminalTab(tab: TerminalTab, data: string) {
+  return enqueueTerminalSend(tab.id, () => sendTerminalDataNow(tab, data))
+}
+
+async function sendTerminalDataNow(tab: TerminalTab, data: string) {
   try {
-    await sendTerminalInputRepository(tab.backendSessionId, encodeTextBase64(`${input}\n`))
+    await sendTerminalInputRepository(tab.backendSessionId, encodeTextBase64(data))
   } catch (error) {
     patchTerminal(tab.id, {status: 'failed'})
     appendTerminalLines(tab.id, [`Input failed: ${getErrorMessage(error)}`])

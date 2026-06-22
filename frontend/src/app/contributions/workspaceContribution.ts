@@ -1,4 +1,4 @@
-import type {AppCommand} from '../../features/workspace/command-registry'
+import type {AppCommand} from '../../shared/command'
 import type {DockPanelRegistration} from '../../features/workspace/dock-registry'
 import type {SettingsSectionRegistration} from '../../features/settings/settings-registry'
 import type {SidebarPanelRegistration} from '../../features/workspace/sidebar-panel-registry'

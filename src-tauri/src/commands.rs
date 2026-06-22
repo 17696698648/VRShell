@@ -1,7 +1,7 @@
 use crate::{
     domain::{
         credential::CredentialRef, session::SessionGroup, session_tree::SessionTreeActionPayload,
-        ssh_config::SshConfigHost,
+        ssh_config::SshConfigHost, terminal::TerminalOutputEvent,
     },
     error::BackendError,
     ipc::{
@@ -37,6 +37,7 @@ pub(crate) fn handler() -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Sen
         sftp_delete,
         sftp_upload,
         sftp_download,
+        cancel_sftp_task,
         keyring_store,
         keyring_get,
         keyring_delete,
@@ -136,9 +137,12 @@ fn connect_ssh(
 }
 
 #[tauri::command]
-fn send_input(session_id: String, data_base64: String) -> IpcResult<()> {
-    let _ = (session_id, data_base64);
-    Err(BackendError::not_implemented("terminal input").into())
+fn send_input(
+    state: State<'_, BackendState>,
+    session_id: String,
+    data_base64: String,
+) -> IpcResult<()> {
+    terminal_service::send_input(&state, &session_id, data_base64).map_err(Into::into)
 }
 
 #[tauri::command]
@@ -147,13 +151,20 @@ fn disconnect_session(state: State<'_, BackendState>, session_id: String) -> Ipc
 }
 
 #[tauri::command]
-fn resize_pty(session_id: Option<String>, cols: u16, rows: u16) -> IpcResult<()> {
-    let _ = (session_id, cols, rows);
-    Err(BackendError::not_implemented("terminal resize").into())
+fn resize_pty(
+    state: State<'_, BackendState>,
+    session_id: Option<String>,
+    cols: u16,
+    rows: u16,
+) -> IpcResult<()> {
+    terminal_service::resize_pty(&state, session_id.as_deref(), cols, rows).map_err(Into::into)
 }
 
 #[tauri::command]
-fn poll_events(state: State<'_, BackendState>, session_id: String) -> IpcResult<Vec<String>> {
+fn poll_events(
+    state: State<'_, BackendState>,
+    session_id: String,
+) -> IpcResult<Vec<TerminalOutputEvent>> {
     terminal_service::poll_events(&state, &session_id).map_err(Into::into)
 }
 
@@ -240,6 +251,12 @@ fn sftp_download(
     };
     let _ = request;
     Err(BackendError::not_implemented("sftp download").into())
+}
+
+#[tauri::command]
+fn cancel_sftp_task(task_id: String) -> IpcResult<()> {
+    let _ = task_id;
+    Ok(())
 }
 
 #[tauri::command]

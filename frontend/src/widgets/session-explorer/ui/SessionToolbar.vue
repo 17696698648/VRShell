@@ -1,21 +1,18 @@
 ﻿<template>
   <UiToolbar label="Session actions">
     <template #trailing>
-      <UiTooltip text="Create session group">
-        <UiButton size="sm" variant="ghost" @click="$emit('createGroup')"><FolderPlus :size="14" /> Group</UiButton>
-      </UiTooltip>
-      <UiActionButton command-id="session.importSshConfig" :icon="Download" label="Import" tooltip="Import SSH config" />
-      <UiTooltip :text="formOpen ? 'Close new session form' : 'Create new session'" shortcut="Ctrl+N">
-        <UiButton size="sm" :variant="formOpen ? 'secondary' : 'primary'" @click="$emit('create')"><component :is="formOpen ? X : Plus" :size="14" /> {{ formOpen ? 'Close' : 'New' }}</UiButton>
-      </UiTooltip>
+      <UiIconButton :icon="FolderPlus" label="Create session group" @click="$emit('createGroup')" />
+      <UiIconButton :icon="Download" label="Import SSH config" @click="executeCommand('session.importSshConfig')" />
+      <UiIconButton :icon="formOpen ? X : Plus" :label="formOpen ? 'Close new session form' : 'Create new session'" @click="$emit('create')" />
     </template>
   </UiToolbar>
 </template>
 
 <script setup lang="ts">
 import {Download, FolderPlus, Plus, X} from '@lucide/vue'
-import {UiActionButton, UiButton, UiToolbar, UiTooltip} from '../../../shared/ui'
+import {executeCommand} from '../../../shared/command'
+import {UiIconButton, UiToolbar} from '../../../shared/ui'
 
 defineProps<{formOpen: boolean}>()
-defineEmits<{create: []; createGroup: []; importSshConfig: []}>()
+defineEmits<{create: []; createGroup: []}>()
 </script>

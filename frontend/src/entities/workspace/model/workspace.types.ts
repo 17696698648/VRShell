@@ -1,5 +1,5 @@
 export const workspacePanels = ['sessions', 'sftp', 'tasks', 'search', 'settings'] as const
-export const workspaceThemes = ['dark', 'light', 'high-contrast'] as const
+export const workspaceThemes = ['system', 'dark', 'light', 'high-contrast'] as const
 export const workspaceDensities = ['compact', 'comfortable', 'dense'] as const
 export const mainAreaModes = ['single', 'horizontal-split', 'vertical-split'] as const
 export const workspaceLayoutPresets = ['development', 'operations', 'file-transfer', 'monitoring'] as const

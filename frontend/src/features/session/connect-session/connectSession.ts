@@ -3,6 +3,7 @@ import {connectTerminal} from '../../../entities/terminal/api/terminalRepository
 import {openTerminal} from '../../../entities/terminal'
 import type {SessionHost} from '../../../entities/session'
 import {pushToast} from '../../../shared/feedback'
+import {getErrorMessage} from '../../../shared/error/getErrorMessage'
 
 export async function connectSession(session: SessionHost) {
   setActiveSession(session.id)
@@ -24,8 +25,4 @@ export async function connectSession(session: SessionHost) {
     pushToast({level: 'error', title: `Failed to connect ${session.name}`, detail: getErrorMessage(error)})
     throw error
   }
-}
-
-function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error)
 }

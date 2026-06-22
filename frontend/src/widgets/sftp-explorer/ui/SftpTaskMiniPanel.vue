@@ -18,7 +18,7 @@
 <script setup lang="ts">
 import {computed} from 'vue'
 import {taskItems} from '../../../entities/task'
-import {executeCommand} from '../../../features/workspace/command-registry'
+import {executeCommand} from '../../../shared/command'
 
 const visibleTasks = computed(() => taskItems.filter((task) => task.id.startsWith('sftp-') || /upload|download/i.test(task.title)).slice(0, 3))
 </script>

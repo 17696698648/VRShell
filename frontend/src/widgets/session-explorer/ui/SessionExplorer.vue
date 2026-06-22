@@ -1,12 +1,30 @@
 ﻿<template>
   <UiWorkbenchPanel compact class="session-explorer" title="Sessions" subtitle="SSH inventory">
-    <template #icon><Server :size="15" /></template>
+    <template #icon><Server :size="14" /></template>
     <template #toolbar>
-      <SessionToolbar :form-open="formOpen" @create="openCreateDialog()" @create-group="handleCreateGroup" @import-ssh-config="handleImport" />
+      <SessionToolbar :form-open="formOpen" @create="openCreateDialog()" @create-group="handleCreateGroup" />
     </template>
-    <SessionSearchBox v-model="query" />
-    <p v-if="message" class="panel-message">{{ message }}</p>
-    <SessionTree :groups="groups" :sessions="filteredSessions" @create="openCreateDialog" @edit="editingSession = $event" />
+    <div class="session-explorer__layout">
+      <section class="session-explorer__search">
+        <SessionSearchBox v-model="query" :result-count="filteredSessions.length" />
+      </section>
+      <section class="session-explorer__body">
+        <div v-if="showEmptyState" class="session-empty-state" :class="{'session-empty-state--search': Boolean(query)}">
+          <Server :size="28" />
+          <strong>{{ query ? 'No matching sessions' : 'No sessions yet' }}</strong>
+          <small>{{ query ? `No sessions match “${query}”.` : 'Create a session or import your SSH config to get started.' }}</small>
+          <div class="session-empty-state__actions">
+            <button v-if="query" type="button" class="ui-button ghost sm" @click="query = ''">Clear search</button>
+            <template v-else>
+              <button type="button" class="ui-button primary sm" @click="openCreateDialog()">New session</button>
+              <button type="button" class="ui-button ghost sm" @click="handleImport">Import SSH config</button>
+            </template>
+          </div>
+        </div>
+        <SessionTree v-else :filtering="Boolean(query)" :groups="groups" :sessions="filteredSessions" @create="openCreateDialog" @edit="editingSession = $event" />
+      </section>
+      <section v-if="message" class="session-explorer__feedback" role="status">{{ message }}</section>
+    </div>
     <SessionCreateForm v-if="formOpen" @close="closeCreateDialog" @submit="handleCreate" />
     <SessionEditDialog v-if="editingSession" :session="editingSession" @close="editingSession = null" />
   </UiWorkbenchPanel>
@@ -14,7 +32,7 @@
 
 <script setup lang="ts">
 import {Server} from '@lucide/vue'
-import {ref} from 'vue'
+import {computed, onBeforeUnmount, ref, watch} from 'vue'
 import type {SessionGroup, SessionHost} from '../../../entities/session'
 import {connectSession} from '../../../features/session/connect-session/connectSession'
 import {createSession, type CreateSessionInput} from '../../../features/session/create-session/createSession'
@@ -33,6 +51,21 @@ const message = ref('')
 const formOpen = ref(false)
 const targetGroupId = ref('all')
 const editingSession = ref<SessionHost | null>(null)
+const showEmptyState = computed(() => filteredSessions.value.length === 0)
+let messageTimer: ReturnType<typeof window.setTimeout> | null = null
+
+watch(message, (value) => {
+  if (messageTimer) window.clearTimeout(messageTimer)
+  if (!value) return
+  messageTimer = window.setTimeout(() => {
+    message.value = ''
+    messageTimer = null
+  }, 2000)
+})
+
+onBeforeUnmount(() => {
+  if (messageTimer) window.clearTimeout(messageTimer)
+})
 
 async function handleCreate(input: CreateSessionInput) {
   try {

@@ -14,4 +14,16 @@ describe('ipcErrors', () => {
 
     expect(normalizeIpcError('connect_ssh', original)).toBe(original)
   })
+
+  it('redacts sensitive values from messages', () => {
+    const error = normalizeIpcError('connect_ssh', new Error('password=secret token=abc'))
+
+    expect(error.message).toBe('connect_ssh failed: password=[redacted] token=[redacted]')
+  })
+
+  it('shows not implemented as a user-facing placeholder', () => {
+    const error = normalizeIpcError('sftp_download', {code: 'notImplemented', message: 'sftp download is not implemented'})
+
+    expect(error.message).toBe('sftp_download failed: 功能建设中，当前版本暂不可用')
+  })
 })

@@ -21,6 +21,7 @@ export {IpcError} from './ipcErrors'
 
 type InvokeMock = (command: keyof IpcCommandMap, args: unknown) => Promise<unknown>
 let customInvokeMock: InvokeMock | null = null
+const mockKeyring = new Map<string, string>()
 
 export function setIpcMock(mock: InvokeMock | null) {
   customInvokeMock = mock
@@ -50,7 +51,24 @@ async function invokeMock(command: keyof IpcCommandMap, args: unknown) {
     const payload = args as ConnectSshArgs
     return `mock-${payload.username}-${payload.host}`
   }
+  if (command === 'load_session_tree') return []
   if (command === 'poll_events') return []
+  if (command === 'send_input') return undefined
+  if (command === 'resize_pty') return undefined
+  if (command === 'keyring_store') {
+    const payload = args as {service: string; key: string; value: string}
+    mockKeyring.set(`${payload.service}:${payload.key}`, payload.value)
+    return undefined
+  }
+  if (command === 'keyring_get') {
+    const payload = args as {service: string; key: string}
+    return mockKeyring.get(`${payload.service}:${payload.key}`) ?? null
+  }
+  if (command === 'keyring_delete') {
+    const payload = args as {service: string; key: string}
+    mockKeyring.delete(`${payload.service}:${payload.key}`)
+    return undefined
+  }
   if (command === 'parse_ssh_config') return []
   if (command === 'apply_session_tree_action') {
     const payload = args as SessionTreeActionPayload

@@ -1,17 +1,34 @@
-import {afterEach, describe, expect, it} from 'vitest'
-import {sftpState} from '../../../../entities/sftp'
+import {afterEach, beforeEach, describe, expect, it} from 'vitest'
+import {sessionState, type SessionHost} from '../../../../entities/session'
+import {sftpState, type SftpItem} from '../../../../entities/sftp'
 import {taskItems} from '../../../../entities/task'
 import {clearToasts, feedbackState} from '../../../../shared/feedback'
 import {setIpcMock} from '../../../../shared/ipc/ipcClient'
 import {createRemoteDirectory, createTransferTask, deleteRemoteItem, renameRemoteItem} from '../manageSftpFiles'
 
+const activeSession: SessionHost = {id: 'sftp-session', name: 'SFTP Session', host: 'example.com', port: 22, username: 'deploy', protocol: 'ssh', groupId: 'all', tags: [], status: 'connected'}
+const item: SftpItem = {id: '/srv/app/app.log', name: 'app.log', path: '/srv/app/app.log', type: 'file', size: '2 KB', modifiedAt: 'Now'}
+const defaultSessions = JSON.parse(JSON.stringify(sessionState.sessions)) as typeof sessionState.sessions
+const defaultActiveSessionId = sessionState.activeSessionId
 const defaultItems = JSON.parse(JSON.stringify(sftpState.items)) as typeof sftpState.items
+const defaultPath = sftpState.path
 const defaultTasks = JSON.parse(JSON.stringify(taskItems)) as typeof taskItems
 
 describe('manageSftpFiles', () => {
+  beforeEach(() => {
+    sessionState.sessions.splice(0, sessionState.sessions.length, JSON.parse(JSON.stringify(activeSession)))
+    sessionState.activeSessionId = activeSession.id
+    sftpState.path = '/srv/app'
+    sftpState.items.splice(0, sftpState.items.length, JSON.parse(JSON.stringify(item)))
+    taskItems.splice(0, taskItems.length)
+  })
+
   afterEach(() => {
     setIpcMock(null)
     clearToasts()
+    sessionState.sessions.splice(0, sessionState.sessions.length, ...JSON.parse(JSON.stringify(defaultSessions)))
+    sessionState.activeSessionId = defaultActiveSessionId
+    sftpState.path = defaultPath
     sftpState.items.splice(0, sftpState.items.length, ...JSON.parse(JSON.stringify(defaultItems)))
     taskItems.splice(0, taskItems.length, ...JSON.parse(JSON.stringify(defaultTasks)))
   })

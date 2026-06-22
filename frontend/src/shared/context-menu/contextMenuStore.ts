@@ -1,11 +1,19 @@
 import {reactive} from 'vue'
 
-export interface ContextMenuItem {
+export type ContextMenuItem = ContextMenuActionItem | ContextMenuSeparatorItem
+
+export interface ContextMenuActionItem {
   id: string
   label: string
   disabled?: boolean
   danger?: boolean
+  type?: 'item'
   run: () => void | Promise<void>
+}
+
+export interface ContextMenuSeparatorItem {
+  id: string
+  type: 'separator'
 }
 
 export interface ContextMenuRequest {
@@ -27,7 +35,7 @@ export function closeContextMenu() {
 }
 
 export async function executeContextMenuItem(item: ContextMenuItem) {
-  if (item.disabled) return
+  if (item.type === 'separator' || item.disabled) return
   closeContextMenu()
   await item.run()
 }

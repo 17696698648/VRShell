@@ -47,3 +47,9 @@ pub(crate) enum TerminalStatus {
     Disconnected,
     Failed,
 }
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(tag = "type", rename_all = "camelCase")]
+pub(crate) enum TerminalOutputEvent {
+    Output { data_base64: String },
+}

@@ -1,6 +1,7 @@
-﻿import {defaultTheme, isThemeName, type ThemeName} from './theme.types'
+﻿import {defaultTheme, isThemeName, resolveSystemTheme, type ThemeName} from './theme.types'
 
 const storageKey = 'vrshell-theme'
+let systemThemeCleanup: (() => void) | null = null
 
 export function applyInitialTheme() {
   const storedTheme = localStorage.getItem(storageKey)
@@ -8,6 +9,19 @@ export function applyInitialTheme() {
 }
 
 export function setTheme(theme: ThemeName) {
-  document.documentElement.dataset.theme = theme
+  systemThemeCleanup?.()
+  systemThemeCleanup = null
+  document.documentElement.dataset.themePreference = theme
+  applyResolvedTheme(theme)
   localStorage.setItem(storageKey, theme)
+  if (theme !== 'system' || typeof window === 'undefined') return
+  const media = window.matchMedia?.('(prefers-color-scheme: light)')
+  if (!media) return
+  const handleChange = () => applyResolvedTheme('system')
+  media.addEventListener('change', handleChange)
+  systemThemeCleanup = () => media.removeEventListener('change', handleChange)
+}
+
+function applyResolvedTheme(theme: ThemeName) {
+  document.documentElement.dataset.theme = theme === 'system' ? resolveSystemTheme() : theme
 }

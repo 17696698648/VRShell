@@ -1,9 +1,18 @@
 <template>
   <div class="session-tree">
-    <UiTree :items="visibleNodes" :active-index="activeNodeIndex" :item-height="34" :get-key="(node) => node.id" :get-level="getNodeLevel" :get-parent-key="getParentKey" :expanded-keys="expandedKeys" label="Sessions" @select="selectNode" @toggle="toggleNode">
+    <UiTree :items="visibleNodes" :active-index="activeNodeIndex" :item-height="32" :get-key="(node) => node.id" :get-level="getNodeLevel" :get-parent-key="getParentKey" :expanded-keys="expandedKeys" label="Sessions" @select="selectNode" @toggle="toggleNode">
       <template #default="{item: node, treeItemProps}">
-        <section v-if="node.type === 'group'" v-bind="treeItemProps" class="session-group" @contextmenu.prevent="openGroupMenu($event, node.group)">
-          <UiDisclosure :open="expandedKeys.includes(node.id)" :title="node.group.name" :badge="getGroupCount(node.group.id)" @update:open="toggleNode(node)" />
+        <section v-if="node.type === 'group'" v-bind="treeItemProps" :class="['session-group', {'session-group--empty': getGroupCount(node.group.id) === 0}]" @contextmenu.prevent="openGroupMenu($event, node.group)">
+          <UiDisclosure :open="expandedKeys.includes(node.id)" :badge="getGroupCount(node.group.id)" @update:open="toggleNode(node)">
+            <template #title>
+              <span class="session-group__title">
+                <span class="session-group__icon" aria-hidden="true">
+                  <component :is="expandedKeys.includes(node.id) ? FolderOpen : Folder" :size="15" />
+                </span>
+                <strong>{{ node.group.name }}</strong>
+              </span>
+            </template>
+          </UiDisclosure>
         </section>
         <SessionTreeNode
           v-else
@@ -18,6 +27,7 @@
 </template>
 
 <script setup lang="ts">
+import {Folder, FolderOpen} from '@lucide/vue'
 import {computed, ref, watch} from 'vue'
 import {sessionState, type SessionGroup, type SessionHost} from '../../../entities/session'
 import {createSessionGroup, deleteSessionGroup} from '../../../features/session/manage-groups/manageSessionGroups'
@@ -25,7 +35,7 @@ import {openContextMenu} from '../../../shared/context-menu'
 import {UiDisclosure, UiTree} from '../../../shared/ui'
 import SessionTreeNode from './SessionTreeNode.vue'
 
-const props = defineProps<{groups: SessionGroup[]; sessions: SessionHost[]}>()
+const props = withDefaults(defineProps<{filtering?: boolean; groups: SessionGroup[]; sessions: SessionHost[]}>(), {filtering: false})
 const emit = defineEmits<{create: [group: SessionGroup]; edit: [session: SessionHost]}>()
 
 type SessionTreeFlatNode =
@@ -55,6 +65,7 @@ function flattenSessionTree() {
 }
 
 function appendGroup(nodes: SessionTreeFlatNode[], groups: SessionGroup[], group: SessionGroup, level: number, parentKey: string | null) {
+  if (props.filtering && getGroupCount(group.id) === 0) return
   const groupKey = getGroupKey(group.id)
   nodes.push({id: groupKey, level, parentKey, type: 'group', group})
   for (const child of groups.filter((item) => item.parentId === group.id)) appendGroup(nodes, groups, child, level + 1, groupKey)

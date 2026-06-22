@@ -1,6 +1,8 @@
 import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import {enqueueTerminalInput, terminalState} from '../../../../entities/terminal'
 import {clearDialogs, dialogState, resolveConfirm} from '../../../../shared/dialog'
+import {clearToasts, feedbackState} from '../../../../shared/feedback'
+import {setIpcMock} from '../../../../shared/ipc/ipcClient'
 import {closeTerminalTab} from '../closeTerminalTab'
 
 const defaultTerminals = [{id: 'term-test', sessionId: 'session-test', backendSessionId: 'backend-test', title: 'test-terminal', status: 'connected', cwd: '/', lines: []}] as typeof terminalState.tabs
@@ -13,6 +15,8 @@ describe('closeTerminalTab', () => {
   })
 
   afterEach(() => {
+    setIpcMock(null)
+    clearToasts()
     clearDialogs()
     terminalState.tabs.splice(0, terminalState.tabs.length, ...JSON.parse(JSON.stringify(defaultTerminals)))
     terminalState.activeTerminalId = defaultActiveTerminalId
@@ -26,6 +30,36 @@ describe('closeTerminalTab', () => {
 
     expect(dialogState.confirm).toBeNull()
     expect(terminalState.tabs.some((item) => item.id === tab.id)).toBe(false)
+  })
+
+  it('disconnects backend session after closing terminal', async () => {
+    const tab = terminalState.tabs[0]
+    tab.status = 'disconnected'
+    let disconnectPayload: unknown = null
+    setIpcMock(async (command, args) => {
+      if (command === 'disconnect_session') disconnectPayload = args
+      return undefined
+    })
+
+    await closeTerminalTab(tab)
+    await Promise.resolve()
+
+    expect(disconnectPayload).toEqual({sessionId: tab.backendSessionId})
+  })
+
+  it('reports backend disconnect failures without reopening the tab', async () => {
+    const tab = terminalState.tabs[0]
+    tab.status = 'disconnected'
+    setIpcMock(async (command) => {
+      if (command === 'disconnect_session') throw new Error('disconnect failed')
+      return undefined
+    })
+
+    await closeTerminalTab(tab)
+    await flushPromises()
+
+    expect(terminalState.tabs.some((item) => item.id === tab.id)).toBe(false)
+    expect(feedbackState.toasts.at(-1)).toMatchObject({level: 'warning', title: `Failed to disconnect ${tab.title}`})
   })
 
   it('requires confirmation before closing connected terminals', async () => {
@@ -52,3 +86,8 @@ describe('closeTerminalTab', () => {
     expect(terminalState.tabs.some((item) => item.id === tab.id)).toBe(false)
   })
 })
+
+async function flushPromises() {
+  await Promise.resolve()
+  await Promise.resolve()
+}

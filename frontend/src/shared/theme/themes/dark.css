@@ -9,6 +9,9 @@
   --color-bg-elevated: #1f2937;
   --color-bg-hover: rgba(148, 163, 184, 0.08);
   --color-bg-selected: rgba(56, 189, 248, 0.14);
+  --color-bg-card: rgba(31, 41, 55, 0.78);
+  --color-bg-card-hover: rgba(15, 23, 42, 0.9);
+  --color-bg-hero: rgba(15, 23, 42, 0.5);
 
   --color-text-primary: #f8fafc;
   --color-text-secondary: #cbd5e1;
@@ -18,8 +21,14 @@
   --color-border-subtle: rgba(148, 163, 184, 0.16);
   --color-border-strong: rgba(148, 163, 184, 0.32);
   --color-focus-ring: rgba(56, 189, 248, 0.72);
+  --color-shadow-soft: rgba(2, 8, 23, 0.34);
+  --color-shadow-card: rgba(2, 8, 23, 0.42);
+  --color-glow: rgba(56, 189, 248, 0.2);
+  --color-glow-ring: rgba(56, 189, 248, 0.22);
 
   --color-accent: #38bdf8;
+  --color-accent-strong: #7dd3fc;
+  --color-accent-contrast: #082f49;
   --color-success: #22c55e;
   --color-warning: #f59e0b;
   --color-danger: #ef4444;

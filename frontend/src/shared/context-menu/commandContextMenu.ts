@@ -1,4 +1,4 @@
-import {executeCommand, getCommand, getCommandAvailability} from '../../features/workspace/command-registry'
+import {executeCommand, getCommand, getCommandAvailability} from '../../shared/command'
 import type {ContextMenuItem} from './contextMenuStore'
 
 export function createCommandMenuItems(commandIds: string[]): ContextMenuItem[] {

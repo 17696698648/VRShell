@@ -18,6 +18,7 @@ pub(crate) const COMMANDS: &[&str] = &[
     "sftp_delete",
     "sftp_upload",
     "sftp_download",
+    "cancel_sftp_task",
     "keyring_store",
     "keyring_get",
     "keyring_delete",
@@ -44,5 +45,36 @@ mod tests {
         ] {
             assert!(COMMANDS.contains(&command));
         }
+    }
+
+    #[test]
+    fn matches_frontend_command_contract() {
+        let frontend_commands = [
+            "open_devtools",
+            "load_session_tree",
+            "save_session_tree",
+            "session_tree_action",
+            "apply_session_tree_action",
+            "parse_ssh_config",
+            "connect_ssh",
+            "send_input",
+            "disconnect_session",
+            "resize_pty",
+            "poll_events",
+            "test_ssh_connection",
+            "tcp_latency",
+            "sftp_list",
+            "sftp_mkdir",
+            "sftp_rename",
+            "sftp_delete",
+            "sftp_upload",
+            "sftp_download",
+            "cancel_sftp_task",
+            "keyring_store",
+            "keyring_get",
+            "keyring_delete",
+        ];
+
+        assert_eq!(COMMANDS, frontend_commands);
     }
 }

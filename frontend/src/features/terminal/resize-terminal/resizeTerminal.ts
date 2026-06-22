@@ -8,41 +8,64 @@ const minCols = 20
 const minRows = 4
 const debounceMs = 120
 const timers = new Map<string, ReturnType<typeof window.setTimeout>>()
+const pendingDimensions = new Map<string, {cols: number; rows: number}>()
+const lastSentDimensions = new Map<string, {cols: number; rows: number}>()
 
 export interface TerminalViewportSize {
-  height: number
-  width: number
+  cols?: number
+  height?: number
+  rows?: number
+  width?: number
 }
 
 export function scheduleTerminalResize(tab: TerminalTab, size: TerminalViewportSize) {
-  if (!tab.backendSessionId) return
+  if (!tab.backendSessionId || typeof window === 'undefined') return
+  const dimensions = getTerminalDimensions(size)
+  if (isSameDimensions(dimensions, lastSentDimensions.get(tab.id))) return
+  pendingDimensions.set(tab.id, dimensions)
   const existing = timers.get(tab.id)
   if (existing) window.clearTimeout(existing)
   timers.set(tab.id, window.setTimeout(() => {
     timers.delete(tab.id)
-    void resizeTerminal(tab, size)
+    const latestDimensions = pendingDimensions.get(tab.id)
+    pendingDimensions.delete(tab.id)
+    if (latestDimensions) void resizeTerminal(tab, latestDimensions)
   }, debounceMs))
 }
 
 export async function resizeTerminal(tab: TerminalTab, size: TerminalViewportSize) {
   const dimensions = getTerminalDimensions(size)
+  if (isSameDimensions(dimensions, lastSentDimensions.get(tab.id))) return
   try {
     await resizeTerminalPty(tab.backendSessionId, dimensions.cols, dimensions.rows)
+    lastSentDimensions.set(tab.id, dimensions)
   } catch (error) {
     pushToast({level: 'error', title: `Failed to resize ${tab.title}`, detail: getErrorMessage(error)})
   }
 }
 
 export function getTerminalDimensions(size: TerminalViewportSize) {
+  if (typeof size.cols === 'number' && typeof size.rows === 'number') {
+    return {
+      cols: Math.max(minCols, Math.floor(size.cols)),
+      rows: Math.max(minRows, Math.floor(size.rows)),
+    }
+  }
   return {
-    cols: Math.max(minCols, Math.floor(size.width / charWidthPx)),
-    rows: Math.max(minRows, Math.floor(size.height / lineHeightPx)),
+    cols: Math.max(minCols, Math.floor((size.width ?? 0) / charWidthPx)),
+    rows: Math.max(minRows, Math.floor((size.height ?? 0) / lineHeightPx)),
   }
 }
 
 export function clearTerminalResizeTimers() {
   for (const timer of timers.values()) window.clearTimeout(timer)
   timers.clear()
+  pendingDimensions.clear()
+  lastSentDimensions.clear()
+}
+
+function isSameDimensions(left: {cols: number; rows: number}, right?: {cols: number; rows: number}) {
+  return left.cols === right?.cols && left.rows === right.rows
 }
 
 function getErrorMessage(error: unknown) {

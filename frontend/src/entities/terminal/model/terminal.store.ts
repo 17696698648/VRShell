@@ -1,6 +1,7 @@
 ﻿import {reactive} from 'vue'
 import {appendTerminalBuffer, initializeTerminalBuffer, removeTerminalBuffer} from './terminalBufferRegistry'
 import {clearTerminalInputQueue} from './terminalInputQueue'
+import {clearTerminalSendChains} from './terminalSendChain'
 import type {TerminalTab} from './terminal.types'
 
 interface TerminalState {
@@ -26,10 +27,8 @@ export function openTerminal(tab: TerminalTab) {
 }
 
 export function appendTerminalLines(tabId: string, lines: string[]) {
-  const tab = terminalState.tabs.find((item) => item.id === tabId)
-  if (!tab) return
+  if (!terminalState.tabs.some((item) => item.id === tabId)) return
   appendTerminalBuffer(tabId, lines)
-  tab.lines = [...tab.lines, ...lines]
 }
 
 export function patchTerminal(tabId: string, patch: Partial<TerminalTab>) {
@@ -42,6 +41,7 @@ export function closeTerminal(tabId: string) {
   if (index >= 0) terminalState.tabs.splice(index, 1)
   removeTerminalBuffer(tabId)
   clearTerminalInputQueue(tabId)
+  clearTerminalSendChains(tabId)
   if (terminalState.activeTerminalId === tabId) terminalState.activeTerminalId = terminalState.tabs[0]?.id ?? ''
 }
 

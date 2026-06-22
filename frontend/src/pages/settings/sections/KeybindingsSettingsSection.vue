@@ -14,7 +14,7 @@
 </template>
 <script setup lang="ts">
 import {computed, ref} from 'vue'
-import {getCommandAvailability, searchCommands} from '../../../features/workspace/command-registry'
+import {getCommandAvailability, searchCommands} from '../../../shared/command'
 const keybindingQuery = ref('')
 const filteredKeybindings = computed(() => searchCommands(keybindingQuery.value, {includeHidden: true}).filter((command) => command.shortcut || command.visibleInPalette !== false).map((command) => ({command, availability: getCommandAvailability(command)})))
 const keybindingConflicts = computed(() => {

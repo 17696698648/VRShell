@@ -1,9 +1,10 @@
-use crate::domain::terminal::TerminalSession;
+use crate::domain::terminal::{TerminalOutputEvent, TerminalSession};
 use std::{collections::HashMap, path::PathBuf, sync::Mutex};
 
 pub(crate) struct BackendState {
     pub app_data_dir: PathBuf,
     pub terminals: Mutex<HashMap<String, TerminalSession>>,
+    pub terminal_events: Mutex<HashMap<String, Vec<TerminalOutputEvent>>>,
 }
 
 impl BackendState {
@@ -11,6 +12,7 @@ impl BackendState {
         Self {
             app_data_dir,
             terminals: Mutex::new(HashMap::new()),
+            terminal_events: Mutex::new(HashMap::new()),
         }
     }
 }

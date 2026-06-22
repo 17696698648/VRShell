@@ -17,7 +17,7 @@ import {AlertTriangle} from '@lucide/vue'
 import {reorderTerminalTabs, terminalState} from '../../../entities/terminal'
 import {closeTerminalTab} from '../../../features/terminal/close-terminal/closeTerminalTab'
 import {disconnectTerminalTab, reconnectTerminalTab} from '../../../features/terminal/manage-connection/manageTerminalConnection'
-import {executeCommand} from '../../../features/workspace/command-registry'
+import {executeCommand} from '../../../shared/command'
 import {openContextMenu} from '../../../shared/context-menu'
 import {UiInlineStatus, UiTabs, UiTooltip, type UiTabItem} from '../../../shared/ui'
 

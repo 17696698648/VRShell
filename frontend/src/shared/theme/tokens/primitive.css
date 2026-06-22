@@ -22,9 +22,11 @@
   --radius-md: 6px;
   --radius-lg: 10px;
   --radius-xl: 14px;
+  --radius-2xl: 22px;
 
   --duration-fast: 100ms;
   --duration-normal: 160ms;
   --duration-slow: 240ms;
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
 }

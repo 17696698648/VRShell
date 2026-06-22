@@ -1,15 +1,18 @@
-import {afterEach, describe, expect, it} from 'vitest'
+import {afterEach, describe, expect, it, vi} from 'vitest'
 import {terminalState} from '../../../../entities/terminal'
 import {clearToasts, feedbackState} from '../../../../shared/feedback'
 import {setIpcMock} from '../../../../shared/ipc/ipcClient'
-import {getTerminalDimensions, resizeTerminal} from '../resizeTerminal'
+import {clearTerminalResizeTimers, getTerminalDimensions, resizeTerminal, scheduleTerminalResize} from '../resizeTerminal'
 
 const terminalTab = {id: 'term-test', sessionId: 'session-test', backendSessionId: 'backend-test', title: 'test-terminal', status: 'connected', cwd: '/', lines: []} as typeof terminalState.tabs[number]
 
 describe('resizeTerminal', () => {
   afterEach(() => {
+    clearTerminalResizeTimers()
     setIpcMock(null)
     clearToasts()
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
   })
 
   it('calculates bounded terminal dimensions', () => {
@@ -28,6 +31,38 @@ describe('resizeTerminal', () => {
     await resizeTerminal(tab, {width: 900, height: 440})
 
     expect(payload).toEqual({sessionId: tab.backendSessionId, cols: 100, rows: 20})
+  })
+
+  it('debounces high-frequency scheduled resize requests', async () => {
+    vi.useFakeTimers()
+    vi.stubGlobal('window', {setTimeout, clearTimeout})
+    const tab = {...terminalTab}
+    const payloads: unknown[] = []
+    setIpcMock(async (command, args) => {
+      if (command === 'resize_pty') payloads.push(args)
+      return undefined
+    })
+
+    scheduleTerminalResize(tab, {cols: 80, rows: 24})
+    scheduleTerminalResize(tab, {cols: 100, rows: 30})
+    scheduleTerminalResize(tab, {cols: 120, rows: 40})
+    await vi.runAllTimersAsync()
+
+    expect(payloads).toEqual([{sessionId: tab.backendSessionId, cols: 120, rows: 40}])
+  })
+
+  it('skips duplicate resize dimensions after successful send', async () => {
+    const tab = {...terminalTab}
+    const payloads: unknown[] = []
+    setIpcMock(async (command, args) => {
+      if (command === 'resize_pty') payloads.push(args)
+      return undefined
+    })
+
+    await resizeTerminal(tab, {cols: 100, rows: 30})
+    await resizeTerminal(tab, {cols: 100, rows: 30})
+
+    expect(payloads).toEqual([{sessionId: tab.backendSessionId, cols: 100, rows: 30}])
   })
 
   it('reports resize failures', async () => {
