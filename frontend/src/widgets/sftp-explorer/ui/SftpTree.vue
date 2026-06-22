@@ -1,39 +1,30 @@
 ﻿<template>
-  <div :class="['sftp-tree', `sftp-tree--${displayMode}`]" role="treegrid" aria-label="Remote files">
-    <div class="sftp-row sftp-row--header" role="row">
-      <button type="button" :class="{active: sortKey === 'type'}" :aria-sort="ariaSort('type')" @click="toggleSort('type')">Type {{ sortIndicator('type') }}</button>
-      <button type="button" :class="{active: sortKey === 'name'}" :aria-sort="ariaSort('name')" @click="toggleSort('name')">Name {{ sortIndicator('name') }}</button>
-      <button type="button" :class="{active: sortKey === 'size'}" :aria-sort="ariaSort('size')" @click="toggleSort('size')">Size {{ sortIndicator('size') }}</button>
-      <button type="button" :class="{active: sortKey === 'modifiedAt'}" :aria-sort="ariaSort('modifiedAt')" @click="toggleSort('modifiedAt')">Modified {{ sortIndicator('modifiedAt') }}</button>
-      <span>Actions</span>
-    </div>
-    <UiVirtualList :items="sortedItems" :item-height="36" :get-key="(item) => item.id">
-      <template #default="{item}">
+  <div :class="['sftp-tree', `sftp-tree--${displayMode}`]">
+    <UiDataGrid :columns="columns" :items="sortedItems" :item-height="36" :get-key="(item) => item.id" label="Remote files" empty-text="No remote files" :selected-key="selectedItemId" :sort-key="sortKey" :sort-direction="sortDirection" @activate="openItem" @contextmenu="openGridMenu" @select="selectItem" @sort="toggleSort($event as SortKey)">
+      <template #default="{item, gridStyle, rowProps}">
         <article
+          v-bind="rowProps"
           :class="['sftp-row', {clickable: item.type === 'directory', selected: selectedItemId === item.id}]"
-          role="row"
-          tabindex="0"
-          :aria-selected="selectedItemId === item.id"
+          :style="gridStyle"
           :title="item.path"
           @click="selectItem(item)"
           @dblclick="openItem(item)"
           @keydown.enter.prevent="openItem(item)"
           @keydown.f2.prevent="renameItem(item)"
           @keydown.delete.prevent="confirmDeleteItem(item)"
-          @contextmenu.prevent="openItemMenu($event, item)"
         >
           <span class="sftp-row__type">{{ item.type === 'directory' ? 'DIR' : 'FILE' }}</span>
           <strong>{{ item.name }}</strong>
           <small>{{ item.size }}</small>
           <small>{{ item.modifiedAt }}</small>
           <span class="sftp-row__actions">
-            <button v-if="item.type === 'directory'" type="button" aria-label="Open directory" title="Open directory" @click.stop="openItem(item)"><FolderOpen :size="14" /></button>
-            <button v-else type="button" aria-label="Download file" title="Download file" @click.stop="downloadItem(item)"><Download :size="14" /></button>
-            <button type="button" aria-label="More actions" title="More actions" @click.stop="openItemMenu($event, item)"><MoreHorizontal :size="14" /></button>
+            <UiIconButton v-if="item.type === 'directory'" :icon="FolderOpen" label="Open directory" @click.stop="openItem(item)" />
+            <UiIconButton v-else :icon="Download" label="Download file" @click.stop="downloadItem(item)" />
+            <UiIconButton :icon="MoreHorizontal" label="More actions" @click.stop="openItemMenu($event, item)" />
           </span>
         </article>
       </template>
-    </UiVirtualList>
+    </UiDataGrid>
   </div>
 </template>
 
@@ -45,7 +36,7 @@ import {createTransferTask, deleteRemoteItem, renameRemoteItem} from '../../../f
 import {openContextMenu} from '../../../shared/context-menu'
 import {requestConfirm, requestPrompt} from '../../../shared/dialog'
 import {pushToast} from '../../../shared/feedback'
-import {UiVirtualList} from '../../../shared/ui'
+import {UiDataGrid, UiIconButton, type UiDataGridColumn} from '../../../shared/ui'
 
 const props = withDefaults(defineProps<{items: SftpItem[]; displayMode?: 'tree' | 'list' | 'split'}>(), {displayMode: 'list'})
 const emit = defineEmits<{openDirectory: [path: string]}>()
@@ -56,6 +47,13 @@ type SortDirection = 'asc' | 'desc'
 const selectedItemId = ref<string | null>(null)
 const sortKey = ref<SortKey>('name')
 const sortDirection = ref<SortDirection>('asc')
+const columns: UiDataGridColumn[] = [
+  {id: 'type', title: 'Type', width: '72px'},
+  {id: 'name', title: 'Name', width: 'minmax(160px, 1fr)'},
+  {id: 'size', title: 'Size', width: '96px'},
+  {id: 'modifiedAt', title: 'Modified', width: '140px'},
+  {id: 'actions', title: 'Actions', width: '96px'},
+]
 
 const sortedItems = computed(() => {
   const direction = sortDirection.value === 'asc' ? 1 : -1
@@ -84,16 +82,6 @@ function toggleSort(key: SortKey) {
   sortDirection.value = 'asc'
 }
 
-function sortIndicator(key: SortKey) {
-  if (sortKey.value !== key) return ''
-  return sortDirection.value === 'asc' ? '↑' : '↓'
-}
-
-function ariaSort(key: SortKey) {
-  if (sortKey.value !== key) return 'none'
-  return sortDirection.value === 'asc' ? 'ascending' : 'descending'
-}
-
 function openItemMenu(event: MouseEvent, item: SftpItem) {
   selectItem(item)
   openContextMenu({
@@ -108,6 +96,10 @@ function openItemMenu(event: MouseEvent, item: SftpItem) {
       {id: 'delete', label: 'Delete', danger: true, run: async () => { await confirmDeleteItem(item) }},
     ],
   })
+}
+
+function openGridMenu(item: SftpItem, _index: number, event: MouseEvent) {
+  openItemMenu(event, item)
 }
 
 async function downloadItem(item: SftpItem) {

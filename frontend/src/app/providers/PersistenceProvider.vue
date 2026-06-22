@@ -6,6 +6,8 @@ import {sessionState} from '../../entities/session'
 import {workspaceState} from '../../entities/workspace'
 import {persistState} from '../lifecycle/persistence'
 
+let persistenceTimer: ReturnType<typeof window.setTimeout> | null = null
+
 const stopPersistence = watch(
   () => [
     sessionState.activeSessionId,
@@ -28,14 +30,23 @@ const stopPersistence = watch(
     workspaceState.sidebarWidth,
     workspaceState.theme,
   ],
-  () => persistState(),
+  schedulePersistState,
   {deep: true},
 )
 
 window.addEventListener('beforeunload', persistState)
 
 onBeforeUnmount(() => {
+  if (persistenceTimer) window.clearTimeout(persistenceTimer)
   stopPersistence()
   window.removeEventListener('beforeunload', persistState)
 })
+
+function schedulePersistState() {
+  if (persistenceTimer) window.clearTimeout(persistenceTimer)
+  persistenceTimer = window.setTimeout(() => {
+    persistenceTimer = null
+    persistState()
+  }, 120)
+}
 </script>

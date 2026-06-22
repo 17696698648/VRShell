@@ -25,7 +25,7 @@
       <UiTooltip text="Upload file to current directory">
         <UiButton size="sm" variant="ghost" :disabled="loading" @click="$emit('upload')"><Upload :size="14" /> Upload</UiButton>
       </UiTooltip>
-      <UiTooltip text="Open parent directory" shortcut="Alt+↑">
+      <UiTooltip text="Open parent directory" shortcut="Alt+Up">
         <UiButton size="sm" variant="ghost" :disabled="loading" @click="$emit('up')"><ArrowUp :size="14" /> Up</UiButton>
       </UiTooltip>
       <UiTooltip text="Refresh current directory" shortcut="Ctrl+R">

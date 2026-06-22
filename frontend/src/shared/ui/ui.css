@@ -21,7 +21,8 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  padding: var(--space-3);
+  min-height: var(--size-panel-header-height);
+  padding: 0 var(--space-panel-padding);
   background: var(--panel-header-bg);
 }
 
@@ -51,6 +52,10 @@
   min-width: 0;
   min-height: 0;
   overflow: auto;
+}
+
+.ui-panel__error {
+  border-left: 2px solid var(--color-danger);
 }
 
 .ui-badge {
@@ -152,8 +157,9 @@
   align-items: start;
   padding: var(--space-3);
   border: 1px solid color-mix(in srgb, var(--color-danger) 42%, transparent);
+  border-left-width: 3px;
   border-radius: var(--radius-lg);
-  background: var(--color-danger-soft);
+  background: color-mix(in srgb, var(--color-danger-soft) 52%, var(--color-bg-elevated));
   color: var(--color-danger);
 }
 
@@ -359,6 +365,37 @@
   border-top-color: transparent;
   border-radius: 999px;
   animation: spin var(--duration-slow) linear infinite;
+}
+
+.ui-icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.ui-icon-button.md {
+  width: 32px;
+  height: 32px;
+}
+
+.ui-icon-button:hover:not(:disabled),
+.ui-icon-button:focus-visible {
+  background: var(--list-row-hover-bg);
+  color: var(--color-text-primary);
+}
+
+.ui-icon-button.danger {
+  color: var(--color-danger);
+}
+
+.ui-icon-button:disabled {
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
 }
 
 .panel__header button:disabled,
@@ -633,6 +670,7 @@
 
 .ui-list-row {
   min-height: var(--size-tree-row-height);
+  padding-inline: var(--space-row-padding-x);
   border-radius: var(--radius-md);
   background: transparent;
   transition: background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
@@ -677,7 +715,8 @@
   cursor: pointer;
 }
 
-.ui-command-menu__item:hover:not(:disabled) {
+.ui-command-menu__item:hover:not(:disabled),
+.ui-command-menu__item:focus-visible {
   background: var(--menu-item-hover-bg);
 }
 
@@ -814,9 +853,17 @@
   grid-template-rows: auto minmax(0, 1fr);
 }
 
+.ui-data-grid__empty {
+  display: grid;
+  place-items: center;
+  min-height: 120px;
+  padding: var(--space-panel-padding);
+  color: var(--color-text-muted);
+}
+
 .ui-data-grid__header {
   display: grid;
-  grid-template-columns: repeat(var(--ui-data-grid-columns, 4), minmax(0, 1fr));
+  grid-template-columns: var(--ui-data-grid-template, repeat(4, minmax(0, 1fr)));
   gap: var(--space-2);
   padding: var(--space-2);
   border-bottom: 1px solid var(--color-border-subtle);

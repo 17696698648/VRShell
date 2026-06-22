@@ -10,7 +10,7 @@
       @update:view-mode="viewMode = $event"
     />
     <SftpBreadcrumbs :path="sftpState.path" @open="refresh" />
-    <UiErrorState v-if="sftpState.error" title="Unable to load remote directory" :message="sftpState.error" retry-label="Retry" @retry="refresh()" />
+    <UiErrorState v-if="sftpState.error" copyable logs-command-id="workspace.openLogsPanel" title="Unable to load remote directory" :message="sftpState.error" retry-label="Retry" @retry="refresh()" />
     <div v-if="sftpState.loading" class="sftp-tree sftp-tree--loading" aria-label="Loading remote directory">
       <article v-for="index in 6" :key="index" class="sftp-row skeleton-row">
         <span />

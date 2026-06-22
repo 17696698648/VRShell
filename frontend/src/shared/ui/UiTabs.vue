@@ -30,7 +30,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref} from 'vue'
+import {nextTick, ref} from 'vue'
 import {X} from '@lucide/vue'
 
 export interface UiTabItem {
@@ -89,5 +89,9 @@ function handleKeydown(event: KeyboardEvent, id: string) {
   if (index < 0) return
   const nextIndex = event.key === 'Home' ? 0 : event.key === 'End' ? props.items.length - 1 : event.key === 'ArrowLeft' ? Math.max(0, index - 1) : Math.min(props.items.length - 1, index + 1)
   emit('activate', props.items[nextIndex]?.id ?? id)
+  void nextTick(() => {
+    const buttons = Array.from((event.currentTarget as HTMLElement).parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]') ?? [])
+    buttons[nextIndex]?.focus()
+  })
 }
 </script>

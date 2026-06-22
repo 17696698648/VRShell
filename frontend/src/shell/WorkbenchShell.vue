@@ -25,7 +25,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed} from 'vue'
+import {computed, ref} from 'vue'
 import {setSidebarWidth, workspaceState} from '../entities/workspace'
 import ActivityBar from './activity-bar/ActivityBar.vue'
 import CommandPaletteHost from './overlays/CommandPaletteHost.vue'
@@ -37,7 +37,8 @@ import Sidebar from './sidebar/Sidebar.vue'
 import StatusBar from './status-bar/StatusBar.vue'
 import AppTitlebar from './titlebar/AppTitlebar.vue'
 
-const sidebarStyle = computed(() => ({width: `${workspaceState.sidebarWidth}px`}))
+const resizingSidebarWidth = ref<number | null>(null)
+const sidebarStyle = computed(() => ({width: `${resizingSidebarWidth.value ?? workspaceState.sidebarWidth}px`}))
 
 function startSidebarResize(event: PointerEvent) {
   event.preventDefault()
@@ -45,16 +46,22 @@ function startSidebarResize(event: PointerEvent) {
   const startWidth = workspaceState.sidebarWidth
 
   function move(pointerEvent: PointerEvent) {
-    setSidebarWidth(startWidth + pointerEvent.clientX - startX)
+    resizingSidebarWidth.value = clampSidebarWidth(startWidth + pointerEvent.clientX - startX)
   }
 
   function end(pointerEvent: PointerEvent) {
     move(pointerEvent)
+    if (resizingSidebarWidth.value !== null) setSidebarWidth(resizingSidebarWidth.value)
+    resizingSidebarWidth.value = null
     window.removeEventListener('pointermove', move)
     window.removeEventListener('pointerup', end)
   }
 
   window.addEventListener('pointermove', move)
   window.addEventListener('pointerup', end)
+}
+
+function clampSidebarWidth(width: number) {
+  return Math.min(420, Math.max(220, Math.round(width)))
 }
 </script>

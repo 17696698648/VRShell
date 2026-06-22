@@ -1,9 +1,6 @@
 <template>
   <article
     :class="['session-node', {active: session.id === sessionState.activeSessionId}]"
-    role="treeitem"
-    tabindex="0"
-    :aria-selected="session.id === sessionState.activeSessionId"
     :title="`${session.name} · ${session.username}@${session.host}:${session.port}`"
     @click="connectSession(session)"
     @keydown.enter.prevent="connectSession(session)"
@@ -14,7 +11,7 @@
       <strong>{{ session.name }}</strong>
       <small>{{ session.username }}@{{ session.host }}:{{ session.port }}</small>
     </div>
-    <button type="button" aria-label="Delete session" title="Delete session" @click.stop="confirmDeleteSession(session)"><Trash2 :size="14" /></button>
+    <UiIconButton :icon="Trash2" label="Delete session" variant="danger" @click.stop="confirmDeleteSession(session)" />
   </article>
 </template>
 
@@ -26,7 +23,7 @@ import {confirmDeleteSession} from '../../../features/session/delete-session/del
 import {renameSession} from '../../../features/session/edit-session/renameSession'
 import {moveSessionToGroup} from '../../../features/session/manage-groups/manageSessionGroups'
 import {openContextMenu, type ContextMenuItem} from '../../../shared/context-menu'
-import {UiStatusBadge} from '../../../shared/ui'
+import {UiIconButton, UiStatusBadge} from '../../../shared/ui'
 
 const props = defineProps<{groups: SessionGroup[]; session: SessionHost}>()
 const emit = defineEmits<{edit: [session: SessionHost]}>()

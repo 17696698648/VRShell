@@ -4,19 +4,25 @@
 
 :root[data-density='comfortable'] {
   --size-toolbar-height: 36px;
+  --size-panel-header-height: 44px;
   --size-tab-height: 38px;
   --size-tree-row-height: 34px;
   --size-form-control-height: 36px;
   --space-workbench-padding: var(--space-4);
   --space-workbench-gap: 14px;
+  --space-panel-padding: var(--space-4);
+  --space-row-padding-x: var(--space-3);
 }
 
 :root[data-density='dense'] {
   --font-size-md: 12px;
   --size-toolbar-height: 28px;
+  --size-panel-header-height: 40px;
   --size-tab-height: 30px;
   --size-tree-row-height: 24px;
   --size-form-control-height: 28px;
   --space-workbench-padding: var(--space-2);
   --space-workbench-gap: 8px;
+  --space-panel-padding: var(--space-2);
+  --space-row-padding-x: var(--space-2);
 }

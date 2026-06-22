@@ -14,6 +14,7 @@ export function registerDefaultStatusItems() {
       return {
         align: 'left',
         id: 'workbench.health',
+        iconName: issueCount > 0 ? 'alert' : 'check',
         intent: issueCount > 0 ? 'danger' : 'success',
         label: issueCount > 0 ? `${issueCount} issues` : 'Ready',
         priority: 10,
@@ -23,8 +24,9 @@ export function registerDefaultStatusItems() {
     registerStatusBarItem('session.connected', () => ({
       align: 'left',
       id: 'session.connected',
+      iconName: 'server',
       intent: getConnectedSessionCount() > 0 ? 'success' : 'neutral',
-      label: `SSH ${getConnectedSessionCount()}`,
+      label: `${getConnectedSessionCount()}`,
       onClick: () => executeCommand('workspace.openSessionsPanel'),
       priority: 20,
       title: `${getConnectedSessionCount()} SSH sessions connected`,
@@ -35,7 +37,8 @@ export function registerDefaultStatusItems() {
       return {
         align: 'left',
         id: 'terminal.active',
-        label: `Active ${activeTerminal.title}`,
+        iconName: 'terminal',
+        label: activeTerminal.title,
         priority: 30,
         title: `Active terminal: ${activeTerminal.title}`,
       }
@@ -45,8 +48,9 @@ export function registerDefaultStatusItems() {
       return {
         align: 'right',
         id: 'task.running',
+        iconName: 'tasks',
         intent: runningCount > 0 ? 'info' : 'neutral',
-        label: `Tasks ${runningCount}`,
+        label: `${runningCount}`,
         onClick: () => executeCommand('workspace.openTasksPanel'),
         priority: 10,
         title: `${runningCount} running tasks`,
@@ -55,16 +59,18 @@ export function registerDefaultStatusItems() {
     registerStatusBarItem('terminal.count', () => ({
       align: 'right',
       id: 'terminal.count',
+      iconName: 'terminals',
       intent: getFailedTerminalCount() > 0 ? 'danger' : 'neutral',
-      label: `Terminals ${terminalState.tabs.length}`,
+      label: `${terminalState.tabs.length}`,
       priority: 20,
       title: `${terminalState.tabs.length} terminal tabs`,
     })),
     registerStatusBarItem('sftp.status', () => ({
       align: 'right',
       id: 'sftp.status',
+      iconName: 'sftp',
       intent: sftpState.error ? 'danger' : sftpState.loading ? 'warning' : 'neutral',
-      label: `SFTP ${sftpState.error ? 'Error' : sftpState.loading ? 'Loading' : sftpState.path}`,
+      label: sftpState.error ? 'Error' : sftpState.loading ? 'Loading' : sftpState.path,
       onClick: () => executeCommand('sftp.openPanel'),
       priority: 30,
       title: sftpState.error ? sftpState.error : `SFTP path: ${sftpState.path}`,
@@ -75,8 +81,9 @@ export function registerDefaultStatusItems() {
       return {
         align: 'right',
         id: 'workspace.problems',
+        iconName: 'alert',
         intent: 'danger',
-        label: `Problems ${problemCount}`,
+        label: `${problemCount}`,
         onClick: () => executeCommand('workspace.openProblemsPanel'),
         priority: 34,
         title: `${problemCount} warnings/errors`,
@@ -87,8 +94,9 @@ export function registerDefaultStatusItems() {
       return {
         align: 'right',
         id: 'workspace.logs',
+        iconName: 'logs',
         intent: warningCount > 0 ? 'warning' : 'neutral',
-        label: warningCount > 0 ? `Logs ${warningCount}` : 'Logs',
+        label: warningCount > 0 ? `${warningCount}` : 'Logs',
         onClick: () => executeCommand('workspace.openLogsPanel'),
         priority: 35,
         title: warningCount > 0 ? `${warningCount} warnings/errors in logs` : 'Open logs panel',
@@ -97,7 +105,8 @@ export function registerDefaultStatusItems() {
     registerStatusBarItem('workspace.theme', () => ({
       align: 'right',
       id: 'workspace.theme',
-      label: `Theme ${workspaceState.theme}`,
+      iconName: 'palette',
+      label: workspaceState.theme,
       onClick: () => executeCommand('settings.toggleTheme'),
       priority: 40,
       title: `Theme: ${workspaceState.theme}; density: ${workspaceState.density}`,
@@ -105,7 +114,8 @@ export function registerDefaultStatusItems() {
     registerStatusBarItem('workspace.layout', () => ({
       align: 'right',
       id: 'workspace.layout',
-      label: `Layout ${workspaceState.layoutPreset}`,
+      iconName: 'layout',
+      label: workspaceState.layoutPreset,
       onClick: () => executeCommand('workspace.resetLayout'),
       priority: 45,
       title: `Layout: ${workspaceState.layoutPreset}; dock: ${workspaceState.panelPlacement}; mode: ${workspaceState.mainAreaMode}`,
@@ -113,7 +123,8 @@ export function registerDefaultStatusItems() {
     registerStatusBarItem('workspace.density', () => ({
       align: 'right',
       id: 'workspace.density',
-      label: `Density ${workspaceState.density}`,
+      iconName: 'activity',
+      label: workspaceState.density,
       priority: 50,
       title: `UI density: ${workspaceState.density}`,
     })),

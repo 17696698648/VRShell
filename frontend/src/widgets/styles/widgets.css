@@ -35,7 +35,7 @@
   align-items: center;
   gap: 10px;
   min-height: var(--size-tree-row-height);
-  padding: 6px 8px;
+  padding: 4px var(--space-row-padding-x);
   border: 1px solid transparent;
   border-radius: var(--radius-md);
   background: transparent;
@@ -66,11 +66,17 @@
   content: '';
 }
 
-.session-node.active,
 .session-node:hover,
 .session-node:focus-visible,
 .sftp-row:hover,
 .sftp-row:focus-visible {
+  border-color: var(--color-border-subtle);
+  background: var(--list-row-hover-bg);
+}
+
+.session-node.active,
+.sftp-row.selected,
+.sftp-row.active {
   border-color: var(--color-border-subtle);
   background: var(--list-row-selected-bg);
 }
@@ -631,6 +637,88 @@
   padding: 18px;
 }
 
+.welcome-page {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: var(--space-5);
+  min-height: 100%;
+}
+
+.welcome-page__hero {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+  max-width: 720px;
+  text-align: center;
+}
+
+.welcome-page__mark {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-xl);
+  background: var(--color-bg-selected);
+  color: var(--color-accent);
+}
+
+.welcome-page__eyebrow,
+.welcome-page__lead,
+.welcome-page__hint {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.welcome-page__eyebrow {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.welcome-page h1 {
+  margin: 0;
+  color: var(--color-text-primary);
+}
+
+.welcome-page__lead {
+  font-size: var(--font-size-lg);
+}
+
+.welcome-page__actions,
+.welcome-page__cards {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+.welcome-page__card {
+  display: grid;
+  width: min(220px, 100%);
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elevated);
+  color: var(--color-text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.welcome-page__card:hover,
+.welcome-page__card:focus-visible {
+  border-color: var(--color-accent);
+  background: var(--color-bg-hover);
+}
+
+.welcome-page__card span {
+  color: var(--color-text-muted);
+}
+
 .settings-page {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
@@ -770,6 +858,22 @@
 }
 
 .layout-preset-card small {
+  color: var(--color-text-muted);
+}
+
+.layout-inspector,
+.layout-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elevated);
+}
+
+.layout-inspector span {
   color: var(--color-text-muted);
 }
 

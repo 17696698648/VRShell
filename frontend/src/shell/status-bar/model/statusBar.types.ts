@@ -8,6 +8,7 @@ export interface StatusBarItem {
   label: string
   title?: string
   icon?: string
+  iconName?: string
   intent?: StatusBarIntent
   onClick?: () => void | Promise<void>
 }

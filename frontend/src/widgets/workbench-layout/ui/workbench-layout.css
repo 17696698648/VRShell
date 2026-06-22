@@ -122,3 +122,10 @@
     display: none;
   }
 }
+
+@media (max-height: 640px) {
+  .workbench-layout--dock-bottom > .ui-split-pane > .ui-split-pane__pane:last-child,
+  .workbench-layout--dock-bottom > .ui-split-pane > .ui-split-pane__handle {
+    display: none;
+  }
+}
