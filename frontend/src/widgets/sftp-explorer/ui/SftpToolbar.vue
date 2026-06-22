@@ -7,18 +7,7 @@
       </div>
     </template>
     <template #trailing>
-      <div class="sftp-view-switcher" aria-label="SFTP view mode">
-        <button
-          v-for="mode in viewModes"
-          :key="mode"
-          :class="{active: viewMode === mode}"
-          type="button"
-          :title="`Switch to ${mode} view`"
-          @click="$emit('update:viewMode', mode)"
-        >
-          {{ mode }}
-        </button>
-      </div>
+      <UiToolbarButtonGroup :items="viewModeItems" label="SFTP view mode" :model-value="viewMode" @update:model-value="$emit('update:viewMode', $event as SftpViewMode)" />
       <UiTooltip text="Create remote directory">
         <UiButton size="sm" variant="ghost" :disabled="loading" @click="$emit('mkdir')"><FolderPlus :size="14" /> Folder</UiButton>
       </UiTooltip>
@@ -36,12 +25,16 @@
 </template>
 
 <script setup lang="ts">
-import {ArrowUp, FolderPlus, RefreshCw, Upload} from '@lucide/vue'
-import {UiButton, UiToolbar, UiTooltip} from '../../../shared/ui'
-import {sftpViewModes, type SftpViewMode} from '../model/sftpViewMode'
+import {Columns3, FolderTree, List, ArrowUp, FolderPlus, RefreshCw, Upload} from '@lucide/vue'
+import {UiButton, UiToolbar, UiToolbarButtonGroup, UiTooltip, type UiToolbarButtonGroupItem} from '../../../shared/ui'
+import type {SftpViewMode} from '../model/sftpViewMode'
 
 defineProps<{loading?: boolean; viewMode: SftpViewMode}>()
 defineEmits<{mkdir: []; refresh: []; up: []; upload: []; 'update:viewMode': [mode: SftpViewMode]}>()
 
-const viewModes = sftpViewModes
+const viewModeItems: UiToolbarButtonGroupItem[] = [
+  {id: 'tree', icon: FolderTree, label: 'Tree', tooltip: 'Show directories as a tree'},
+  {id: 'list', icon: List, label: 'List', tooltip: 'Show files in a detailed list'},
+  {id: 'split', icon: Columns3, label: 'Split', tooltip: 'Show directory and detail panes'},
+]
 </script>

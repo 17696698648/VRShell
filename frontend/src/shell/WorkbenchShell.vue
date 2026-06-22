@@ -1,5 +1,5 @@
 <template>
-  <div class="workbench-shell">
+  <div class="workbench-shell" data-testid="app-shell">
     <AppTitlebar/>
     <div class="workbench-shell__body">
       <ActivityBar/>

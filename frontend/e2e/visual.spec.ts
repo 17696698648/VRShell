@@ -28,4 +28,31 @@ test.describe('VRShell visual states', () => {
       await expect(page.getByTestId('app-shell')).toHaveScreenshot(`workbench-density-${density}.png`)
     })
   }
+
+  test('captures welcome product entry', async ({page}) => {
+    await page.goto('/')
+    await expect(page.locator('.welcome-page')).toHaveScreenshot('welcome-product-entry.png')
+  })
+
+  test('captures session explorer', async ({page}) => {
+    await page.goto('/')
+    await expect(page.locator('.session-explorer')).toHaveScreenshot('session-explorer.png')
+  })
+
+  test('captures SFTP explorer', async ({page}) => {
+    await page.goto('/')
+    await page.getByTitle(/SFTP/).click()
+    await expect(page.locator('.sftp-explorer')).toHaveScreenshot('sftp-explorer.png')
+  })
+
+  test('captures status bar', async ({page}) => {
+    await page.goto('/')
+    await expect(page.locator('.status-bar')).toHaveScreenshot('status-bar.png')
+  })
+
+  test('captures command menu surface', async ({page}) => {
+    await page.goto('/')
+    await page.keyboard.press('Control+k')
+    await expect(page.getByRole('menu')).toHaveScreenshot('command-menu.png')
+  })
 })

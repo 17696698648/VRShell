@@ -12,7 +12,8 @@
       >
         <component :is="iconFor(item)" v-if="iconFor(item)" :size="14" aria-hidden="true" />
         <span v-else-if="item.icon" aria-hidden="true">{{ item.icon }}</span>
-        <span>{{ item.label }}</span>
+        <span class="status-bar__label status-bar__label--full">{{ item.fullLabel ?? item.label }}</span>
+        <span class="status-bar__label status-bar__label--compact">{{ item.compactLabel ?? item.label }}</span>
       </button>
     </div>
     <div class="status-bar__group status-bar__group--right">
@@ -27,7 +28,8 @@
       >
         <component :is="iconFor(item)" v-if="iconFor(item)" :size="14" aria-hidden="true" />
         <span v-else-if="item.icon" aria-hidden="true">{{ item.icon }}</span>
-        <span>{{ item.label }}</span>
+        <span class="status-bar__label status-bar__label--full">{{ item.fullLabel ?? item.label }}</span>
+        <span class="status-bar__label status-bar__label--compact">{{ item.compactLabel ?? item.label }}</span>
       </button>
     </div>
   </footer>
@@ -62,6 +64,6 @@ function iconFor(item: StatusBarItem) {
 }
 
 function tooltipFor(item: StatusBarItem) {
-  return item.title && item.title !== item.label ? item.title : undefined
+  return item.tooltip ?? (item.title && item.title !== item.label ? item.title : undefined)
 }
 </script>

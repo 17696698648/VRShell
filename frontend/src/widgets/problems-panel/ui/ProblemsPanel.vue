@@ -1,32 +1,27 @@
 <template>
-  <UiPanel compact class="problems-panel" aria-label="Problems">
-    <UiToolbar label="Problems actions">
-      <template #leading>
-        <div class="ui-toolbar__title"><strong>Problems</strong><small>{{ problemEntries.length }} warnings/errors</small></div>
-      </template>
-      <template #trailing>
+  <UiWorkbenchPanel compact class="problems-panel" title="Problems" :subtitle="`${problemEntries.length} warnings/errors`" aria-label="Problems">
+    <template #actions>
         <UiActionButton command-id="workspace.openLogsPanel" label="Open Logs" tooltip="Open Logs panel" />
-      </template>
-    </UiToolbar>
+    </template>
     <UiDataGrid v-if="problemEntries.length > 0" class="problems-panel__list" :columns="columns" :items="problemEntries" :item-height="54" :get-key="(entry) => entry.id" label="Problems" @activate="openLogs">
-      <template #default="{item: entry, gridStyle, rowProps}">
+      <template #default="{item: entry, cellProps, gridStyle, rowProps}">
         <article v-bind="rowProps" :style="gridStyle" :class="['problems-panel__entry', `problems-panel__entry--${entry.level}`]" title="Open Logs" @click="openLogs">
-          <UiStatusBadge :status="entry.level === 'warning' ? 'warning' : 'danger'" :label="entry.level" />
-          <strong>{{ entry.message }}</strong>
-          <span>{{ entry.source }}</span>
-          <small v-if="entry.detail">{{ entry.detail }}</small>
+          <span v-bind="cellProps(columns[0])"><UiStatusBadge :status="entry.level === 'warning' ? 'warning' : 'danger'" :label="entry.level" /></span>
+          <strong v-bind="cellProps(columns[1])">{{ entry.message }}</strong>
+          <span v-bind="cellProps(columns[2])">{{ entry.source }}</span>
+          <small v-bind="cellProps(columns[3])">{{ entry.detail }}</small>
         </article>
       </template>
     </UiDataGrid>
     <EmptyState v-else compact icon="✓" title="No problems" description="Warnings and errors from logs are grouped here." />
-  </UiPanel>
+  </UiWorkbenchPanel>
 </template>
 
 <script setup lang="ts">
 import {computed} from 'vue'
 import {executeCommand} from '../../../features/workspace/command-registry'
 import {logState} from '../../../shared/lib/logger'
-import {EmptyState, UiActionButton, UiDataGrid, UiPanel, UiStatusBadge, UiToolbar, type UiDataGridColumn} from '../../../shared/ui'
+import {EmptyState, UiActionButton, UiDataGrid, UiStatusBadge, UiWorkbenchPanel, type UiDataGridColumn} from '../../../shared/ui'
 
 const columns: UiDataGridColumn[] = [
   {id: 'level', title: 'Level', width: '100px'},

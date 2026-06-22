@@ -304,6 +304,15 @@
   transition: background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
 }
 
+.activity-bar__item > span[aria-hidden='true'] {
+  display: grid;
+  place-items: center;
+  width: var(--size-icon-activity);
+  height: var(--size-icon-activity);
+  font-size: var(--size-icon-activity);
+  line-height: 1;
+}
+
 .activity-bar__item::before {
   position: absolute;
   left: -6px;
@@ -393,8 +402,31 @@
   cursor: default;
 }
 
+.status-bar__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .status-bar__item svg {
   flex: 0 0 auto;
+  width: var(--size-icon-statusbar);
+  height: var(--size-icon-statusbar);
+}
+
+.status-bar__label--compact {
+  display: none;
+}
+
+@media (max-width: 1180px) {
+  .status-bar__label--full {
+    display: none;
+  }
+
+  .status-bar__label--compact {
+    display: inline;
+  }
 }
 
 .status-bar__item:hover {

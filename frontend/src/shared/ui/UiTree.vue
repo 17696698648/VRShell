@@ -46,7 +46,9 @@ function getTreeItemProps(item: T, index: number) {
     'aria-posinset': index + 1,
     'aria-selected': selected,
     'aria-setsize': props.items.length,
+    class: ['ui-tree__item', {'ui-tree__item--expanded': expanded, 'ui-tree__item--selected': selected}],
     role: 'treeitem',
+    style: {'--ui-tree-level': props.getLevel(item, index)},
     tabindex: selected ? 0 : -1,
     onClick: () => emit('select', item, index, key),
   }

@@ -6,7 +6,7 @@ test.describe('VRShell smoke', () => {
     await installTauriMock(page)
   })
 
-  test('covers startup, command palette, session dialog, SFTP drawer, and theme switching @smoke', async ({ page }) => {
+  test('covers startup, command palette, quick session, SFTP drawer, and theme switching @smoke', async ({ page }) => {
     await page.goto('/')
 
     const shell = page.getByTestId('app-shell')
@@ -23,26 +23,17 @@ test.describe('VRShell smoke', () => {
 
     await page.keyboard.press('Control+k')
     await page.locator('[data-command-id="cmd-new-connection"]').click()
-    const sessionDialogTitle = page.locator('.base-dialog-header strong').filter({ hasText: 'New Session' })
-    await expect(sessionDialogTitle).toBeVisible()
-    await page.keyboard.press('Escape')
-    await expect(sessionDialogTitle).toBeHidden()
-
-    await page.keyboard.press('Control+k')
-    await page.locator('[data-command-id="cmd-new-connection"]').click()
-    await expect(sessionDialogTitle).toBeVisible()
-    await page.getByRole('button', { name: 'Cancel' }).click()
-    await expect(sessionDialogTitle).toBeHidden()
+    await expect(palette).toBeHidden()
 
     await page.getByTestId('activity-sftp').click()
     await expect(page.getByTestId('activity-sftp')).toHaveClass(/active/)
 
     await page.keyboard.press('Control+k')
-    await page.getByTestId('command-palette-search').fill('Midnight')
-    const themeOption = page.getByRole('option', { name: /Midnight/ })
+    await page.getByTestId('command-palette-search').fill('Toggle theme')
+    const themeOption = page.getByRole('option', { name: /Toggle theme/ })
     await expect(themeOption).toBeVisible()
-    const beforeClass = (await shell.getAttribute('class')) ?? ''
+    const beforeTheme = await page.evaluate(() => document.documentElement.dataset.theme)
     await themeOption.click()
-    await expect(shell).not.toHaveClass(beforeClass)
+    await expect.poll(() => page.evaluate(() => document.documentElement.dataset.theme)).not.toBe(beforeTheme)
   })
 })

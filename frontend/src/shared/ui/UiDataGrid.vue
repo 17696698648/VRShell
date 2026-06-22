@@ -12,7 +12,7 @@
     </div>
     <UiVirtualList v-else :items="items" :item-height="itemHeight" :get-key="getKey">
       <template #default="slotProps">
-        <slot :item="slotProps.item" :index="slotProps.index" :grid-style="gridStyle" :row-props="getRowProps(slotProps.item, slotProps.index)" />
+        <slot :item="slotProps.item" :index="slotProps.index" :cell-props="getCellProps" :grid-style="gridStyle" :row-props="getRowProps(slotProps.item, slotProps.index)" />
       </template>
     </UiVirtualList>
   </div>
@@ -24,6 +24,7 @@ import UiSortIndicator from './UiSortIndicator.vue'
 import UiVirtualList from './UiVirtualList.vue'
 
 export interface UiDataGridColumn {
+  align?: 'end' | 'center' | 'start'
   id: string
   title: string
   width?: string
@@ -65,6 +66,14 @@ function getRowProps(item: T, index: number) {
       }
       if (event.key === 'F10' && event.shiftKey) emit('contextmenu', item, index, event as unknown as MouseEvent)
     },
+  }
+}
+
+function getCellProps(column: UiDataGridColumn, columnIndex = props.columns.findIndex((item) => item.id === column.id)) {
+  return {
+    'aria-colindex': columnIndex + 1,
+    class: ['ui-data-grid__cell', column.align ? `ui-data-grid__cell--${column.align}` : ''],
+    role: 'gridcell',
   }
 }
 

@@ -1,6 +1,8 @@
 <template>
   <UiTabs class="terminal-tabs" :active-id="terminalState.activeTerminalId" :items="tabItems" label="Terminal tabs" @activate="terminalState.activeTerminalId = $event" @close="handleClose" @contextmenu="openTabMenu" @reorder="reorderTerminalTabs">
     <template #item="{item}">
+      <span :class="['terminal-tabs__status', `terminal-tabs__status--${item.status}`]" aria-hidden="true" />
+      <AlertTriangle v-if="item.status === 'error'" :size="13" class="terminal-tabs__warning" aria-hidden="true" />
       <span>{{ item.title }}</span>
       <UiTooltip :text="item.status === 'connected' ? 'Disconnect terminal' : 'Reconnect terminal'">
         <small @click.stop="toggleConnection(item.id)">{{ item.status === 'connected' ? 'Disconnect' : 'Reconnect' }}</small>
@@ -11,6 +13,7 @@
 
 <script setup lang="ts">
 import {computed} from 'vue'
+import {AlertTriangle} from '@lucide/vue'
 import {reorderTerminalTabs, terminalState} from '../../../entities/terminal'
 import {closeTerminalTab} from '../../../features/terminal/close-terminal/closeTerminalTab'
 import {disconnectTerminalTab, reconnectTerminalTab} from '../../../features/terminal/manage-connection/manageTerminalConnection'

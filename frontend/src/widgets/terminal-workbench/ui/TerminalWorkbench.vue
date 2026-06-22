@@ -1,5 +1,5 @@
 ﻿<template>
-  <section class="terminal-workbench">
+  <section class="terminal-workbench" :class="{'terminal-workbench--search-open': terminalSearchState.open && activeTerminal}">
     <TerminalTabs />
     <TerminalToolbar />
     <TerminalSearchBar v-if="terminalSearchState.open && activeTerminal" :tab-id="activeTerminal.id" />

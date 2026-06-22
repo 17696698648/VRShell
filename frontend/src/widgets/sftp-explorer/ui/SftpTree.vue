@@ -1,7 +1,7 @@
 ﻿<template>
   <div :class="['sftp-tree', `sftp-tree--${displayMode}`]">
     <UiDataGrid :columns="columns" :items="sortedItems" :item-height="36" :get-key="(item) => item.id" label="Remote files" empty-text="No remote files" :selected-key="selectedItemId" :sort-key="sortKey" :sort-direction="sortDirection" @activate="openItem" @contextmenu="openGridMenu" @select="selectItem" @sort="toggleSort($event as SortKey)">
-      <template #default="{item, gridStyle, rowProps}">
+      <template #default="{item, cellProps, gridStyle, rowProps}">
         <article
           v-bind="rowProps"
           :class="['sftp-row', {clickable: item.type === 'directory', selected: selectedItemId === item.id}]"
@@ -13,11 +13,11 @@
           @keydown.f2.prevent="renameItem(item)"
           @keydown.delete.prevent="confirmDeleteItem(item)"
         >
-          <span class="sftp-row__type">{{ item.type === 'directory' ? 'DIR' : 'FILE' }}</span>
-          <strong>{{ item.name }}</strong>
-          <small>{{ item.size }}</small>
-          <small>{{ item.modifiedAt }}</small>
-          <span class="sftp-row__actions">
+          <span v-bind="cellProps(columns[0])" class="sftp-row__type">{{ item.type === 'directory' ? 'DIR' : 'FILE' }}</span>
+          <strong v-bind="cellProps(columns[1])">{{ item.name }}</strong>
+          <small v-bind="cellProps(columns[2])">{{ item.size }}</small>
+          <small v-bind="cellProps(columns[3])">{{ item.modifiedAt }}</small>
+          <span v-bind="cellProps(columns[4])" class="sftp-row__actions">
             <UiIconButton v-if="item.type === 'directory'" :icon="FolderOpen" label="Open directory" @click.stop="openItem(item)" />
             <UiIconButton v-else :icon="Download" label="Download file" @click.stop="downloadItem(item)" />
             <UiIconButton :icon="MoreHorizontal" label="More actions" @click.stop="openItemMenu($event, item)" />

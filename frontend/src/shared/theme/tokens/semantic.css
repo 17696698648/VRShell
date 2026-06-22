@@ -10,6 +10,10 @@
   --size-tab-height: 34px;
   --size-tree-row-height: 28px;
   --size-form-control-height: 32px;
+  --size-icon-activity: 20px;
+  --size-icon-empty: 30px;
+  --size-icon-statusbar: 14px;
+  --size-icon-toolbar: 15px;
   --size-bottom-panel-min-height: 220px;
   --size-bottom-panel-max-height: 520px;
   --size-right-dock-min-width: 260px;

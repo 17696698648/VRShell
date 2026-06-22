@@ -18,12 +18,22 @@
         <span>{{ entry.description }}</span>
       </button>
     </div>
+    <div class="welcome-page__recent" aria-label="Recent workspace activity">
+      <article v-for="section in recentSections" :key="section.title" class="welcome-page__recent-section">
+        <strong>{{ section.title }}</strong>
+        <span>{{ section.value }}</span>
+      </article>
+    </div>
     <p class="welcome-page__hint">Tip: press <kbd>Ctrl+P</kbd> to search commands and sessions.</p>
   </section>
 </template>
 
 <script setup lang="ts">
 import {FolderTree, ListTodo, Search, Server, TerminalSquare, Upload} from '@lucide/vue'
+import {computed} from 'vue'
+import {sessionState} from '../../entities/session'
+import {sftpState} from '../../entities/sftp'
+import {taskItems} from '../../entities/task'
 import {executeCommand} from '../../features/workspace/command-registry'
 import {UiButton} from '../../shared/ui'
 
@@ -32,4 +42,9 @@ const productEntries = [
   {command: 'sftp.openPanel', description: 'Browse, upload, download, and rename remote files.', icon: FolderTree, title: 'SFTP Explorer'},
   {command: 'workspace.openTasksPanel', description: 'Track long-running jobs and transfer tasks.', icon: ListTodo, title: 'Task Center'},
 ]
+const recentSections = computed(() => [
+  {title: 'Recent connection', value: sessionState.sessions[0]?.name ?? 'Create your first SSH session'},
+  {title: 'Recent path', value: sftpState.path || 'Open SFTP to browse remote files'},
+  {title: 'Recent task', value: taskItems[0]?.title ?? 'Run a transfer or long task'},
+])
 </script>

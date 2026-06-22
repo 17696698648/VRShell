@@ -3,7 +3,11 @@
     <UiTree :items="visibleNodes" :active-index="activeNodeIndex" :item-height="34" :get-key="(node) => node.id" :get-level="getNodeLevel" :get-parent-key="getParentKey" :expanded-keys="expandedKeys" label="Sessions" @select="selectNode" @toggle="toggleNode">
       <template #default="{item: node, treeItemProps}">
         <section v-if="node.type === 'group'" v-bind="treeItemProps" class="session-group">
-          <h3 @contextmenu.prevent="openGroupMenu($event, node.group)">{{ node.group.name }}</h3>
+          <button type="button" class="session-group__summary" @click.stop="toggleNode(node)" @contextmenu.prevent="openGroupMenu($event, node.group)">
+            <ChevronRight :size="14" :class="{expanded: expandedKeys.includes(node.id)}" aria-hidden="true" />
+            <span>{{ node.group.name }}</span>
+            <small>{{ getGroupCount(node.group.id) }}</small>
+          </button>
         </section>
         <SessionTreeNode
           v-else
@@ -18,6 +22,7 @@
 </template>
 
 <script setup lang="ts">
+import {ChevronRight} from '@lucide/vue'
 import {computed, ref} from 'vue'
 import {sessionState, type SessionGroup, type SessionHost} from '../../../entities/session'
 import {deleteSessionGroup} from '../../../features/session/manage-groups/manageSessionGroups'
@@ -56,6 +61,10 @@ function toggleNode(node: SessionTreeFlatNode) {
   if (node.type !== 'group') return
   const key = `group-${node.group.id}`
   expandedKeys.value = expandedKeys.value.includes(key) ? expandedKeys.value.filter((item) => item !== key) : [...expandedKeys.value, key]
+}
+
+function getGroupCount(groupId: string) {
+  return props.sessions.filter((session) => session.groupId === groupId).length
 }
 
 function openGroupMenu(event: MouseEvent, group: SessionGroup) {

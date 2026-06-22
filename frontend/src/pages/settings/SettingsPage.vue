@@ -15,7 +15,8 @@
     <div class="settings-page__layout">
       <nav class="settings-page__nav" aria-label="Settings sections">
         <button v-for="section in filteredSections" :key="section.id" :class="{active: activeSectionId === section.id}" type="button" @click="activeSectionId = section.id">
-          {{ section.title }}
+          <span>{{ section.title }}</span>
+          <small>{{ sectionMeta(section.id) }}</small>
         </button>
       </nav>
 
@@ -43,4 +44,12 @@ const activeSection = computed(() => filteredSections.value.find((section) => se
 watchEffect(() => {
   if (!activeSection.value && filteredSections.value[0]) activeSectionId.value = filteredSections.value[0].id
 })
+
+function sectionMeta(sectionId: string) {
+  if (sectionId.toLowerCase().includes('security')) return 'High risk'
+  if (sectionId.toLowerCase().includes('terminal')) return 'Shell'
+  if (sectionId.toLowerCase().includes('appearance')) return 'Theme'
+  if (sectionId.toLowerCase().includes('layout')) return 'Workspace'
+  return 'General'
+}
 </script>

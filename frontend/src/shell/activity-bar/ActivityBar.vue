@@ -4,6 +4,7 @@
       v-for="item in items"
       :key="item.id"
       :class="['activity-bar__item', {active: workspaceState.activePanel === item.id}]"
+      :data-testid="`activity-${item.id}`"
       :title="item.shortcut ? `${item.title} (${item.shortcut})` : item.tooltip ?? item.title"
       :aria-label="item.title"
       @click="runItem(item)"

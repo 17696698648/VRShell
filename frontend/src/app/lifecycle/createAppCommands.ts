@@ -42,6 +42,17 @@ export function createAppCommands(): AppCommand[] {
       run: closeCommandPalette,
     },
     {
+      id: 'workspace.openCommandPaletteAlias',
+      title: 'Open command palette',
+      category: 'Workspace',
+      description: 'Search and execute commands from the workbench.',
+      group: 'workspace',
+      scope: 'global',
+      shortcut: 'Ctrl+K',
+      visibleInPalette: false,
+      run: openCommandPalette,
+    },
+    {
       id: 'workspace.quickOpen',
       title: 'Quick open',
       category: 'Workspace',

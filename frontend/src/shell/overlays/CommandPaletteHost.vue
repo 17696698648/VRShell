@@ -1,14 +1,14 @@
 ﻿<template>
   <div v-if="workspaceState.commandPaletteOpen" class="overlay" @click.self="closeCommandPalette">
-    <section class="command-palette" role="dialog" aria-label="Command palette">
+    <section class="command-palette" role="dialog" aria-label="Command palette" data-testid="command-palette">
       <label class="command-palette__input">
         <span aria-hidden="true">&gt;</span>
-        <input v-model="query" autofocus placeholder="Type a command, panel, shortcut, or action" @keydown.enter.prevent="runFirstCommand" @keydown.escape="closeCommandPalette" />
+        <input v-model="query" data-testid="command-palette-search" autofocus placeholder="Type a command, panel, shortcut, or action" @keydown.enter.prevent="runFirstCommand" @keydown.escape="closeCommandPalette" />
       </label>
       <div v-if="commandGroups.length > 0" class="command-palette__list" role="listbox">
         <section v-for="group in commandGroups" :key="group.category" class="command-palette__group">
           <h3>{{ group.category }}</h3>
-          <button v-for="entry in group.entries" :key="entry.command.id" :class="{disabled: !entry.availability.enabled, danger: entry.command.dangerous}" :disabled="!entry.availability.enabled" :title="entry.availability.disabledReason ?? entry.command.description" type="button" role="option" @click="runCommand(entry.command.id)">
+          <button v-for="entry in group.entries" :key="entry.command.id" :data-command-id="commandTestId(entry.command.id)" :class="{disabled: !entry.availability.enabled, danger: entry.command.dangerous}" :disabled="!entry.availability.enabled" :title="entry.availability.disabledReason ?? entry.command.description" type="button" role="option" @click="runCommand(entry.command.id)">
             <span class="command-palette__icon" aria-hidden="true">{{ entry.command.icon ?? categoryIcon(entry.command.category ?? entry.command.group) }}</span>
             <span>
               <strong>{{ entry.command.title }}</strong>
@@ -64,5 +64,10 @@ async function runFirstCommand() {
 
 function categoryIcon(category: string) {
   return category.slice(0, 1).toUpperCase()
+}
+
+function commandTestId(commandId: string) {
+  if (commandId === 'session.createQuick') return 'cmd-new-connection'
+  return commandId
 }
 </script>
