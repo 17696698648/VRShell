@@ -8,10 +8,7 @@ export interface TaskItem {
   status: 'running' | 'done' | 'failed' | 'cancelled'
 }
 
-export const taskItems = reactive<TaskItem[]>([
-  {id: 'upload-release', title: 'Upload release.tar.gz', detail: '/srv/app', progress: 68, status: 'running'},
-  {id: 'sync-logs', title: 'Sync logs', detail: 'prod-api-01', progress: 100, status: 'done'},
-])
+export const taskItems = reactive<TaskItem[]>([])
 
 export function addTask(task: TaskItem) {
   taskItems.unshift(task)

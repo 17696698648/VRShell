@@ -9,7 +9,7 @@ export interface CreateSessionInput {
   auth: SessionAuth
 }
 
-export function createSession(input: string | CreateSessionInput, groupId = 'favorites') {
+export function createSession(input: string | CreateSessionInput, groupId = 'all') {
   const sessionInput = typeof input === 'string'
     ? {name: input, host: '127.0.0.1', port: 22, username: 'user', auth: {type: 'agent'} as SessionAuth}
     : input

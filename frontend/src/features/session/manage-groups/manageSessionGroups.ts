@@ -2,11 +2,11 @@ import {addSessionGroup, moveSession, removeSessionGroup, sessionState, type Ses
 import {requestConfirm, requestPrompt} from '../../../shared/dialog'
 import {createId} from '../../../shared/lib/createId'
 
-export async function createSessionGroup() {
+export async function createSessionGroup(parentGroup?: SessionGroup | null) {
   const name = await requestPrompt({title: 'New group', label: 'Group name', confirmLabel: 'Create'})
   const trimmedName = name?.trim()
   if (!trimmedName) return null
-  const group: SessionGroup = {id: createId('group'), name: trimmedName, sessionIds: []}
+  const group: SessionGroup = {id: createId('group'), name: trimmedName, sessionIds: [], parentId: parentGroup?.id ?? 'all'}
   addSessionGroup(group)
   return group
 }

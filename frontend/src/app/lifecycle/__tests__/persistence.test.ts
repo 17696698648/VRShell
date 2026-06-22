@@ -57,7 +57,7 @@ describe('persistence', () => {
 
     const persisted = JSON.parse(localStorage.getItem(storageKey) ?? '{}')
     expect(persisted).toMatchObject({
-      version: 3,
+      version: 5,
       activeSessionId: 'staging-web',
       workspaceLayout: {
         activePanel: 'search',
@@ -92,7 +92,7 @@ describe('persistence', () => {
     localStorage.setItem(
       storageKey,
       JSON.stringify({
-        version: 3,
+        version: 5,
         groups,
         sessions,
         activeSessionId: 'custom-host',
@@ -111,20 +111,23 @@ describe('persistence', () => {
 
     restorePersistedState()
 
-    expect(sessionState.groups).toEqual(groups)
+    expect(sessionState.groups).toEqual([
+      {id: 'all', name: '所有', sessionIds: []},
+      {id: 'custom', name: 'Custom', sessionIds: ['custom-host'], parentId: 'all'},
+    ])
     expect(sessionState.sessions).toEqual(sessions)
     expect(sessionState.activeSessionId).toBe('custom-host')
     expect(workspaceState.activePanel).toBe('sftp')
     expect(workspaceState.sidebarWidth).toBe(320)
-    expect(workspaceState.bottomPanelVisible).toBe(true)
-    expect(workspaceState.mainAreaMode).toBe('horizontal-split')
+    expect(workspaceState.bottomPanelVisible).toBe(false)
+    expect(workspaceState.mainAreaMode).toBe('single')
     expect(workspaceState.density).toBe('comfortable')
     expect(workspaceState.theme).toBe('light')
   })
 
   it('keeps high contrast theme during migration', () => {
     const migrated = migratePersistedState({
-      version: 3,
+      version: 5,
       groups: [],
       sessions: [],
       activeSessionId: '',
@@ -164,10 +167,12 @@ describe('persistence', () => {
 
     expect(migrated?.workspaceLayout).toMatchObject({
       activePanel: 'search',
+      activeDockPanel: 'none',
       bottomPanelHeight: 160,
+      bottomPanelVisible: false,
       density: 'comfortable',
       dockOrder: ['output', 'logs'],
-      mainAreaMode: 'horizontal-split',
+      mainAreaMode: 'single',
       sidebarVisible: false,
       sidebarWidth: 420,
     })
@@ -183,9 +188,9 @@ describe('persistence', () => {
       theme: 'bad-theme',
     })
 
-    expect(migrated).toMatchObject({version: 3, workspaceLayout: {activePanel: 'sessions'}, theme: 'dark'})
-    expect(migrated?.sessions[0]).toMatchObject({port: 22, tags: [], status: 'idle'})
-    expect(migrated?.groups[0].sessionIds).toEqual(['custom-host'])
+    expect(migrated).toMatchObject({version: 5, workspaceLayout: {activePanel: 'sessions'}, theme: 'dark'})
+    expect(migrated?.sessions).toEqual([])
+    expect(migrated?.groups).toEqual([{id: 'all', name: '所有', sessionIds: [], parentId: null}])
   })
 
   it('removes corrupted persisted state', () => {

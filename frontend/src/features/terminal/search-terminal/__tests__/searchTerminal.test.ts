@@ -1,5 +1,5 @@
 ﻿import {afterEach, describe, expect, it} from 'vitest'
-import {clearTerminalBuffers, initializeTerminalBuffer, terminalState} from '../../../../entities/terminal'
+import {clearTerminalBuffers, initializeTerminalBuffer} from '../../../../entities/terminal'
 import {
   closeTerminalSearch,
   getTerminalSearchMatches,
@@ -11,13 +11,13 @@ import {
   toggleTerminalSearch,
 } from '../searchTerminal'
 
-const tabId = terminalState.tabs[0].id
+const tabId = 'term-test'
 
 describe('terminal search', () => {
   afterEach(() => {
     closeTerminalSearch()
     clearTerminalBuffers()
-    initializeTerminalBuffer(tabId, terminalState.tabs[0].lines)
+    initializeTerminalBuffer(tabId, [])
   })
 
   it('finds matches in terminal buffer lines', () => {

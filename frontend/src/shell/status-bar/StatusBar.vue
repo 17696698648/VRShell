@@ -16,6 +16,22 @@
         <span class="status-bar__label status-bar__label--compact">{{ item.compactLabel ?? item.label }}</span>
       </button>
     </div>
+    <div class="status-bar__group status-bar__group--center">
+      <button
+        v-for="item in centerItems"
+        :key="item.id"
+        :class="['status-bar__item', `status-bar__item--${item.intent ?? 'neutral'}`]"
+        :aria-label="item.title ?? item.label"
+        :title="tooltipFor(item)"
+        type="button"
+        @click="item.onClick?.()"
+      >
+        <component :is="iconFor(item)" v-if="iconFor(item)" :size="14" aria-hidden="true" />
+        <span v-else-if="item.icon" aria-hidden="true">{{ item.icon }}</span>
+        <span class="status-bar__label status-bar__label--full">{{ item.fullLabel ?? item.label }}</span>
+        <span class="status-bar__label status-bar__label--compact">{{ item.compactLabel ?? item.label }}</span>
+      </button>
+    </div>
     <div class="status-bar__group status-bar__group--right">
       <button
         v-for="item in rightItems"
@@ -42,6 +58,7 @@ import type {StatusBarItem} from './model/statusBar.types'
 import {useStatusBarItems} from './model/statusItemRegistry'
 
 const leftItems = useStatusBarItems('left')
+const centerItems = useStatusBarItems('center')
 const rightItems = useStatusBarItems('right')
 
 const icons: Record<string, Component> = {

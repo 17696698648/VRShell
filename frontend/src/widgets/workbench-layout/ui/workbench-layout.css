@@ -51,13 +51,21 @@
 
 .workbench-layout__primary {
   grid-area: primary;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
 }
 
 .workbench-layout__secondary {
   grid-area: secondary;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
 }
 
 .workbench-layout__dock {
+  width: 100%;
+  height: 100%;
   overflow: hidden;
 }
 

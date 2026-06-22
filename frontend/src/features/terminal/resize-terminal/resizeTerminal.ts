@@ -30,7 +30,6 @@ export async function resizeTerminal(tab: TerminalTab, size: TerminalViewportSiz
     await resizeTerminalPty(tab.backendSessionId, dimensions.cols, dimensions.rows)
   } catch (error) {
     pushToast({level: 'error', title: `Failed to resize ${tab.title}`, detail: getErrorMessage(error)})
-    throw error
   }
 }
 

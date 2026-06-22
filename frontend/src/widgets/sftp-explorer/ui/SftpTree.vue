@@ -31,6 +31,7 @@
 <script setup lang="ts">
 import {Download, FolderOpen, MoreHorizontal} from '@lucide/vue'
 import {computed, ref} from 'vue'
+import {workspaceState} from '../../../entities/workspace'
 import {sftpState, type SftpItem} from '../../../entities/sftp'
 import {createTransferTask, deleteRemoteItem, renameRemoteItem} from '../../../features/sftp/manage-files/manageSftpFiles'
 import {openContextMenu} from '../../../shared/context-menu'
@@ -70,7 +71,12 @@ function selectItem(item: SftpItem) {
 
 function openItem(item: SftpItem) {
   selectItem(item)
-  if (item.type === 'directory') emit('openDirectory', item.path)
+  if (item.type === 'directory') {
+    emit('openDirectory', item.path)
+    return
+  }
+  workspaceState.activeMainView = 'editor'
+  workspaceState.mainAreaMode = 'horizontal-split'
 }
 
 function toggleSort(key: SortKey) {
@@ -88,7 +94,7 @@ function openItemMenu(event: MouseEvent, item: SftpItem) {
     x: event.clientX,
     y: event.clientY,
     items: [
-      {id: 'open', label: item.type === 'directory' ? 'Open directory' : 'Open file', disabled: item.type !== 'directory', run: () => openItem(item)},
+      {id: 'open', label: item.type === 'directory' ? 'Open directory' : 'Open file', run: () => openItem(item)},
       {id: 'download', label: 'Download', disabled: item.type === 'directory', run: async () => { await downloadItem(item) }},
       {id: 'rename', label: 'Rename', run: async () => { await renameItem(item) }},
       {id: 'copy-path', label: 'Copy path', run: async () => { await copyPath(item) }},

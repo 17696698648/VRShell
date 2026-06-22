@@ -23,8 +23,8 @@ const tabItems = computed<UiTabItem[]>(() =>
 )
 
 function isActive(tab: WorkspaceTab) {
-  if (tab.kind === 'terminal') return workspaceState.activeMainView === 'workbench' && tab.id === terminalState.activeTerminalId
-  return tab.id === 'settings' && workspaceState.activeMainView === 'settings'
+  if (tab.kind === 'terminal') return workspaceState.activeMainView === 'terminal' && tab.id === terminalState.activeTerminalId
+  return tab.kind === workspaceState.activeMainView
 }
 
 function activateTabById(id: string) {

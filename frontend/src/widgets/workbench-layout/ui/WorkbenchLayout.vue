@@ -75,7 +75,7 @@ const classes = computed(() => [
   'workbench-layout',
   `workbench-layout--${props.mode}`,
   `workbench-layout--preset-${props.preset}`,
-  `workbench-layout--dock-${props.dockPlacement}`,
+  hasDock.value ? `workbench-layout--dock-${props.dockPlacement}` : null,
   {'workbench-layout--has-dock': hasDock.value},
 ])
 const layoutStyle = computed(() => ({

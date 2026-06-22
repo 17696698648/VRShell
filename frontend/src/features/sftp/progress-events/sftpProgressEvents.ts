@@ -3,9 +3,9 @@ import {listenTypedEvent, type SftpProgressEvent} from '../../../shared/ipc/ipcE
 
 export async function registerSftpProgressEvents() {
   const disposers = await Promise.all([
-    listenTypedEvent('sftp.progress', handleSftpProgress),
-    listenTypedEvent('sftp.completed', (event) => handleSftpCompleted(event)),
-    listenTypedEvent('sftp.failed', (event) => handleSftpFailed(event.error ? {...event, error: event.error} : event)),
+    listenTypedEvent('sftp-progress', handleSftpProgress),
+    listenTypedEvent('sftp-completed', (event) => handleSftpCompleted(event)),
+    listenTypedEvent('sftp-failed', (event) => handleSftpFailed(event.error ? {...event, error: event.error} : event)),
   ])
   return () => disposers.forEach((dispose) => dispose())
 }

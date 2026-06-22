@@ -1,13 +1,8 @@
 <template>
   <header class="titlebar">
     <div class="titlebar__brand">
-      <span class="titlebar__logo">VR</span>
-      <div>
-        <strong>VRShell</strong>
-        <small>Workspace Architecture Preview</small>
-      </div>
+      <img class="titlebar__logo" src="/app-icon.png" alt="VRShell" />
     </div>
-    <WindowMenuBar />
     <WorkspaceContext />
     <WindowControls />
   </header>
@@ -15,6 +10,5 @@
 
 <script setup lang="ts">
 import WindowControls from './WindowControls.vue'
-import WindowMenuBar from './WindowMenuBar.vue'
 import WorkspaceContext from './WorkspaceContext.vue'
 </script>

@@ -3,9 +3,15 @@ import {sessionState} from '../../../../entities/session'
 import {clearDialogs, dialogState, resolveConfirm, resolvePrompt} from '../../../../shared/dialog'
 import {createSessionGroup, deleteSessionGroup, moveSessionToGroup} from '../manageSessionGroups'
 
-const defaultGroups = JSON.parse(JSON.stringify(sessionState.groups)) as typeof sessionState.groups
-const defaultSessions = JSON.parse(JSON.stringify(sessionState.sessions)) as typeof sessionState.sessions
-const defaultActiveSessionId = sessionState.activeSessionId
+const defaultGroups = [
+  {id: 'all', name: '所有', sessionIds: []},
+  {id: 'ops', name: 'Ops', sessionIds: ['ops-host'], parentId: 'all'},
+  {id: 'labs', name: 'Labs', sessionIds: [], parentId: 'all'},
+] as typeof sessionState.groups
+const defaultSessions = [
+  {id: 'ops-host', name: 'ops-host', host: 'example.com', port: 22, username: 'deploy', protocol: 'ssh', groupId: 'ops', tags: [], status: 'idle', auth: {type: 'agent'}},
+] as typeof sessionState.sessions
+const defaultActiveSessionId = 'ops-host'
 
 describe('manageSessionGroups', () => {
   afterEach(() => {

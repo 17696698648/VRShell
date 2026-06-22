@@ -20,6 +20,10 @@
   min-height: 0;
 }
 
+.workbench-shell__sidebar-backdrop {
+  display: none;
+}
+
 .workbench-shell__sidebar-resize .sidebar {
   width: 100% !important;
   height: 100%;
@@ -74,6 +78,15 @@
     box-shadow: var(--shadow-panel);
   }
 
+  .workbench-shell__sidebar-backdrop {
+    position: fixed;
+    inset: var(--size-titlebar-height) 0 var(--size-statusbar-height) var(--size-activitybar-width);
+    z-index: 35;
+    display: block;
+    background: rgba(2, 6, 23, 0.34);
+    backdrop-filter: blur(2px);
+  }
+
   .workbench-shell__sidebar-handle {
     display: none;
   }
@@ -89,7 +102,9 @@
 }
 
 .titlebar {
-  gap: 16px;
+  display: grid;
+  grid-template-columns: minmax(32px, 1fr) minmax(180px, 460px) minmax(108px, 1fr);
+  gap: var(--space-3);
   padding: 0 10px 0 14px;
   border-bottom: 1px solid var(--color-border);
 }
@@ -97,120 +112,59 @@
 .titlebar__brand {
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-width: 220px;
+  justify-content: center;
+  justify-self: start;
+  min-width: 32px;
 }
 
-.titlebar__brand small,
 .status-bar {
   color: var(--color-muted);
 }
 
 .titlebar__logo {
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, var(--color-accent), #9c7cff);
-  color: white;
-  font-size: 11px;
-  font-weight: 800;
-}
-
-.window-menu,
-.workspace-tabs {
-  display: flex;
-  gap: 6px;
-  min-width: 0;
-}
-
-.workspace-tabs {
-  overflow: hidden;
-}
-
-.window-menu__group {
-  position: relative;
-}
-
-.window-menu__group > button {
-  padding: 6px 8px;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--color-muted);
-  cursor: pointer;
-}
-
-.window-menu__group > button.active,
-.window-menu__group > button:hover {
-  background: var(--tab-active-bg);
-  color: var(--color-text);
-}
-
-.window-menu__items {
-  position: absolute;
-  top: 32px;
-  left: 0;
-  z-index: 70;
-  display: grid;
-  min-width: 180px;
-  padding: 6px;
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  background: var(--color-surface);
-  box-shadow: var(--shadow-panel);
-}
-
-.window-menu__items button {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 16px;
-  align-items: center;
-  padding: 8px 10px;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--color-text);
-  text-align: left;
-  cursor: pointer;
-}
-
-.window-menu__items button:hover:not(:disabled) {
-  background: var(--color-surface-2);
-}
-
-.window-menu__items button:disabled {
-  color: var(--color-text-disabled);
-  cursor: not-allowed;
-  opacity: 0.72;
-}
-
-.window-menu__items button.danger {
-  color: var(--color-danger);
-}
-
-.window-menu__items kbd {
-  color: var(--color-muted);
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-md);
+  object-fit: contain;
 }
 
 .workspace-context {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
   gap: var(--space-2);
-  min-width: 220px;
-  max-width: 520px;
-  padding: 5px 8px;
+  min-width: 260px;
+  max-width: 460px;
+  width: 100%;
+  padding: 4px 8px;
   border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-lg);
+  border-radius: 999px;
   background: var(--color-bg-elevated);
   color: var(--color-text-primary);
   cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+}
+
+.workspace-context__main:empty {
+  display: none;
 }
 
 .workspace-context:hover,
 .workspace-context:focus-visible {
   border-color: var(--color-focus-ring);
   background: var(--tab-active-bg);
+}
+
+.workspace-context__workspace {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-sm);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-size: var(--font-size-xs);
+  font-weight: 800;
 }
 
 .workspace-context__status {
@@ -235,9 +189,10 @@
 }
 
 .workspace-context__main {
-  display: grid;
+  display: flex;
+  align-items: baseline;
   min-width: 0;
-  gap: 1px;
+  gap: var(--space-2);
   text-align: left;
 }
 
@@ -254,8 +209,15 @@
   font-size: var(--font-size-xs);
 }
 
+.workspace-context__main strong::after {
+  color: var(--color-text-muted);
+  content: '⌄';
+  padding-left: var(--space-1);
+  font-size: var(--font-size-xs);
+}
+
 .workspace-context kbd {
-  padding: 2px 6px;
+  padding: 1px 5px;
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-sm);
   background: var(--color-bg-panel);
@@ -263,18 +225,33 @@
   font-size: var(--font-size-xs);
 }
 
+@media (max-width: 1100px) {
+  .workspace-context {
+    min-width: 180px;
+  }
+
+  .workspace-context__main small,
+  .workspace-context kbd {
+    display: none;
+  }
+}
+
 .window-controls {
   display: flex;
   gap: 2px;
   margin-left: auto;
+  justify-self: end;
 }
 
 .window-controls button {
+  display: grid;
+  place-items: center;
   width: 36px;
   height: 28px;
   border-radius: 7px;
   background: transparent;
   color: var(--color-muted);
+  cursor: pointer;
 }
 
 .window-controls button:hover {
@@ -282,13 +259,29 @@
   color: var(--color-text);
 }
 
+.window-controls__close:hover {
+  background: var(--color-danger);
+  color: white;
+}
+
 .activity-bar {
   display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
   align-content: start;
   gap: var(--space-2);
   padding: var(--space-2) 6px;
   border-right: 1px solid var(--color-border-subtle);
   background: var(--color-bg-shell);
+}
+
+.activity-bar__primary {
+  display: grid;
+  align-content: start;
+  gap: var(--space-2);
+}
+
+.activity-bar__settings {
+  align-self: end;
 }
 
 .activity-bar__item {
@@ -324,7 +317,6 @@
 }
 
 .activity-bar__item.active {
-  background: var(--color-bg-selected);
   color: var(--color-text-primary);
 }
 
@@ -376,6 +368,15 @@
   min-width: 0;
   gap: var(--space-3);
   align-items: center;
+}
+
+.status-bar__group + .status-bar__group {
+  padding-left: var(--space-3);
+  border-left: 1px solid var(--color-border-subtle);
+}
+
+.status-bar__group--center {
+  justify-content: center;
 }
 
 .status-bar__group--right {

@@ -1,17 +1,24 @@
-﻿import {afterEach, describe, expect, it} from 'vitest'
+﻿import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import {clearTerminalInputQueues, getTerminalInputQueueLength, terminalState} from '../../../../entities/terminal'
 import {clearToasts, feedbackState} from '../../../../shared/feedback'
 import {setIpcMock} from '../../../../shared/ipc/ipcClient'
 import {sendInputToActiveTerminal} from '../sendTerminalInput'
 
-const defaultTabStatus = terminalState.tabs[0]?.status
+const defaultTerminals = [{id: 'term-test', sessionId: 'session-test', backendSessionId: 'backend-test', title: 'test-terminal', status: 'connected', cwd: '/', lines: []}] as typeof terminalState.tabs
+const defaultActiveTerminalId = 'term-test'
 
 describe('sendInputToActiveTerminal', () => {
+  beforeEach(() => {
+    terminalState.tabs.splice(0, terminalState.tabs.length, ...JSON.parse(JSON.stringify(defaultTerminals)))
+    terminalState.activeTerminalId = defaultActiveTerminalId
+  })
+
   afterEach(() => {
     setIpcMock(null)
     clearToasts()
     clearTerminalInputQueues()
-    if (terminalState.tabs[0]) terminalState.tabs[0].status = defaultTabStatus ?? 'connected'
+    terminalState.tabs.splice(0, terminalState.tabs.length, ...JSON.parse(JSON.stringify(defaultTerminals)))
+    terminalState.activeTerminalId = defaultActiveTerminalId
   })
 
   it('appends local echo to active terminal', async () => {

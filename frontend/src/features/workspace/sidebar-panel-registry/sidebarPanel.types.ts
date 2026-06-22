@@ -4,7 +4,7 @@ import type {WorkspacePanel} from '../../../entities/workspace'
 export interface SidebarPanelRegistration {
   id: WorkspacePanel
   title: string
-  icon: string
+  icon: Component | string
   order?: number
   shortcut?: string
   tooltip?: string

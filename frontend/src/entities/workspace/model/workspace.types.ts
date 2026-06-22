@@ -4,7 +4,7 @@ export const workspaceDensities = ['compact', 'comfortable', 'dense'] as const
 export const mainAreaModes = ['single', 'horizontal-split', 'vertical-split'] as const
 export const workspaceLayoutPresets = ['development', 'operations', 'file-transfer', 'monitoring'] as const
 export const panelPlacements = ['sidebar', 'right', 'bottom', 'floating'] as const
-export const workspaceMainViews = ['workbench', 'settings'] as const
+export const workspaceMainViews = ['welcome', 'terminal', 'editor', 'settings'] as const
 export const workspaceDockPanels = ['none', 'logs', 'problems', 'output', 'session-detail', 'sftp-item-detail', 'task-detail', 'terminal-info'] as const
 
 export type WorkspacePanel = (typeof workspacePanels)[number]
@@ -22,6 +22,7 @@ export interface WorkspaceLayoutState {
   activePanel: WorkspacePanel
   activeMainView: WorkspaceMainView
   activeDockPanel: WorkspaceDockPanel
+  recentDockPanel: Exclude<WorkspaceDockPanel, 'none'>
   bottomPanelVisible: boolean
   bottomPanelHeight: number
   rightDockWidth: number

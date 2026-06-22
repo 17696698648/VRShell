@@ -49,7 +49,7 @@ export function registerDefaultStatusItems() {
     registerStatusBarItem('task.running', () => {
       const runningCount = taskItems.filter((task) => task.status === 'running').length
       return {
-        align: 'right',
+        align: 'center',
         id: 'task.running',
         iconName: 'tasks',
         intent: runningCount > 0 ? 'info' : 'neutral',
@@ -61,7 +61,7 @@ export function registerDefaultStatusItems() {
       }
     }),
     registerStatusBarItem('terminal.count', () => ({
-      align: 'right',
+      align: 'center',
       id: 'terminal.count',
       iconName: 'terminals',
       intent: getFailedTerminalCount() > 0 ? 'danger' : 'neutral',
@@ -71,7 +71,7 @@ export function registerDefaultStatusItems() {
       title: `${terminalState.tabs.length} terminal tabs`,
     })),
     registerStatusBarItem('sftp.status', () => ({
-      align: 'right',
+      align: 'center',
       id: 'sftp.status',
       iconName: 'sftp',
       intent: sftpState.error ? 'danger' : sftpState.loading ? 'warning' : 'neutral',
@@ -111,6 +111,15 @@ export function registerDefaultStatusItems() {
         title: warningCount > 0 ? `${warningCount} warnings/errors in logs` : 'Open logs panel',
       }
     }),
+    registerStatusBarItem('workspace.output', () => ({
+      align: 'right',
+      id: 'workspace.output',
+      iconName: 'terminal',
+      label: 'Output',
+      onClick: () => executeCommand('workspace.openOutputPanel'),
+      priority: 36,
+      title: 'Open output panel',
+    })),
     registerStatusBarItem('workspace.theme', () => ({
       align: 'right',
       id: 'workspace.theme',

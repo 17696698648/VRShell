@@ -3,13 +3,14 @@
     <slot />
     <span class="ui-tooltip__content" role="tooltip">
       {{ label }}
-      <kbd v-if="shortcut">{{ shortcut }}</kbd>
+      <UiKbd v-if="shortcut" :label="shortcut" />
     </span>
   </span>
 </template>
 
 <script setup lang="ts">
 import {computed} from 'vue'
+import UiKbd from './UiKbd.vue'
 
 const props = withDefaults(
   defineProps<{

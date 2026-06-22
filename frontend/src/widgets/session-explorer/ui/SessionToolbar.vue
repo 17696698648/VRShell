@@ -1,11 +1,5 @@
 ﻿<template>
   <UiToolbar label="Session actions">
-    <template #leading>
-      <div class="ui-toolbar__title">
-      <strong>Sessions</strong>
-      <small>SSH inventory</small>
-      </div>
-    </template>
     <template #trailing>
       <UiTooltip text="Create session group">
         <UiButton size="sm" variant="ghost" @click="$emit('createGroup')"><FolderPlus :size="14" /> Group</UiButton>

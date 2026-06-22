@@ -4,9 +4,9 @@ import {normalizeWorkspaceLayout, workspaceState, type WorkspaceLayoutState, typ
 import {isThemeName} from '../../shared/theme/theme.types'
 
 const storageKey = 'vrshell-ui-state-v1'
-const currentVersion = 3
+const currentVersion = 5
 
-type PersistedState = PersistedStateV1 | PersistedStateV2 | PersistedStateV3
+type PersistedState = PersistedStateV1 | PersistedStateV2 | PersistedStateV3 | PersistedStateV4 | PersistedStateV5
 
 interface PersistedStateV1 {
   version: 1
@@ -26,6 +26,14 @@ interface PersistedStateV3 extends Omit<PersistedStateV1, 'version' | 'activePan
   workspaceLayout: WorkspaceLayoutState
 }
 
+interface PersistedStateV4 extends Omit<PersistedStateV3, 'version'> {
+  version: 4
+}
+
+interface PersistedStateV5 extends Omit<PersistedStateV3, 'version'> {
+  version: 5
+}
+
 export function restorePersistedState() {
   const raw = localStorage.getItem(storageKey)
   if (!raw) return
@@ -38,7 +46,7 @@ export function restorePersistedState() {
     sessionState.sessions.splice(0, sessionState.sessions.length, ...state.sessions)
     sessionState.groups.splice(0, sessionState.groups.length, ...state.groups)
     sessionState.activeSessionId = state.sessions.some((session) => session.id === state.activeSessionId) ? state.activeSessionId : state.sessions[0]?.id ?? ''
-    applyWorkspaceLayout(state.workspaceLayout)
+    applyWorkspaceLayout(normalizeStartupWorkspaceLayout(state.workspaceLayout))
     workspaceState.theme = state.theme
     localStorage.setItem(storageKey, JSON.stringify(state))
   } catch {
@@ -47,7 +55,7 @@ export function restorePersistedState() {
 }
 
 export function persistState() {
-  const state: PersistedStateV3 = {
+  const state: PersistedStateV5 = {
     version: currentVersion,
     sessions: sessionState.sessions,
     groups: sessionState.groups,
@@ -58,24 +66,34 @@ export function persistState() {
   localStorage.setItem(storageKey, JSON.stringify(state))
 }
 
-export function migratePersistedState(input: unknown): PersistedStateV3 | null {
+export function migratePersistedState(input: unknown): PersistedStateV5 | null {
   if (!isPersistedState(input)) return null
-  if (input.version === 1 || input.version === 2) {
-    return normalizeState({...input, version: currentVersion, workspaceLayout: normalizeWorkspaceLayout({activePanel: input.activePanel})})
-  }
+  if (input.version === 1 || input.version === 2) return normalizeState(createEmptyState(normalizeStartupWorkspaceLayout({activePanel: input.activePanel}), input.theme))
+  if (input.version === 3 || input.version === 4) return normalizeState(createEmptyState(normalizeStartupWorkspaceLayout(input.workspaceLayout), input.theme))
   if (input.version === currentVersion) return normalizeState(input)
   return null
 }
 
-function normalizeState(state: PersistedStateV3): PersistedStateV3 {
+function createEmptyState(workspaceLayout: WorkspaceLayoutState, theme: WorkspaceTheme): PersistedStateV5 {
+  return {
+    version: currentVersion,
+    sessions: [],
+    groups: [{id: 'all', name: '所有', sessionIds: []}],
+    activeSessionId: '',
+    workspaceLayout,
+    theme,
+  }
+}
+
+function normalizeState(state: PersistedStateV5): PersistedStateV5 {
   const sessions = state.sessions.map(normalizeSession).filter((session): session is SessionHost => session !== null)
   const sessionIds = new Set(sessions.map((session) => session.id))
-  const groups = state.groups.map((group) => normalizeGroup(group, sessionIds)).filter((group): group is SessionGroup => group !== null)
+  const groups = ensureRootGroup(state.groups.map((group) => normalizeGroup(group, sessionIds)).filter((group): group is SessionGroup => group !== null))
   const knownGroupIds = new Set(groups.map((group) => group.id))
 
   for (const session of sessions) {
     if (!knownGroupIds.has(session.groupId)) {
-      const fallbackGroup = groups[0] ?? {id: 'ungrouped', name: 'Ungrouped', sessionIds: []}
+      const fallbackGroup = groups[0] ?? {id: 'all', name: '所有', sessionIds: []}
       if (groups.length === 0) groups.push(fallbackGroup)
       session.groupId = fallbackGroup.id
       if (!fallbackGroup.sessionIds.includes(session.id)) fallbackGroup.sessionIds.push(session.id)
@@ -106,9 +124,25 @@ function normalizeGroup(group: SessionGroup, sessionIds: Set<string>): SessionGr
   if (!group.id || !group.name) return null
   return {
     id: group.id,
-    name: group.name,
+    name: group.id === 'all' ? '所有' : group.name,
     sessionIds: Array.isArray(group.sessionIds) ? group.sessionIds.filter((id) => sessionIds.has(id)) : [],
+    parentId: group.id === 'all' ? null : group.parentId ?? 'all',
   }
+}
+
+function ensureRootGroup(groups: SessionGroup[]) {
+  const root = groups.find((group) => group.id === 'all')
+  if (root) {
+    root.name = '所有'
+    root.parentId = null
+  } else {
+    groups.unshift({id: 'all', name: '所有', sessionIds: []})
+  }
+  const groupIds = new Set(groups.map((group) => group.id))
+  for (const group of groups) {
+    if (group.id !== 'all' && (!group.parentId || !groupIds.has(group.parentId))) group.parentId = 'all'
+  }
+  return groups
 }
 
 function snapshotWorkspaceLayout(): WorkspaceLayoutState {
@@ -125,6 +159,7 @@ function snapshotWorkspaceLayout(): WorkspaceLayoutState {
     mainAreaMode: workspaceState.mainAreaMode,
     mainSplitRatio: workspaceState.mainSplitRatio,
     panelPlacement: workspaceState.panelPlacement,
+    recentDockPanel: workspaceState.recentDockPanel,
     rightDockWidth: workspaceState.rightDockWidth,
     sidebarVisible: workspaceState.sidebarVisible,
     sidebarWidth: workspaceState.sidebarWidth,
@@ -144,6 +179,7 @@ function applyWorkspaceLayout(layout: WorkspaceLayoutState) {
   workspaceState.mainAreaMode = layout.mainAreaMode
   workspaceState.mainSplitRatio = layout.mainSplitRatio
   workspaceState.panelPlacement = layout.panelPlacement
+  workspaceState.recentDockPanel = layout.recentDockPanel
   workspaceState.rightDockWidth = layout.rightDockWidth
   workspaceState.sidebarVisible = layout.sidebarVisible
   workspaceState.sidebarWidth = layout.sidebarWidth
@@ -152,5 +188,15 @@ function applyWorkspaceLayout(layout: WorkspaceLayoutState) {
 function isPersistedState(input: unknown): input is PersistedState {
   if (!input || typeof input !== 'object') return false
   const state = input as Partial<PersistedState>
-  return (state.version === 1 || state.version === 2 || state.version === currentVersion) && Array.isArray(state.sessions) && Array.isArray(state.groups)
+  return (state.version === 1 || state.version === 2 || state.version === 3 || state.version === 4 || state.version === currentVersion) && Array.isArray(state.sessions) && Array.isArray(state.groups)
+}
+
+function normalizeStartupWorkspaceLayout(layout: Partial<WorkspaceLayoutState>) {
+  return normalizeWorkspaceLayout({
+    ...layout,
+    activeDockPanel: 'none',
+    activeMainView: 'terminal',
+    bottomPanelVisible: false,
+    mainAreaMode: 'single',
+  })
 }

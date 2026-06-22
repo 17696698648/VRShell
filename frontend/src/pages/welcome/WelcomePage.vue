@@ -24,7 +24,7 @@
         <span>{{ section.value }}</span>
       </article>
     </div>
-    <p class="welcome-page__hint">Tip: press <kbd>Ctrl+P</kbd> to search commands and sessions.</p>
+    <p class="welcome-page__hint">Tip: press <UiKbd label="Ctrl+P" /> to search commands and sessions.</p>
   </section>
 </template>
 
@@ -35,7 +35,7 @@ import {sessionState} from '../../entities/session'
 import {sftpState} from '../../entities/sftp'
 import {taskItems} from '../../entities/task'
 import {executeCommand} from '../../features/workspace/command-registry'
-import {UiButton} from '../../shared/ui'
+import {UiButton, UiKbd} from '../../shared/ui'
 
 const productEntries = [
   {command: 'workspace.openSessionsPanel', description: 'Review live connections and reconnect failed hosts.', icon: Server, title: 'Sessions'},

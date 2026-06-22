@@ -11,11 +11,11 @@
   --command-item-hover-bg: var(--color-bg-hover);
   --dock-panel-bg: var(--color-bg-panel);
   --list-row-hover-bg: var(--color-bg-hover);
-  --list-row-selected-bg: var(--color-bg-selected);
+  --list-row-selected-bg: transparent;
   --menu-item-hover-bg: var(--color-bg-hover);
   --panel-bg: var(--color-bg-panel);
   --panel-border: var(--color-border);
-  --panel-header-bg: transparent;
-  --tab-active-bg: var(--color-bg-selected);
+  --panel-header-bg: var(--color-bg-panel);
+  --tab-active-bg: transparent;
   --tree-row-hover-bg: var(--list-row-hover-bg);
 }

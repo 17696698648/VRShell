@@ -23,4 +23,5 @@ export interface SessionGroup {
   id: string
   name: string
   sessionIds: string[]
+  parentId?: string | null
 }

@@ -1,12 +1,17 @@
-import {afterEach, describe, expect, it} from 'vitest'
+import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import {enqueueTerminalInput, terminalState} from '../../../../entities/terminal'
 import {clearDialogs, dialogState, resolveConfirm} from '../../../../shared/dialog'
 import {closeTerminalTab} from '../closeTerminalTab'
 
-const defaultTerminals = JSON.parse(JSON.stringify(terminalState.tabs)) as typeof terminalState.tabs
-const defaultActiveTerminalId = terminalState.activeTerminalId
+const defaultTerminals = [{id: 'term-test', sessionId: 'session-test', backendSessionId: 'backend-test', title: 'test-terminal', status: 'connected', cwd: '/', lines: []}] as typeof terminalState.tabs
+const defaultActiveTerminalId = 'term-test'
 
 describe('closeTerminalTab', () => {
+  beforeEach(() => {
+    terminalState.tabs.splice(0, terminalState.tabs.length, ...JSON.parse(JSON.stringify(defaultTerminals)))
+    terminalState.activeTerminalId = defaultActiveTerminalId
+  })
+
   afterEach(() => {
     clearDialogs()
     terminalState.tabs.splice(0, terminalState.tabs.length, ...JSON.parse(JSON.stringify(defaultTerminals)))

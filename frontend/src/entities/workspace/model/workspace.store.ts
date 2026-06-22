@@ -6,5 +6,6 @@ export const workspaceState = reactive({
   ...getDefaultWorkspaceLayout(),
   commandPaletteOpen: false,
   quickOpenOpen: false,
+  settingsDialogOpen: false,
   theme: 'dark' as WorkspaceTheme,
 })

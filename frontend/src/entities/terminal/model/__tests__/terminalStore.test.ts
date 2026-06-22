@@ -1,8 +1,8 @@
 import {afterEach, describe, expect, it} from 'vitest'
 import {reorderTerminalTabs, terminalState} from '../terminal.store'
 
-const originalTabs = JSON.parse(JSON.stringify(terminalState.tabs)) as typeof terminalState.tabs
-const originalActiveTerminalId = terminalState.activeTerminalId
+const originalTabs = [{id: 'term-test', sessionId: 'session-test', backendSessionId: 'backend-test', title: 'test-terminal', status: 'connected', cwd: '/', lines: []}] as typeof terminalState.tabs
+const originalActiveTerminalId = 'term-test'
 
 describe('terminal store', () => {
   afterEach(() => {
@@ -11,6 +11,7 @@ describe('terminal store', () => {
   })
 
   it('reorders terminal tabs by id', () => {
+    terminalState.tabs.splice(0, terminalState.tabs.length, ...JSON.parse(JSON.stringify(originalTabs)))
     terminalState.tabs.push({...terminalState.tabs[0], id: 'second', title: 'second'})
     terminalState.tabs.push({...terminalState.tabs[0], id: 'third', title: 'third'})
 

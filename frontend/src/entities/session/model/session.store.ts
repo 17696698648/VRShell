@@ -9,16 +9,11 @@ interface SessionState {
 }
 
 export const sessionState = reactive<SessionState>({
-  activeSessionId: 'prod-api',
+  activeSessionId: '',
   groups: [
-    {id: 'favorites', name: 'Favorites', sessionIds: ['prod-api', 'staging-web']},
-    {id: 'labs', name: 'Labs', sessionIds: ['edge-node']},
+    {id: 'all', name: '所有', sessionIds: []},
   ],
-  sessions: [
-    {id: 'prod-api', name: 'prod-api-01', host: '10.42.0.12', port: 22, username: 'deploy', protocol: 'ssh', groupId: 'favorites', tags: ['prod'], status: 'connected', auth: {type: 'agent'}, backendSessionId: 'mock-deploy-10.42.0.12'},
-    {id: 'staging-web', name: 'staging-web', host: '172.16.8.20', port: 22, username: 'ubuntu', protocol: 'ssh', groupId: 'favorites', tags: ['staging'], status: 'idle', auth: {type: 'agent'}},
-    {id: 'edge-node', name: 'edge-node-a', host: '192.168.3.44', port: 22, username: 'root', protocol: 'ssh', groupId: 'labs', tags: ['lab'], status: 'idle', auth: {type: 'agent'}},
-  ],
+  sessions: [],
 })
 
 export function getActiveSession() {

@@ -32,29 +32,43 @@ export function moveSessionInTree(groups: SessionGroup[], sessions: SessionHost[
 
 export function addGroupToTree(groups: SessionGroup[], group: SessionGroup) {
   if (groups.some((item) => item.id === group.id)) return false
-  groups.push({...group, sessionIds: [...group.sessionIds]})
+  groups.push({...group, sessionIds: [...group.sessionIds], parentId: group.parentId ?? 'all'})
   return true
 }
 
 export function removeGroupFromTree(groups: SessionGroup[], sessions: SessionHost[], groupId: string, fallbackGroupId?: string) {
-  const groupIndex = groups.findIndex((group) => group.id === groupId)
-  if (groupIndex < 0) return false
-  const [removedGroup] = groups.splice(groupIndex, 1)
-  const fallbackGroup = fallbackGroupId ? groups.find((group) => group.id === fallbackGroupId) : null
+  const groupIdsToRemove = collectDescendantGroupIds(groups, groupId)
+  if (groupIdsToRemove.length === 0) return false
+  const removedGroups = groups.filter((group) => groupIdsToRemove.includes(group.id))
+  const fallbackGroup = fallbackGroupId ? groups.find((group) => group.id === fallbackGroupId && !groupIdsToRemove.includes(group.id)) : null
 
-  for (const sessionId of removedGroup.sessionIds) {
-    const session = sessions.find((item) => item.id === sessionId)
-    if (!session) continue
-    if (fallbackGroup) {
-      session.groupId = fallbackGroup.id
-      if (!fallbackGroup.sessionIds.includes(session.id)) fallbackGroup.sessionIds.push(session.id)
-    } else {
-      const index = sessions.findIndex((item) => item.id === sessionId)
-      if (index >= 0) sessions.splice(index, 1)
+  for (let index = groups.length - 1; index >= 0; index -= 1) {
+    if (groupIdsToRemove.includes(groups[index].id)) groups.splice(index, 1)
+  }
+
+  for (const removedGroup of removedGroups) {
+    for (const sessionId of removedGroup.sessionIds) {
+      const session = sessions.find((item) => item.id === sessionId)
+      if (!session) continue
+      if (fallbackGroup) {
+        session.groupId = fallbackGroup.id
+        if (!fallbackGroup.sessionIds.includes(session.id)) fallbackGroup.sessionIds.push(session.id)
+      } else {
+        const index = sessions.findIndex((item) => item.id === sessionId)
+        if (index >= 0) sessions.splice(index, 1)
+      }
     }
   }
 
   return true
+}
+
+function collectDescendantGroupIds(groups: SessionGroup[], rootGroupId: string) {
+  const ids = [rootGroupId]
+  for (let index = 0; index < ids.length; index += 1) {
+    ids.push(...groups.filter((group) => group.parentId === ids[index]).map((group) => group.id))
+  }
+  return ids.filter((id) => groups.some((group) => group.id === id))
 }
 
 function clampIndex(index: number, length: number) {

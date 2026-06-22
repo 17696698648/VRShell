@@ -45,7 +45,9 @@ export function openWorkspaceTab(tab: WorkspaceTab) {
 export function activateWorkspaceTab(tabId: string) {
   tabState.activeTabId = tabId
   if (tabId === 'settings') workspaceState.activeMainView = 'settings'
-  else workspaceState.activeMainView = 'workbench'
+  else if (tabId === 'editor') workspaceState.activeMainView = 'editor'
+  else if (tabId === 'welcome') workspaceState.activeMainView = 'welcome'
+  else workspaceState.activeMainView = 'terminal'
   if (terminalState.tabs.some((tab) => tab.id === tabId)) terminalState.activeTerminalId = tabId
 }
 

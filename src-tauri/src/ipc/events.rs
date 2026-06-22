@@ -2,14 +2,14 @@
 
 use serde::Serialize;
 
-pub(crate) const TERMINAL_OUTPUT: &str = "terminal.output";
-pub(crate) const TERMINAL_CLOSED: &str = "terminal.closed";
-pub(crate) const TERMINAL_ERROR: &str = "terminal.error";
-pub(crate) const SFTP_PROGRESS: &str = "sftp.progress";
-pub(crate) const SFTP_COMPLETED: &str = "sftp.completed";
-pub(crate) const SFTP_FAILED: &str = "sftp.failed";
-pub(crate) const SECURITY_HOST_KEY_REQUESTED: &str = "security.hostKeyRequested";
-pub(crate) const INTERACTION_PROMPT_REQUESTED: &str = "interaction.promptRequested";
+pub(crate) const TERMINAL_OUTPUT: &str = "terminal-output";
+pub(crate) const TERMINAL_CLOSED: &str = "terminal-closed";
+pub(crate) const TERMINAL_ERROR: &str = "terminal-error";
+pub(crate) const SFTP_PROGRESS: &str = "sftp-progress";
+pub(crate) const SFTP_COMPLETED: &str = "sftp-completed";
+pub(crate) const SFTP_FAILED: &str = "sftp-failed";
+pub(crate) const SECURITY_HOST_KEY_REQUESTED: &str = "security-hostKeyRequested";
+pub(crate) const INTERACTION_PROMPT_REQUESTED: &str = "interaction-promptRequested";
 
 pub(crate) const EVENTS: &[&str] = &[
     TERMINAL_OUTPUT,

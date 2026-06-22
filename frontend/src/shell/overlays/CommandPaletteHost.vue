@@ -17,7 +17,7 @@
             <small class="command-palette__category">{{ entry.command.category ?? entry.command.group }}</small>
             <small class="command-palette__scope">{{ entry.command.scope ?? entry.command.group }}</small>
             <small v-if="recentCommandIds.includes(entry.command.id)" class="command-palette__recent">Recent</small>
-            <kbd v-if="entry.command.shortcut">{{ entry.command.shortcut }}</kbd>
+            <UiKbd v-if="entry.command.shortcut" :label="entry.command.shortcut" />
           </button>
         </section>
       </div>
@@ -32,7 +32,7 @@ import {workspaceState} from '../../entities/workspace'
 import {closeCommandPalette} from '../../features/workspace/open-command-palette/commandPalette'
 import {executeCommand, getCommandAvailability, getRecentCommandIds, searchCommands} from '../../features/workspace/command-registry'
 import {requestConfirm} from '../../shared/dialog'
-import {EmptyState} from '../../shared/ui'
+import {EmptyState, UiKbd} from '../../shared/ui'
 
 const query = ref('')
 const recentCommandIds = computed(() => getRecentCommandIds())

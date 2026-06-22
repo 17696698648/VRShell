@@ -7,13 +7,12 @@ import {broadcastTerminalCommand} from '../../features/terminal/broadcast-comman
 import {reconnectTerminalTab} from '../../features/terminal/manage-connection/manageTerminalConnection'
 import {toggleTerminalSearch} from '../../features/terminal/search-terminal/searchTerminal'
 import {closeCommandPalette, openCommandPalette} from '../../features/workspace/open-command-palette/commandPalette'
-import {openDockPanel, openLogsPanel} from '../../features/workspace/open-logs-panel'
+import {openDockPanel, openLogsPanel, reopenRecentDockPanel} from '../../features/workspace/open-logs-panel'
 import {openQuickOpen} from '../../features/workspace/quick-open/quickOpen'
-import {switchMainView} from '../../features/workspace/switch-main-view/switchMainView'
 import {switchPanel} from '../../features/workspace/switch-panel/switchPanel'
 import {switchTerminal} from '../../features/workspace/switch-terminal/switchTerminal'
 import {terminalState} from '../../entities/terminal'
-import {openWorkspaceTab, resetWorkspaceLayout, setDockPlacement, toggleMaximizeMainArea, workspaceState} from '../../entities/workspace'
+import {resetWorkspaceLayout, setDockPlacement, toggleMaximizeMainArea, workspaceState} from '../../entities/workspace'
 import {requestPrompt} from '../../shared/dialog'
 
 export function createAppCommands(): AppCommand[] {
@@ -215,6 +214,15 @@ export function createAppCommands(): AppCommand[] {
       run: () => openDockPanel('terminal-info', 'right'),
     },
     {
+      id: 'workspace.reopenRecentDockPanel',
+      title: 'Reopen Recent Bottom Panel',
+      category: 'Workspace',
+      description: 'Restore the most recently used bottom panel.',
+      group: 'workspace',
+      keywords: ['bottom', 'panel', 'recent', 'dock'],
+      run: () => reopenRecentDockPanel('bottom'),
+    },
+    {
       id: 'settings.openPanel',
       title: 'Open Settings',
       category: 'Settings',
@@ -222,9 +230,7 @@ export function createAppCommands(): AppCommand[] {
       group: 'settings',
       shortcut: 'Ctrl+,',
       run: () => {
-        workspaceState.activePanel = 'settings'
-        openWorkspaceTab({id: 'settings', kind: 'settings', title: 'Settings', subtitle: 'Preferences', closable: true})
-        switchMainView('settings')
+        workspaceState.settingsDialogOpen = true
       },
     },
     {

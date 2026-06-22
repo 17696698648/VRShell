@@ -25,10 +25,10 @@ export function setLayoutPreset(preset: WorkspaceLayoutPreset) {
 export function applyLayoutPreset(preset: WorkspaceLayoutPreset) {
   workspaceState.layoutPreset = preset
   workspaceState.compactMode = false
+  workspaceState.activeDockPanel = 'none'
+  workspaceState.bottomPanelVisible = false
   if (preset === 'development') {
     workspaceState.activePanel = 'sessions'
-    workspaceState.activeDockPanel = 'terminal-info'
-    workspaceState.bottomPanelVisible = true
     workspaceState.mainAreaMode = 'vertical-split'
     workspaceState.mainSplitRatio = 58
     workspaceState.panelPlacement = 'right'
@@ -36,8 +36,6 @@ export function applyLayoutPreset(preset: WorkspaceLayoutPreset) {
   }
   if (preset === 'file-transfer') {
     workspaceState.activePanel = 'sftp'
-    workspaceState.activeDockPanel = 'task-detail'
-    workspaceState.bottomPanelVisible = true
     workspaceState.mainAreaMode = 'horizontal-split'
     workspaceState.mainSplitRatio = 52
     workspaceState.panelPlacement = 'right'
@@ -45,16 +43,12 @@ export function applyLayoutPreset(preset: WorkspaceLayoutPreset) {
   }
   if (preset === 'monitoring') {
     workspaceState.activePanel = 'tasks'
-    workspaceState.activeDockPanel = 'problems'
-    workspaceState.bottomPanelVisible = true
     workspaceState.mainAreaMode = 'single'
     workspaceState.mainSplitRatio = 68
     workspaceState.panelPlacement = 'bottom'
     return
   }
   workspaceState.activePanel = 'sessions'
-  workspaceState.activeDockPanel = 'logs'
-  workspaceState.bottomPanelVisible = true
   workspaceState.mainAreaMode = 'horizontal-split'
   workspaceState.mainSplitRatio = 62
   workspaceState.panelPlacement = 'bottom'

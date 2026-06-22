@@ -8,22 +8,12 @@ interface TerminalState {
   tabs: TerminalTab[]
 }
 
-const initialTabs: TerminalTab[] = [
-  {
-    id: 'term-prod-api',
-    sessionId: 'prod-api',
-    backendSessionId: 'mock-deploy-10.42.0.12',
-    title: 'prod-api-01',
-    status: 'connected',
-    cwd: '/srv/app',
-    lines: ['$ ssh deploy@10.42.0.12', 'Connected to prod-api-01', 'deploy@prod-api:/srv/app$'],
-  },
-]
+const initialTabs: TerminalTab[] = []
 
 for (const tab of initialTabs) initializeTerminalBuffer(tab.id, tab.lines)
 
 export const terminalState = reactive<TerminalState>({
-  activeTerminalId: 'term-prod-api',
+  activeTerminalId: '',
   tabs: initialTabs,
 })
 

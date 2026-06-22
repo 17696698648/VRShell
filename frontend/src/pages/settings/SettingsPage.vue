@@ -1,6 +1,6 @@
 <template>
-  <section class="settings-page">
-    <header class="settings-page__header">
+  <section :class="['settings-page', {embedded}]">
+    <header v-if="!embedded" class="settings-page__header">
       <div>
         <h2>Settings</h2>
         <p>Preferences are routed through registered settings sections and feature actions.</p>
@@ -30,6 +30,8 @@
 <script setup lang="ts">
 import {computed, ref, watchEffect} from 'vue'
 import {useSettingsSections} from '../../features/settings/settings-registry'
+
+withDefaults(defineProps<{embedded?: boolean}>(), {embedded: false})
 
 const sections = useSettingsSections()
 const activeSectionId = ref('Appearance')

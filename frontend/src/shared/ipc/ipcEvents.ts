@@ -1,9 +1,9 @@
 import {listen} from '@tauri-apps/api/event'
 
 export interface IpcEventMap {
-  'sftp.progress': SftpProgressEvent
-  'sftp.completed': SftpProgressEvent
-  'sftp.failed': SftpProgressEvent & {error?: string}
+  'sftp-progress': SftpProgressEvent
+  'sftp-completed': SftpProgressEvent
+  'sftp-failed': SftpProgressEvent & {error?: string}
 }
 
 export interface SftpProgressEvent {

@@ -1,11 +1,5 @@
 ﻿<template>
   <UiToolbar class="sftp-toolbar" label="SFTP actions" :aria-busy="loading || undefined">
-    <template #leading>
-      <div class="ui-toolbar__title">
-      <strong>SFTP</strong>
-      <small>{{ loading ? 'Loading remote directory...' : 'Remote files' }}</small>
-      </div>
-    </template>
     <template #trailing>
       <UiToolbarButtonGroup :items="viewModeItems" label="SFTP view mode" :model-value="viewMode" @update:model-value="$emit('update:viewMode', $event as SftpViewMode)" />
       <UiTooltip text="Create remote directory">

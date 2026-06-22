@@ -1,15 +1,21 @@
-import {afterEach, describe, expect, it} from 'vitest'
+import {afterEach, beforeEach, describe, expect, it} from 'vitest'
 import {sessionState} from '../../../../entities/session'
 import {terminalState} from '../../../../entities/terminal'
 import {clearToasts, feedbackState} from '../../../../shared/feedback'
 import {setIpcMock} from '../../../../shared/ipc/ipcClient'
 import {disconnectTerminalTab, reconnectTerminalTab} from '../manageTerminalConnection'
 
-const defaultSessions = JSON.parse(JSON.stringify(sessionState.sessions)) as typeof sessionState.sessions
-const defaultTerminals = JSON.parse(JSON.stringify(terminalState.tabs)) as typeof terminalState.tabs
-const defaultActiveTerminalId = terminalState.activeTerminalId
+const defaultSessions = [{id: 'session-test', name: 'session-test', host: 'example.com', port: 22, username: 'deploy', protocol: 'ssh', groupId: 'all', tags: [], status: 'connected', auth: {type: 'agent'}, backendSessionId: 'backend-test'}] as typeof sessionState.sessions
+const defaultTerminals = [{id: 'term-test', sessionId: 'session-test', backendSessionId: 'backend-test', title: 'test-terminal', status: 'connected', cwd: '/', lines: []}] as typeof terminalState.tabs
+const defaultActiveTerminalId = 'term-test'
 
 describe('manageTerminalConnection', () => {
+  beforeEach(() => {
+    sessionState.sessions.splice(0, sessionState.sessions.length, ...JSON.parse(JSON.stringify(defaultSessions)))
+    terminalState.tabs.splice(0, terminalState.tabs.length, ...JSON.parse(JSON.stringify(defaultTerminals)))
+    terminalState.activeTerminalId = defaultActiveTerminalId
+  })
+
   afterEach(() => {
     setIpcMock(null)
     clearToasts()
@@ -52,6 +58,6 @@ describe('manageTerminalConnection', () => {
 
     await reconnectTerminalTab(tab)
 
-    expect(terminalState.tabs.find((item) => item.id === tab.id)?.status).toBe('connected')
+    expect(terminalState.tabs.find((item) => item.id === `term-${tab.sessionId}`)?.status).toBe('connected')
   })
 })

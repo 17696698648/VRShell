@@ -1,4 +1,4 @@
-export type StatusBarAlignment = 'left' | 'right'
+export type StatusBarAlignment = 'center' | 'left' | 'right'
 export type StatusBarIconName = 'activity' | 'alert' | 'check' | 'clock' | 'layout' | 'logs' | 'palette' | 'server' | 'sftp' | 'tasks' | 'terminal' | 'terminals'
 export type StatusBarIntent = 'neutral' | 'info' | 'success' | 'warning' | 'danger'
 

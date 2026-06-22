@@ -5,10 +5,8 @@
     </template>
 
     <template #main>
-      <SettingsPage v-if="workspaceState.activeMainView === 'settings'"/>
       <WorkbenchLayout
-        v-else
-        :mode="workspaceState.compactMode ? 'single' : workspaceState.mainAreaMode"
+        :mode="mainLayoutMode"
         :preset="workspaceState.layoutPreset"
         :dock-placement="workspaceState.panelPlacement"
         :main-split-ratio="workspaceState.mainSplitRatio"
@@ -19,7 +17,7 @@
           <WelcomePage v-if="terminalState.tabs.length === 0" />
           <TerminalWorkbench v-else />
         </template>
-        <template #secondary>
+        <template v-if="showEditorWorkbench" #secondary>
           <EditorWorkbench/>
         </template>
         <template v-if="activeDockPanel" #dock>
@@ -31,6 +29,7 @@
 </template>
 
 <script setup lang="ts">
+import {computed} from 'vue'
 import {terminalState} from '../../entities/terminal'
 import {workspaceState} from '../../entities/workspace'
 import {useActiveDockPanel} from '../../features/workspace/dock-registry'
@@ -40,8 +39,9 @@ import WorkbenchShell from '../../shell/WorkbenchShell.vue'
 import EditorWorkbench from '../../widgets/editor-workbench/ui/EditorWorkbench.vue'
 import TerminalWorkbench from '../../widgets/terminal-workbench/ui/TerminalWorkbench.vue'
 import {WorkbenchLayout} from '../../widgets/workbench-layout'
-import SettingsPage from '../settings/SettingsPage.vue'
 import WelcomePage from '../welcome/WelcomePage.vue'
 
 const activeDockPanel = useActiveDockPanel()
+const showEditorWorkbench = computed(() => workspaceState.activeMainView === 'editor')
+const mainLayoutMode = computed(() => workspaceState.compactMode || !showEditorWorkbench.value ? 'single' : workspaceState.mainAreaMode)
 </script>
