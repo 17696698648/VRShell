@@ -2,7 +2,7 @@
   <article class="task-item" :class="`task-item--${task.status}`">
     <header class="task-item__header">
       <strong>{{ task.title }}</strong>
-      <UiBadge :intent="badgeIntent">{{ task.status }}</UiBadge>
+      <UiStatusBadge :status="task.status" />
     </header>
     <small>{{ task.detail }}</small>
     <div class="task-item__progress">
@@ -17,15 +17,9 @@
 </template>
 
 <script setup lang="ts">
-import {computed} from 'vue'
 import type {TaskItem} from '../../../entities/task'
 import {cancelTask, retryTask} from '../../../features/task/manage-task/manageTask'
-import {UiBadge} from '../../../shared/ui'
+import {UiStatusBadge} from '../../../shared/ui'
 
-const props = defineProps<{task: TaskItem}>()
-const badgeIntent = computed(() => {
-  if (props.task.status === 'failed' || props.task.status === 'cancelled') return 'danger'
-  if (props.task.status === 'running') return 'info'
-  return 'success'
-})
+defineProps<{task: TaskItem}>()
 </script>

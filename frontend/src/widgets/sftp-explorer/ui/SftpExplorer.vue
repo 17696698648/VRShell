@@ -1,5 +1,5 @@
 ﻿<template>
-  <section :class="['panel', 'sftp-explorer', `sftp-explorer--${viewMode}`, {compact}]">
+  <UiPanel :compact="compact" :class="['sftp-explorer', `sftp-explorer--${viewMode}`]">
     <SftpToolbar
       :loading="sftpState.loading"
       :view-mode="viewMode"
@@ -37,14 +37,14 @@
     </div>
     <SftpTree v-else :items="visibleItems" :display-mode="viewMode" @open-directory="refresh" />
     <SftpTaskMiniPanel />
-  </section>
+  </UiPanel>
 </template>
 
 <script setup lang="ts">
 import {computed} from 'vue'
 import {createRemoteDirectory, createTransferTask} from '../../../features/sftp/manage-files/manageSftpFiles'
 import {requestPrompt} from '../../../shared/dialog'
-import {EmptyState} from '../../../shared/ui'
+import {EmptyState, UiPanel} from '../../../shared/ui'
 import {useSftpExplorer} from '../model/useSftpExplorer'
 import {useSftpViewMode} from '../model/sftpViewMode'
 import SftpBreadcrumbs from './SftpBreadcrumbs.vue'

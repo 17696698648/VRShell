@@ -113,22 +113,36 @@ function normalizeGroup(group: SessionGroup, sessionIds: Set<string>): SessionGr
 
 function snapshotWorkspaceLayout(): WorkspaceLayoutState {
   return normalizeWorkspaceLayout({
+    activeDockPanel: workspaceState.activeDockPanel,
+    activeMainView: workspaceState.activeMainView,
     activePanel: workspaceState.activePanel,
     bottomPanelHeight: workspaceState.bottomPanelHeight,
     bottomPanelVisible: workspaceState.bottomPanelVisible,
+    compactMode: workspaceState.compactMode,
     density: workspaceState.density,
+    layoutPreset: workspaceState.layoutPreset,
     mainAreaMode: workspaceState.mainAreaMode,
+    mainSplitRatio: workspaceState.mainSplitRatio,
+    panelPlacement: workspaceState.panelPlacement,
+    rightDockWidth: workspaceState.rightDockWidth,
     sidebarVisible: workspaceState.sidebarVisible,
     sidebarWidth: workspaceState.sidebarWidth,
   })
 }
 
 function applyWorkspaceLayout(layout: WorkspaceLayoutState) {
+  workspaceState.activeDockPanel = layout.activeDockPanel
+  workspaceState.activeMainView = layout.activeMainView
   workspaceState.activePanel = layout.activePanel
   workspaceState.bottomPanelHeight = layout.bottomPanelHeight
   workspaceState.bottomPanelVisible = layout.bottomPanelVisible
+  workspaceState.compactMode = layout.compactMode
   workspaceState.density = layout.density
+  workspaceState.layoutPreset = layout.layoutPreset
   workspaceState.mainAreaMode = layout.mainAreaMode
+  workspaceState.mainSplitRatio = layout.mainSplitRatio
+  workspaceState.panelPlacement = layout.panelPlacement
+  workspaceState.rightDockWidth = layout.rightDockWidth
   workspaceState.sidebarVisible = layout.sidebarVisible
   workspaceState.sidebarWidth = layout.sidebarWidth
 }

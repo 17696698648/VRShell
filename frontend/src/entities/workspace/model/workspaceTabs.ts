@@ -68,3 +68,11 @@ export function markWorkspaceTabDirty(tabId: string, dirty = true) {
 export function restoreWorkspaceTabs(tabs: WorkspaceTab[]) {
   tabState.openTabs.splice(0, tabState.openTabs.length, ...tabs)
 }
+
+export function reorderWorkspaceTabs(sourceId: string, targetId: string) {
+  const sourceIndex = tabState.openTabs.findIndex((tab) => tab.id === sourceId)
+  const targetIndex = tabState.openTabs.findIndex((tab) => tab.id === targetId)
+  if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) return
+  const [tab] = tabState.openTabs.splice(sourceIndex, 1)
+  tabState.openTabs.splice(targetIndex, 0, tab)
+}

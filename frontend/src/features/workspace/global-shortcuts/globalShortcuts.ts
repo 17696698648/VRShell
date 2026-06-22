@@ -20,11 +20,16 @@ export function registerGlobalShortcuts() {
 
 function shouldIgnoreShortcut(event: KeyboardEvent) {
   const target = event.target
-  if (!(target instanceof HTMLElement)) return false
+  if (!isHtmlElement(target)) return false
   const tagName = target.tagName.toLowerCase()
   const isTextInput = tagName === 'input' || tagName === 'textarea' || target.isContentEditable
   if (!isTextInput) return false
   return !(event.ctrlKey || event.metaKey)
+}
+
+function isHtmlElement(target: EventTarget | null): target is HTMLElement {
+  if (!target || typeof HTMLElement === 'undefined') return false
+  return target instanceof HTMLElement
 }
 
 function eventToShortcut(event: KeyboardEvent) {

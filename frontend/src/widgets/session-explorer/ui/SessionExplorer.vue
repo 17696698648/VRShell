@@ -1,12 +1,12 @@
 ﻿<template>
-  <section class="panel session-explorer">
+  <UiPanel compact class="session-explorer">
     <SessionToolbar :form-open="formOpen" @create="formOpen = !formOpen" @create-group="handleCreateGroup" @import-ssh-config="handleImport" />
     <SessionCreateForm v-if="formOpen" @submit="handleCreate" />
     <SessionSearchBox v-model="query" />
     <p v-if="message" class="panel-message">{{ message }}</p>
     <SessionTree :groups="groups" :sessions="filteredSessions" @edit="editingSession = $event" />
     <SessionEditDialog v-if="editingSession" :session="editingSession" @close="editingSession = null" />
-  </section>
+  </UiPanel>
 </template>
 
 <script setup lang="ts">
@@ -16,6 +16,7 @@ import {connectSession} from '../../../features/session/connect-session/connectS
 import {createSession, type CreateSessionInput} from '../../../features/session/create-session/createSession'
 import {importSshConfigSessions, type ImportSshConfigSummary} from '../../../features/session/create-session/importSshConfigSessions'
 import {createSessionGroup} from '../../../features/session/manage-groups/manageSessionGroups'
+import {UiPanel} from '../../../shared/ui'
 import {useSessionExplorer} from '../model/useSessionExplorer'
 import SessionCreateForm from './SessionCreateForm.vue'
 import SessionEditDialog from './SessionEditDialog.vue'

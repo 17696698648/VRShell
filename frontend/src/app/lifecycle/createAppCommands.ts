@@ -13,7 +13,7 @@ import {switchMainView} from '../../features/workspace/switch-main-view/switchMa
 import {switchPanel} from '../../features/workspace/switch-panel/switchPanel'
 import {switchTerminal} from '../../features/workspace/switch-terminal/switchTerminal'
 import {terminalState} from '../../entities/terminal'
-import {openWorkspaceTab, workspaceState} from '../../entities/workspace'
+import {openWorkspaceTab, resetWorkspaceLayout, setDockPlacement, toggleMaximizeMainArea, workspaceState} from '../../entities/workspace'
 import {requestPrompt} from '../../shared/dialog'
 
 export function createAppCommands(): AppCommand[] {
@@ -223,6 +223,43 @@ export function createAppCommands(): AppCommand[] {
       run: (payload) => {
         if (typeof payload === 'string') switchTerminal(payload)
       },
+    },
+    {
+      id: 'workspace.resetLayout',
+      title: 'Reset Layout',
+      category: 'Workspace',
+      description: 'Restore the default workbench layout.',
+      group: 'workspace',
+      keywords: ['layout', 'restore', 'default'],
+      run: resetWorkspaceLayout,
+    },
+    {
+      id: 'workspace.toggleMaximizePanel',
+      title: 'Maximize Panel',
+      category: 'Workspace',
+      description: 'Toggle single-panel focus mode for the main workbench.',
+      group: 'workspace',
+      shortcut: 'Ctrl+Shift+M',
+      keywords: ['layout', 'maximize', 'focus'],
+      run: toggleMaximizeMainArea,
+    },
+    {
+      id: 'workspace.moveDockBottom',
+      title: 'Move Dock Bottom',
+      category: 'Workspace',
+      description: 'Move the dock panel to the bottom of the workbench.',
+      group: 'workspace',
+      keywords: ['layout', 'dock', 'bottom'],
+      run: () => setDockPlacement('bottom'),
+    },
+    {
+      id: 'workspace.moveDockRight',
+      title: 'Move Dock Right',
+      category: 'Workspace',
+      description: 'Move the dock panel to the right of the workbench.',
+      group: 'workspace',
+      keywords: ['layout', 'dock', 'right'],
+      run: () => setDockPlacement('right'),
     },
     {
       id: 'settings.toggleTheme',

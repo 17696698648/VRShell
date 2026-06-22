@@ -1,10 +1,12 @@
 ﻿<template>
-  <header class="panel__header sftp-toolbar" :aria-busy="loading || undefined">
-    <div>
+  <UiToolbar class="sftp-toolbar" label="SFTP actions" :aria-busy="loading || undefined">
+    <template #leading>
+      <div class="ui-toolbar__title">
       <strong>SFTP</strong>
       <small>{{ loading ? 'Loading remote directory...' : 'Remote files' }}</small>
-    </div>
-    <div class="panel__actions">
+      </div>
+    </template>
+    <template #trailing>
       <div class="sftp-view-switcher" aria-label="SFTP view mode">
         <button
           v-for="mode in viewModes"
@@ -17,15 +19,25 @@
           {{ mode }}
         </button>
       </div>
-      <button type="button" :disabled="loading" title="Create remote directory" @click="$emit('mkdir')">New Folder</button>
-      <button type="button" :disabled="loading" title="Upload file to current directory" @click="$emit('upload')">Upload</button>
-      <button type="button" :disabled="loading" title="Open parent directory" @click="$emit('up')">Up</button>
-      <button type="button" :disabled="loading" title="Refresh current directory" @click="$emit('refresh')">{{ loading ? 'Loading...' : 'Refresh' }}</button>
-    </div>
-  </header>
+      <UiTooltip text="Create remote directory">
+        <UiButton size="sm" variant="ghost" :disabled="loading" @click="$emit('mkdir')"><FolderPlus :size="14" /> Folder</UiButton>
+      </UiTooltip>
+      <UiTooltip text="Upload file to current directory">
+        <UiButton size="sm" variant="ghost" :disabled="loading" @click="$emit('upload')"><Upload :size="14" /> Upload</UiButton>
+      </UiTooltip>
+      <UiTooltip text="Open parent directory" shortcut="Alt+↑">
+        <UiButton size="sm" variant="ghost" :disabled="loading" @click="$emit('up')"><ArrowUp :size="14" /> Up</UiButton>
+      </UiTooltip>
+      <UiTooltip text="Refresh current directory" shortcut="Ctrl+R">
+        <UiButton size="sm" variant="secondary" :disabled="loading" :loading="loading" @click="$emit('refresh')"><RefreshCw :size="14" /> Refresh</UiButton>
+      </UiTooltip>
+    </template>
+  </UiToolbar>
 </template>
 
 <script setup lang="ts">
+import {ArrowUp, FolderPlus, RefreshCw, Upload} from '@lucide/vue'
+import {UiButton, UiToolbar, UiTooltip} from '../../../shared/ui'
 import {sftpViewModes, type SftpViewMode} from '../model/sftpViewMode'
 
 defineProps<{loading?: boolean; viewMode: SftpViewMode}>()

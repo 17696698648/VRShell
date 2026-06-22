@@ -9,22 +9,24 @@
     @keydown.enter.prevent="connectSession(session)"
     @contextmenu.prevent="openSessionMenu"
   >
-    <span class="session-node__status" :class="session.status" :title="`Status: ${session.status}`" />
+    <UiStatusBadge :status="session.status" :label="session.status" />
     <div>
       <strong>{{ session.name }}</strong>
       <small>{{ session.username }}@{{ session.host }}:{{ session.port }}</small>
     </div>
-    <button type="button" aria-label="Delete session" title="Delete session" @click.stop="confirmDeleteSession(session)">×</button>
+    <button type="button" aria-label="Delete session" title="Delete session" @click.stop="confirmDeleteSession(session)"><Trash2 :size="14" /></button>
   </article>
 </template>
 
 <script setup lang="ts">
+import {Trash2} from '@lucide/vue'
 import {sessionState, type SessionGroup, type SessionHost} from '../../../entities/session'
 import {connectSession} from '../../../features/session/connect-session/connectSession'
 import {confirmDeleteSession} from '../../../features/session/delete-session/deleteSession'
 import {renameSession} from '../../../features/session/edit-session/renameSession'
 import {moveSessionToGroup} from '../../../features/session/manage-groups/manageSessionGroups'
 import {openContextMenu, type ContextMenuItem} from '../../../shared/context-menu'
+import {UiStatusBadge} from '../../../shared/ui'
 
 const props = defineProps<{groups: SessionGroup[]; session: SessionHost}>()
 const emit = defineEmits<{edit: [session: SessionHost]}>()

@@ -8,8 +8,19 @@
 
 .workbench-layout {
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   height: 100%;
   gap: var(--space-workbench-gap);
+}
+
+.workbench-layout__responsive-switcher {
+  display: none;
+}
+
+.workbench-layout > .ui-split-pane,
+.workbench-layout .ui-split-pane {
+  width: 100%;
+  height: 100%;
 }
 
 .workbench-layout--single {
@@ -21,26 +32,21 @@
 }
 
 .workbench-layout--horizontal-split {
-  grid-template-rows: minmax(0, 1.5fr) minmax(var(--size-bottom-panel-min-height), 0.85fr);
+  grid-template-rows: minmax(0, 1fr);
 }
 
 .workbench-layout--vertical-split {
-  grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.8fr);
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .workbench-layout--dock-bottom {
-  grid-template-areas:
-    'primary'
-    'secondary'
-    'dock';
-  grid-template-rows: minmax(0, 1.5fr) minmax(var(--size-bottom-panel-min-height), 0.85fr) minmax(160px, var(--dock-bottom-height, 220px));
+  grid-template-areas: none;
+  grid-template-rows: minmax(0, 1fr);
 }
 
 .workbench-layout--dock-right {
-  grid-template-areas:
-    'primary dock'
-    'secondary dock';
-  grid-template-columns: minmax(0, 1fr) minmax(260px, var(--dock-right-width, 340px));
+  grid-template-areas: none;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .workbench-layout__primary {
@@ -52,7 +58,6 @@
 }
 
 .workbench-layout__dock {
-  grid-area: dock;
   overflow: hidden;
 }
 
@@ -66,6 +71,32 @@
 }
 
 @media (max-width: 1100px) {
+  .workbench-layout__responsive-switcher {
+    display: inline-flex;
+    gap: var(--space-1);
+    overflow: auto;
+    padding: 2px;
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg-elevated);
+  }
+
+  .workbench-layout__responsive-switcher button {
+    min-height: 28px;
+    padding: 0 var(--space-3);
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .workbench-layout__responsive-switcher button.active,
+  .workbench-layout__responsive-switcher button:hover {
+    background: var(--tab-active-bg);
+    color: var(--color-text-primary);
+  }
+
   .workbench-layout,
   .workbench-layout--horizontal-split,
   .workbench-layout--vertical-split,
@@ -78,6 +109,16 @@
 
   .workbench-layout__secondary,
   .workbench-layout__dock {
+    min-height: 220px;
+  }
+
+  .workbench-layout .ui-split-pane__pane:not(.workbench-layout__pane--responsive-active) {
+    display: none;
+  }
+
+  .workbench-layout__primary:not(.workbench-layout__pane--responsive-active),
+  .workbench-layout__secondary:not(.workbench-layout__pane--responsive-active),
+  .workbench-layout__dock:not(.workbench-layout__pane--responsive-active) {
     display: none;
   }
 }

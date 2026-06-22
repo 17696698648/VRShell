@@ -11,7 +11,9 @@
         :mode="workspaceState.compactMode ? 'single' : workspaceState.mainAreaMode"
         :preset="workspaceState.layoutPreset"
         :dock-placement="workspaceState.panelPlacement"
-        :style="layoutStyle"
+        :main-split-ratio="workspaceState.mainSplitRatio"
+        :bottom-panel-height="workspaceState.bottomPanelHeight"
+        :right-dock-width="workspaceState.rightDockWidth"
       >
         <template #primary>
           <WelcomePage v-if="terminalState.tabs.length === 0" />
@@ -29,7 +31,6 @@
 </template>
 
 <script setup lang="ts">
-import {computed} from 'vue'
 import {terminalState} from '../../entities/terminal'
 import {workspaceState} from '../../entities/workspace'
 import {useActiveDockPanel} from '../../features/workspace/dock-registry'
@@ -43,8 +44,4 @@ import SettingsPage from '../settings/SettingsPage.vue'
 import WelcomePage from '../welcome/WelcomePage.vue'
 
 const activeDockPanel = useActiveDockPanel()
-const layoutStyle = computed(() => ({
-  '--dock-bottom-height': `${workspaceState.bottomPanelHeight}px`,
-  '--dock-right-width': `${workspaceState.rightDockWidth}px`,
-}))
 </script>

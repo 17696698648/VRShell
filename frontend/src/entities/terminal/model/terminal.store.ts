@@ -54,3 +54,11 @@ export function closeTerminal(tabId: string) {
   clearTerminalInputQueue(tabId)
   if (terminalState.activeTerminalId === tabId) terminalState.activeTerminalId = terminalState.tabs[0]?.id ?? ''
 }
+
+export function reorderTerminalTabs(sourceId: string, targetId: string) {
+  const sourceIndex = terminalState.tabs.findIndex((tab) => tab.id === sourceId)
+  const targetIndex = terminalState.tabs.findIndex((tab) => tab.id === targetId)
+  if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) return
+  const [tab] = terminalState.tabs.splice(sourceIndex, 1)
+  terminalState.tabs.splice(targetIndex, 0, tab)
+}

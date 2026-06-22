@@ -165,7 +165,7 @@ describe('persistence', () => {
       activePanel: 'search',
       bottomPanelHeight: 160,
       density: 'comfortable',
-      mainAreaMode: 'single',
+      mainAreaMode: 'horizontal-split',
       sidebarVisible: false,
       sidebarWidth: 420,
     })

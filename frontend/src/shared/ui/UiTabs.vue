@@ -1,5 +1,5 @@
 <template>
-  <div class="ui-tabs" role="tablist">
+  <div class="ui-tabs" :class="[density]" role="tablist" :aria-label="label">
     <button
       v-for="item in items"
       :key="item.id"
@@ -7,37 +7,74 @@
       type="button"
       role="tab"
       :aria-selected="item.id === activeId"
+      draggable="true"
       :title="item.title"
       @click="emit('activate', item.id)"
-      @keydown.enter.prevent="emit('activate', item.id)"
+      @contextmenu.prevent="emit('contextmenu', item.id, $event)"
+      @dragstart="draggedId = item.id"
+      @dragover.prevent
+      @drop="handleDrop(item.id)"
+      @keydown="handleKeydown($event, item.id)"
     >
+      <span v-if="item.icon" class="ui-tabs__icon" aria-hidden="true">{{ item.icon }}</span>
       <span v-if="item.status" :class="['ui-tabs__status', item.status]" />
       <slot name="item" :item="item">
         <span>{{ item.title }}</span>
+        <small v-if="item.subtitle">{{ item.subtitle }}</small>
       </slot>
       <span v-if="item.dirty" aria-label="Unsaved changes">•</span>
-      <button v-if="item.closable" type="button" aria-label="Close tab" @click.stop="emit('close', item.id)">×</button>
+      <button v-if="item.closable" type="button" aria-label="Close tab" @click.stop="emit('close', item.id)"><X :size="13" /></button>
     </button>
   </div>
 </template>
 
 <script setup lang="ts">
+import {ref} from 'vue'
+import {X} from '@lucide/vue'
+
 export interface UiTabItem {
   closable?: boolean
   dirty?: boolean
+  icon?: string
   id: string
   pinned?: boolean
   status?: 'connecting' | 'connected' | 'warning' | 'error' | 'disconnected'
+  subtitle?: string
   title: string
 }
 
-defineProps<{
+const props = withDefaults(defineProps<{
   activeId: string | null
+  density?: 'compact' | 'comfortable'
   items: UiTabItem[]
-}>()
+  label?: string
+}>(), {density: 'compact', label: 'Tabs'})
 
 const emit = defineEmits<{
   activate: [id: string]
   close: [id: string]
+  contextmenu: [id: string, event: MouseEvent]
+  reorder: [sourceId: string, targetId: string]
 }>()
+
+const draggedId = ref<string | null>(null)
+
+function handleDrop(targetId: string) {
+  if (draggedId.value && draggedId.value !== targetId) emit('reorder', draggedId.value, targetId)
+  draggedId.value = null
+}
+
+function handleKeydown(event: KeyboardEvent, id: string) {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    emit('activate', id)
+    return
+  }
+  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight' && event.key !== 'Home' && event.key !== 'End') return
+  event.preventDefault()
+  const index = props.items.findIndex((item) => item.id === id)
+  if (index < 0) return
+  const nextIndex = event.key === 'Home' ? 0 : event.key === 'End' ? props.items.length - 1 : event.key === 'ArrowLeft' ? Math.max(0, index - 1) : Math.min(props.items.length - 1, index + 1)
+  emit('activate', props.items[nextIndex]?.id ?? id)
+}
 </script>

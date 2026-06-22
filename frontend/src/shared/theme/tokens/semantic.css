@@ -10,6 +10,11 @@
   --size-tree-row-height: 28px;
   --size-form-control-height: 32px;
   --size-bottom-panel-min-height: 220px;
+  --size-bottom-panel-max-height: 520px;
+  --size-right-dock-min-width: 260px;
+  --size-right-dock-max-width: 520px;
+  --size-splitter-hit-area: 8px;
+  --size-splitter-handle: 2px;
 
   --space-workbench-padding: var(--space-3);
   --space-workbench-gap: 12px;

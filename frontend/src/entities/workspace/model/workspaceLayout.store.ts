@@ -1,3 +1,4 @@
+import {getDefaultWorkspaceLayout} from './layoutPersistence'
 import {workspaceState} from './workspace.store'
 import type {PanelPlacement, WorkspaceLayoutPreset} from './workspace.types'
 
@@ -27,6 +28,14 @@ export function setDockPlacement(placement: Exclude<PanelPlacement, 'sidebar' | 
 
 export function setCompactMode(enabled: boolean) {
   workspaceState.compactMode = enabled
+}
+
+export function resetWorkspaceLayout() {
+  Object.assign(workspaceState, getDefaultWorkspaceLayout())
+}
+
+export function toggleMaximizeMainArea() {
+  workspaceState.compactMode = !workspaceState.compactMode
 }
 
 function clamp(value: number, min: number, max: number) {

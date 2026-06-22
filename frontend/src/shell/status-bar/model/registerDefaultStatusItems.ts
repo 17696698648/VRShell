@@ -98,8 +98,24 @@ export function registerDefaultStatusItems() {
       align: 'right',
       id: 'workspace.theme',
       label: `Theme ${workspaceState.theme}`,
+      onClick: () => executeCommand('settings.toggleTheme'),
       priority: 40,
       title: `Theme: ${workspaceState.theme}; density: ${workspaceState.density}`,
+    })),
+    registerStatusBarItem('workspace.layout', () => ({
+      align: 'right',
+      id: 'workspace.layout',
+      label: `Layout ${workspaceState.layoutPreset}`,
+      onClick: () => executeCommand('workspace.resetLayout'),
+      priority: 45,
+      title: `Layout: ${workspaceState.layoutPreset}; dock: ${workspaceState.panelPlacement}; mode: ${workspaceState.mainAreaMode}`,
+    })),
+    registerStatusBarItem('workspace.density', () => ({
+      align: 'right',
+      id: 'workspace.density',
+      label: `Density ${workspaceState.density}`,
+      priority: 50,
+      title: `UI density: ${workspaceState.density}`,
     })),
   ]
 

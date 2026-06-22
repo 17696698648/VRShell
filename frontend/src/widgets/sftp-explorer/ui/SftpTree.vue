@@ -7,41 +7,45 @@
       <button type="button" :class="{active: sortKey === 'modifiedAt'}" :aria-sort="ariaSort('modifiedAt')" @click="toggleSort('modifiedAt')">Modified {{ sortIndicator('modifiedAt') }}</button>
       <span>Actions</span>
     </div>
-    <article
-      v-for="item in sortedItems"
-      :key="item.id"
-      :class="['sftp-row', {clickable: item.type === 'directory', selected: selectedItemId === item.id}]"
-      role="row"
-      tabindex="0"
-      :aria-selected="selectedItemId === item.id"
-      :title="item.path"
-      @click="selectItem(item)"
-      @dblclick="openItem(item)"
-      @keydown.enter.prevent="openItem(item)"
-      @keydown.f2.prevent="renameItem(item)"
-      @keydown.delete.prevent="confirmDeleteItem(item)"
-      @contextmenu.prevent="openItemMenu($event, item)"
-    >
-      <span class="sftp-row__type">{{ item.type === 'directory' ? 'DIR' : 'FILE' }}</span>
-      <strong>{{ item.name }}</strong>
-      <small>{{ item.size }}</small>
-      <small>{{ item.modifiedAt }}</small>
-      <span class="sftp-row__actions">
-        <button v-if="item.type === 'directory'" type="button" aria-label="Open directory" title="Open directory" @click.stop="openItem(item)">↵</button>
-        <button v-else type="button" aria-label="Download file" title="Download file" @click.stop="downloadItem(item)">⇩</button>
-        <button type="button" aria-label="More actions" title="More actions" @click.stop="openItemMenu($event, item)">⋯</button>
-      </span>
-    </article>
+    <UiVirtualList :items="sortedItems" :item-height="36" :get-key="(item) => item.id">
+      <template #default="{item}">
+        <article
+          :class="['sftp-row', {clickable: item.type === 'directory', selected: selectedItemId === item.id}]"
+          role="row"
+          tabindex="0"
+          :aria-selected="selectedItemId === item.id"
+          :title="item.path"
+          @click="selectItem(item)"
+          @dblclick="openItem(item)"
+          @keydown.enter.prevent="openItem(item)"
+          @keydown.f2.prevent="renameItem(item)"
+          @keydown.delete.prevent="confirmDeleteItem(item)"
+          @contextmenu.prevent="openItemMenu($event, item)"
+        >
+          <span class="sftp-row__type">{{ item.type === 'directory' ? 'DIR' : 'FILE' }}</span>
+          <strong>{{ item.name }}</strong>
+          <small>{{ item.size }}</small>
+          <small>{{ item.modifiedAt }}</small>
+          <span class="sftp-row__actions">
+            <button v-if="item.type === 'directory'" type="button" aria-label="Open directory" title="Open directory" @click.stop="openItem(item)"><FolderOpen :size="14" /></button>
+            <button v-else type="button" aria-label="Download file" title="Download file" @click.stop="downloadItem(item)"><Download :size="14" /></button>
+            <button type="button" aria-label="More actions" title="More actions" @click.stop="openItemMenu($event, item)"><MoreHorizontal :size="14" /></button>
+          </span>
+        </article>
+      </template>
+    </UiVirtualList>
   </div>
 </template>
 
 <script setup lang="ts">
+import {Download, FolderOpen, MoreHorizontal} from '@lucide/vue'
 import {computed, ref} from 'vue'
 import {sftpState, type SftpItem} from '../../../entities/sftp'
 import {createTransferTask, deleteRemoteItem, renameRemoteItem} from '../../../features/sftp/manage-files/manageSftpFiles'
 import {openContextMenu} from '../../../shared/context-menu'
 import {requestConfirm, requestPrompt} from '../../../shared/dialog'
 import {pushToast} from '../../../shared/feedback'
+import {UiVirtualList} from '../../../shared/ui'
 
 const props = withDefaults(defineProps<{items: SftpItem[]; displayMode?: 'tree' | 'list' | 'split'}>(), {displayMode: 'list'})
 const emit = defineEmits<{openDirectory: [path: string]}>()

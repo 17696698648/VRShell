@@ -1,20 +1,24 @@
 <template>
   <div ref="rootRef" class="ui-split-pane" :class="direction" :style="paneStyle">
-    <section class="ui-split-pane__pane"><slot name="first" /></section>
+    <section class="ui-split-pane__pane" :class="firstPaneClass"><slot name="first" /></section>
     <button class="ui-split-pane__handle" type="button" aria-label="Resize pane" @pointerdown="startResize" />
-    <section class="ui-split-pane__pane"><slot name="second" /></section>
+    <section class="ui-split-pane__pane" :class="secondPaneClass"><slot name="second" /></section>
   </div>
 </template>
 
 <script setup lang="ts">
-import {computed, ref} from 'vue'
+import {computed, ref, type HTMLAttributes} from 'vue'
+
+type PaneClass = HTMLAttributes['class']
 
 const props = withDefaults(
   defineProps<{
     direction?: 'horizontal' | 'vertical'
+    firstPaneClass?: PaneClass
     max?: number
     min?: number
     modelValue: number
+    secondPaneClass?: PaneClass
   }>(),
   {direction: 'horizontal', max: 80, min: 20},
 )

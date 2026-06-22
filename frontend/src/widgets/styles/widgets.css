@@ -432,34 +432,10 @@
 }
 
 .terminal-toolbar {
-  display: flex;
-  min-width: 0;
-  gap: var(--space-2);
-  align-items: center;
-  padding: 7px 10px;
+  border-radius: 0;
   border-bottom: 1px solid var(--color-border-subtle);
-  background: var(--color-bg-elevated);
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
-}
-
-.terminal-toolbar button {
-  min-height: 26px;
-  padding: 0 8px;
-  border-radius: var(--radius-md);
-  background: var(--list-row-selected-bg);
-  color: var(--color-text-primary);
-  cursor: pointer;
-}
-
-.terminal-toolbar button:disabled {
-  color: var(--color-text-disabled);
-  cursor: not-allowed;
-  opacity: 0.68;
-}
-
-.terminal-toolbar span {
-  margin-left: auto;
 }
 
 .terminal-tabs,
@@ -473,26 +449,6 @@
 .terminal-tabs {
   padding: 10px;
   border-bottom: 1px solid var(--color-border);
-}
-
-.terminal-tabs button,
-.editor-tabs button {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  padding: 7px 10px;
-  border-radius: 9px;
-  background: transparent;
-  color: var(--color-muted);
-  cursor: pointer;
-}
-
-.terminal-tabs button.active,
-.terminal-tabs button:hover,
-.editor-tabs button:hover {
-  background: var(--color-accent-soft);
-  color: var(--color-text);
 }
 
 .terminal-tabs small {
