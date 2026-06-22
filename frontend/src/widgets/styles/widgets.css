@@ -727,6 +727,52 @@
   font-weight: 600;
 }
 
+.layout-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-3);
+}
+
+.layout-preset-card {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elevated);
+  color: var(--color-text-secondary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.layout-preset-card.active,
+.layout-preset-card:hover {
+  border-color: var(--color-focus-ring);
+  background: var(--tab-active-bg);
+  color: var(--color-text-primary);
+}
+
+.layout-preset-card__preview {
+  display: grid;
+  grid-template-columns: 0.28fr 1fr;
+  grid-template-rows: 1fr 0.45fr;
+  gap: 3px;
+  height: 54px;
+}
+
+.layout-preset-card__preview i {
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-selected);
+}
+
+.layout-preset-card__preview i:first-child {
+  grid-row: span 2;
+}
+
+.layout-preset-card small {
+  color: var(--color-text-muted);
+}
+
 .settings-field input,
 .settings-field select,
 .settings-page select {

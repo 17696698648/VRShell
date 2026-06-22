@@ -18,6 +18,7 @@ const stopPersistence = watch(
     workspaceState.bottomPanelVisible,
     workspaceState.compactMode,
     workspaceState.density,
+    workspaceState.dockOrder,
     workspaceState.layoutPreset,
     workspaceState.mainAreaMode,
     workspaceState.mainSplitRatio,

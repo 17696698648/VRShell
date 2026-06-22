@@ -120,6 +120,7 @@ function snapshotWorkspaceLayout(): WorkspaceLayoutState {
     bottomPanelVisible: workspaceState.bottomPanelVisible,
     compactMode: workspaceState.compactMode,
     density: workspaceState.density,
+    dockOrder: workspaceState.dockOrder,
     layoutPreset: workspaceState.layoutPreset,
     mainAreaMode: workspaceState.mainAreaMode,
     mainSplitRatio: workspaceState.mainSplitRatio,
@@ -138,6 +139,7 @@ function applyWorkspaceLayout(layout: WorkspaceLayoutState) {
   workspaceState.bottomPanelVisible = layout.bottomPanelVisible
   workspaceState.compactMode = layout.compactMode
   workspaceState.density = layout.density
+  workspaceState.dockOrder = layout.dockOrder
   workspaceState.layoutPreset = layout.layoutPreset
   workspaceState.mainAreaMode = layout.mainAreaMode
   workspaceState.mainSplitRatio = layout.mainSplitRatio

@@ -22,6 +22,44 @@ export function setLayoutPreset(preset: WorkspaceLayoutPreset) {
   workspaceState.layoutPreset = preset
 }
 
+export function applyLayoutPreset(preset: WorkspaceLayoutPreset) {
+  workspaceState.layoutPreset = preset
+  workspaceState.compactMode = false
+  if (preset === 'development') {
+    workspaceState.activePanel = 'sessions'
+    workspaceState.activeDockPanel = 'terminal-info'
+    workspaceState.bottomPanelVisible = true
+    workspaceState.mainAreaMode = 'vertical-split'
+    workspaceState.mainSplitRatio = 58
+    workspaceState.panelPlacement = 'right'
+    return
+  }
+  if (preset === 'file-transfer') {
+    workspaceState.activePanel = 'sftp'
+    workspaceState.activeDockPanel = 'task-detail'
+    workspaceState.bottomPanelVisible = true
+    workspaceState.mainAreaMode = 'horizontal-split'
+    workspaceState.mainSplitRatio = 52
+    workspaceState.panelPlacement = 'right'
+    return
+  }
+  if (preset === 'monitoring') {
+    workspaceState.activePanel = 'tasks'
+    workspaceState.activeDockPanel = 'problems'
+    workspaceState.bottomPanelVisible = true
+    workspaceState.mainAreaMode = 'single'
+    workspaceState.mainSplitRatio = 68
+    workspaceState.panelPlacement = 'bottom'
+    return
+  }
+  workspaceState.activePanel = 'sessions'
+  workspaceState.activeDockPanel = 'logs'
+  workspaceState.bottomPanelVisible = true
+  workspaceState.mainAreaMode = 'horizontal-split'
+  workspaceState.mainSplitRatio = 62
+  workspaceState.panelPlacement = 'bottom'
+}
+
 export function setDockPlacement(placement: Exclude<PanelPlacement, 'sidebar' | 'floating'>) {
   workspaceState.panelPlacement = placement
 }
@@ -36,6 +74,14 @@ export function resetWorkspaceLayout() {
 
 export function toggleMaximizeMainArea() {
   workspaceState.compactMode = !workspaceState.compactMode
+}
+
+export function reorderDockPanels(sourceId: string, targetId: string) {
+  const sourceIndex = workspaceState.dockOrder.indexOf(sourceId as never)
+  const targetIndex = workspaceState.dockOrder.indexOf(targetId as never)
+  if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) return
+  const [panel] = workspaceState.dockOrder.splice(sourceIndex, 1)
+  workspaceState.dockOrder.splice(targetIndex, 0, panel)
 }
 
 function clamp(value: number, min: number, max: number) {

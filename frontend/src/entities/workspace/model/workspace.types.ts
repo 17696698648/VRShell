@@ -31,4 +31,5 @@ export interface WorkspaceLayoutState {
   density: WorkspaceDensity
   layoutPreset: WorkspaceLayoutPreset
   panelPlacement: PanelPlacement
+  dockOrder: WorkspaceDockPanel[]
 }

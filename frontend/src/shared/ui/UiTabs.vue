@@ -7,6 +7,7 @@
       type="button"
       role="tab"
       :aria-selected="item.id === activeId"
+      :tabindex="item.id === activeId ? 0 : -1"
       draggable="true"
       :title="item.title"
       @click="emit('activate', item.id)"
@@ -53,7 +54,9 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   activate: [id: string]
   close: [id: string]
+  closeOthers: [id: string]
   contextmenu: [id: string, event: MouseEvent]
+  pin: [id: string, pinned: boolean]
   reorder: [sourceId: string, targetId: string]
 }>()
 
@@ -68,6 +71,16 @@ function handleKeydown(event: KeyboardEvent, id: string) {
   if (event.key === 'Enter' || event.key === ' ') {
     event.preventDefault()
     emit('activate', id)
+    return
+  }
+  if (event.key === 'Delete') {
+    const item = props.items.find((tab) => tab.id === id)
+    if (item?.closable) emit('close', id)
+    return
+  }
+  if (event.key === 'F10' && event.shiftKey) {
+    event.preventDefault()
+    emit('contextmenu', id, event as unknown as MouseEvent)
     return
   }
   if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight' && event.key !== 'Home' && event.key !== 'End') return

@@ -1,14 +1,27 @@
 <template>
   <section class="settings-section">
     <div><h3>Layout</h3><p>Control workbench presets, dock restore behavior, and compact mode.</p></div>
-    <label class="settings-field"><span>Layout preset</span><select :value="workspaceState.layoutPreset" @change="onPresetChange"><option value="operations">Operations</option><option value="development">Development</option><option value="file-transfer">File transfer</option><option value="monitoring">Monitoring</option></select></label>
+    <div class="layout-preset-grid" aria-label="Layout presets">
+      <button v-for="preset in presets" :key="preset.id" type="button" :class="['layout-preset-card', {active: workspaceState.layoutPreset === preset.id}]" @click="applyLayoutPreset(preset.id)">
+        <span class="layout-preset-card__preview" :data-preset="preset.id"><i /><i /><i /></span>
+        <strong>{{ preset.title }}</strong>
+        <small>{{ preset.description }}</small>
+      </button>
+    </div>
     <label class="settings-field"><span>Compact mode</span><select :value="workspaceState.compactMode ? 'on' : 'auto'" @change="onCompactChange"><option value="auto">Auto by window width</option><option value="on">Force compact</option><option value="off">Force full layout</option></select><small>Compact mode hides secondary panes to keep terminal space usable.</small></label>
     <label class="settings-field"><span>Dock restore</span><select disabled><option>Restore last open dock panels</option><option>Open Problems when errors exist</option></select><small>Restore policy will be persisted with workspace layout.</small></label>
   </section>
 </template>
 <script setup lang="ts">
-import {setCompactMode, setLayoutPreset, workspaceState, type WorkspaceLayoutPreset} from '../../../entities/workspace'
-function onPresetChange(event: Event) { setLayoutPreset((event.target as HTMLSelectElement).value as WorkspaceLayoutPreset) }
+import {applyLayoutPreset, setCompactMode, workspaceState, type WorkspaceLayoutPreset} from '../../../entities/workspace'
+
+const presets: Array<{id: WorkspaceLayoutPreset; title: string; description: string}> = [
+  {id: 'operations', title: 'Operations', description: 'Terminal first with diagnostics dock.'},
+  {id: 'development', title: 'Development', description: 'Terminal and editor split for code work.'},
+  {id: 'file-transfer', title: 'File transfer', description: 'SFTP and task progress focused.'},
+  {id: 'monitoring', title: 'Monitoring', description: 'Logs, output, and problems visible.'},
+]
+
 function onCompactChange(event: Event) {
   const value = (event.target as HTMLSelectElement).value
   if (value !== 'auto') setCompactMode(value === 'on')

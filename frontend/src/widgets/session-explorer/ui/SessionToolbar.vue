@@ -10,9 +10,7 @@
       <UiTooltip text="Create session group">
         <UiButton size="sm" variant="ghost" @click="$emit('createGroup')"><FolderPlus :size="14" /> Group</UiButton>
       </UiTooltip>
-      <UiTooltip text="Import SSH config">
-        <UiButton size="sm" variant="ghost" @click="$emit('importSshConfig')"><Download :size="14" /> Import</UiButton>
-      </UiTooltip>
+      <UiActionButton command-id="session.importSshConfig" :icon="Download" label="Import" tooltip="Import SSH config" />
       <UiTooltip :text="formOpen ? 'Close new session form' : 'Create new session'" shortcut="Ctrl+N">
         <UiButton size="sm" :variant="formOpen ? 'secondary' : 'primary'" @click="$emit('create')"><component :is="formOpen ? X : Plus" :size="14" /> {{ formOpen ? 'Close' : 'New' }}</UiButton>
       </UiTooltip>
@@ -22,7 +20,7 @@
 
 <script setup lang="ts">
 import {Download, FolderPlus, Plus, X} from '@lucide/vue'
-import {UiButton, UiToolbar, UiTooltip} from '../../../shared/ui'
+import {UiActionButton, UiButton, UiToolbar, UiTooltip} from '../../../shared/ui'
 
 defineProps<{formOpen: boolean}>()
 defineEmits<{create: []; createGroup: []; importSshConfig: []}>()

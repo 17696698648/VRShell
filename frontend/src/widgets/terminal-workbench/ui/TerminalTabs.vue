@@ -1,5 +1,5 @@
 <template>
-  <UiTabs class="terminal-tabs" :active-id="terminalState.activeTerminalId" :items="tabItems" label="Terminal tabs" @activate="terminalState.activeTerminalId = $event" @close="handleClose" @reorder="reorderTerminalTabs">
+  <UiTabs class="terminal-tabs" :active-id="terminalState.activeTerminalId" :items="tabItems" label="Terminal tabs" @activate="terminalState.activeTerminalId = $event" @close="handleClose" @contextmenu="openTabMenu" @reorder="reorderTerminalTabs">
     <template #item="{item}">
       <span>{{ item.title }}</span>
       <UiTooltip :text="item.status === 'connected' ? 'Disconnect terminal' : 'Reconnect terminal'">
@@ -14,6 +14,8 @@ import {computed} from 'vue'
 import {reorderTerminalTabs, terminalState} from '../../../entities/terminal'
 import {closeTerminalTab} from '../../../features/terminal/close-terminal/closeTerminalTab'
 import {disconnectTerminalTab, reconnectTerminalTab} from '../../../features/terminal/manage-connection/manageTerminalConnection'
+import {executeCommand} from '../../../features/workspace/command-registry'
+import {openContextMenu} from '../../../shared/context-menu'
 import {UiTabs, UiTooltip, type UiTabItem} from '../../../shared/ui'
 
 const tabItems = computed<UiTabItem[]>(() =>
@@ -35,5 +37,20 @@ function toggleConnection(id: string) {
   if (!tab) return
   if (tab.status === 'connected') disconnectTerminalTab(tab)
   else reconnectTerminalTab(tab)
+}
+
+function openTabMenu(id: string, event: MouseEvent) {
+  const tab = terminalState.tabs.find((item) => item.id === id)
+  if (!tab) return
+  openContextMenu({
+    x: event.clientX,
+    y: event.clientY,
+    items: [
+      {id: 'reconnect', label: 'Reconnect', run: () => reconnectTerminalTab(tab)},
+      {id: 'search', label: 'Search\tCtrl+F', run: async () => { terminalState.activeTerminalId = id; await executeCommand('terminal.search') }},
+      {id: 'close', label: 'Close', run: () => closeTerminalTab(tab)},
+      {id: 'close-others', label: 'Close Others', run: () => terminalState.tabs.filter((item) => item.id !== id).forEach(closeTerminalTab)},
+    ],
+  })
 }
 </script>

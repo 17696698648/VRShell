@@ -2,7 +2,7 @@
   <section v-if="activeDockPanel" :class="['dock-host', `dock-host--${workspaceState.panelPlacement}`]" :style="dockStyle">
     <div class="dock-host__resize" role="separator" tabindex="0" @pointerdown="startResize" />
     <header class="dock-host__tabs">
-      <UiTabs :active-id="workspaceState.activeDockPanel" :items="dockTabItems" label="Dock panels" @activate="activateDockTab" />
+      <UiTabs :active-id="workspaceState.activeDockPanel" :items="dockTabItems" label="Dock panels" @activate="activateDockTab" @contextmenu="openDockTabMenu" @reorder="reorderDockPanels" />
       <UiTooltip v-if="activeDockPanel.closable !== false" text="Close dock panel">
         <UiButton class="dock-host__close" size="sm" variant="ghost" @click="closeDockPanel">Close</UiButton>
       </UiTooltip>
@@ -13,14 +13,19 @@
 
 <script setup lang="ts">
 import {computed} from 'vue'
-import {setBottomPanelHeight, setRightDockWidth, workspaceState} from '../../entities/workspace'
+import {reorderDockPanels, setBottomPanelHeight, setRightDockWidth, workspaceState} from '../../entities/workspace'
 import {getDockPanels, useActiveDockPanel} from '../../features/workspace/dock-registry'
 import {closeDockPanel, openDockPanel} from '../../features/workspace/open-logs-panel'
+import {openContextMenu} from '../../shared/context-menu'
 import {UiButton, UiTabs, UiTooltip, type UiTabItem} from '../../shared/ui'
 
 const activeDockPanel = useActiveDockPanel()
-const visiblePanels = computed(() => getDockPanels().filter((panel) => panel.placement === workspaceState.panelPlacement).sort((left, right) => (left.order ?? 100) - (right.order ?? 100)))
-const dockTabItems = computed<UiTabItem[]>(() => visiblePanels.value.map((panel) => ({id: panel.id, title: panel.title, icon: panel.icon})))
+const visiblePanels = computed(() =>
+  getDockPanels()
+    .filter((panel) => panel.placement === workspaceState.panelPlacement)
+    .sort((left, right) => getDockOrder(left.id) - getDockOrder(right.id) || (left.order ?? 100) - (right.order ?? 100)),
+)
+const dockTabItems = computed<UiTabItem[]>(() => visiblePanels.value.map((panel) => ({id: panel.id, title: panel.title, icon: panel.icon, subtitle: getDockGroup(panel.id)})))
 const dockStyle = computed(() => ({
   '--dock-bottom-height': `${workspaceState.bottomPanelHeight}px`,
   '--dock-right-width': `${workspaceState.rightDockWidth}px`,
@@ -49,5 +54,31 @@ function startResize(event: PointerEvent) {
 function activateDockTab(id: string) {
   const panel = visiblePanels.value.find((item) => item.id === id)
   if (panel) openDockPanel(panel.id, panel.placement)
+}
+
+function getDockOrder(panelId: string) {
+  const index = workspaceState.dockOrder.indexOf(panelId as never)
+  return index >= 0 ? index : 999
+}
+
+function getDockGroup(panelId: string) {
+  if (panelId === 'logs' || panelId === 'output') return 'Output'
+  if (panelId === 'problems') return 'Diagnostics'
+  if (panelId.includes('detail') || panelId.includes('info')) return 'Details'
+  return 'Dock'
+}
+
+function openDockTabMenu(id: string, event: MouseEvent) {
+  const panel = visiblePanels.value.find((item) => item.id === id)
+  if (!panel) return
+  openContextMenu({
+    x: event.clientX,
+    y: event.clientY,
+    items: [
+      {id: 'move-bottom', label: 'Move Dock Bottom', run: () => openDockPanel(panel.id, 'bottom')},
+      {id: 'move-right', label: 'Move Dock Right', run: () => openDockPanel(panel.id, 'right')},
+      {id: 'close', label: 'Close', disabled: panel.closable === false, run: closeDockPanel},
+    ],
+  })
 }
 </script>

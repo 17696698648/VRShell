@@ -10,11 +10,7 @@
       @update:view-mode="viewMode = $event"
     />
     <SftpBreadcrumbs :path="sftpState.path" @open="refresh" />
-    <p v-if="sftpState.error" class="panel-error">
-      <strong>Unable to load remote directory.</strong>
-      <span>{{ sftpState.error }}</span>
-      <button type="button" @click="refresh()">Retry</button>
-    </p>
+    <UiErrorState v-if="sftpState.error" title="Unable to load remote directory" :message="sftpState.error" retry-label="Retry" @retry="refresh()" />
     <div v-if="sftpState.loading" class="sftp-tree sftp-tree--loading" aria-label="Loading remote directory">
       <article v-for="index in 6" :key="index" class="sftp-row skeleton-row">
         <span />
@@ -44,7 +40,7 @@
 import {computed} from 'vue'
 import {createRemoteDirectory, createTransferTask} from '../../../features/sftp/manage-files/manageSftpFiles'
 import {requestPrompt} from '../../../shared/dialog'
-import {EmptyState, UiPanel} from '../../../shared/ui'
+import {EmptyState, UiErrorState, UiPanel} from '../../../shared/ui'
 import {useSftpExplorer} from '../model/useSftpExplorer'
 import {useSftpViewMode} from '../model/sftpViewMode'
 import SftpBreadcrumbs from './SftpBreadcrumbs.vue'
