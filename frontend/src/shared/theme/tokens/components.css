@@ -8,7 +8,11 @@
   --color-success-strong-text: color-mix(in srgb, var(--color-success) 18%, white);
   --color-scrim-bg: color-mix(in srgb, var(--color-bg-workspace) 56%, transparent);
   --color-scrim-bg-subtle: color-mix(in srgb, var(--color-bg-workspace) 46%, transparent);
-  --color-inset-highlight: color-mix(in srgb, var(--color-text-primary) 2%, transparent);
+  --color-inset-highlight: color-mix(in srgb, var(--color-text-primary) 4%, transparent);
+  --color-bg-tool-stripe: color-mix(in srgb, var(--color-bg-shell) 94%, var(--color-bg-panel));
+  --color-bg-tool-window: color-mix(in srgb, var(--color-bg-panel) 92%, var(--color-bg-shell));
+  --radius-tool-window: 10px;
+  --tool-window-border: color-mix(in srgb, var(--color-border-subtle) 86%, var(--color-text-muted));
 
   --button-primary-bg: var(--color-accent);
   --button-primary-color: var(--color-bg-workspace);
@@ -18,7 +22,7 @@
   --command-item-hover-bg: var(--color-bg-hover);
   --dock-panel-bg: var(--color-bg-panel);
   --list-row-hover-bg: var(--color-bg-hover);
-  --list-row-selected-bg: transparent;
+  --list-row-selected-bg: var(--color-bg-selected);
   --menu-item-hover-bg: var(--color-bg-hover);
   --panel-bg: var(--color-bg-panel);
   --panel-border: var(--color-border);

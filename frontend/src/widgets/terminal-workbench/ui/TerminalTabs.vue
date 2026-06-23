@@ -2,7 +2,6 @@
   <UiTabs class="terminal-tabs" :active-id="terminalState.activeTerminalId" :items="tabItems" label="Terminal tabs" @activate="terminalState.activeTerminalId = $event" @close="handleClose" @contextmenu="openTabMenu" @reorder="reorderTerminalTabs">
     <template #item="{item}">
       <span class="terminal-tabs__identity">
-        <UiInlineStatus :status="item.status === 'error' ? 'error' : item.status" />
         <AlertTriangle v-if="item.status === 'error'" :size="13" class="terminal-tabs__warning" aria-hidden="true" />
         <span class="terminal-tabs__title">{{ item.title }}</span>
       </span>
@@ -18,7 +17,7 @@ import {closeTerminalTab} from '../../../features/terminal/close-terminal/closeT
 import {reconnectTerminalTab} from '../../../features/terminal/manage-connection/manageTerminalConnection'
 import {executeCommand} from '../../../shared/command'
 import {openContextMenu} from '../../../shared/context-menu'
-import {UiInlineStatus, UiTabs, type UiTabItem} from '../../../shared/ui'
+import {UiTabs, type UiTabItem} from '../../../shared/ui'
 
 const tabItems = computed<UiTabItem[]>(() =>
   terminalState.tabs.map((tab) => ({

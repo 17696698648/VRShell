@@ -1,10 +1,31 @@
 .dock-host {
   position: relative;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+}
+
+.dock-host--bottom {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.dock-host--right {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  border-left: 1px solid var(--tool-window-border);
+  background: var(--color-bg-tool-window);
+}
+
+.dock-host__content {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.dock-host--bottom .dock-host__content {
+  grid-row: 2;
 }
 
 .dock-host__resize {
@@ -30,10 +51,11 @@
 }
 
 .dock-host__resize:hover {
-  background: color-mix(in srgb, var(--color-accent) 28%, transparent);
+  background: color-mix(in srgb, var(--color-accent) 18%, transparent);
 }
 
 .dock-host__tabs {
+  grid-row: 1;
   display: flex;
   min-width: 0;
   gap: 4px;
@@ -55,4 +77,9 @@
 
 .dock-host__tabs .ui-tabs__item.active {
   box-shadow: inset 0 2px 0 var(--color-accent);
+}
+
+.dock-host--right .dock-host__content {
+  grid-column: 1;
+  grid-row: 1;
 }

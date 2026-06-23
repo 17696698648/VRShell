@@ -60,9 +60,9 @@
   margin-inline: 0;
   padding: 6px 8px;
   border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--color-bg-card) 86%, transparent);
-  box-shadow: var(--shadow-soft);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-bg-elevated) 72%, var(--color-bg-panel));
+  box-shadow: none;
   color: var(--color-text-muted);
 }
 
@@ -78,7 +78,7 @@
 .sftp-explorer .breadcrumbs button:hover,
 .sftp-explorer .breadcrumbs button:focus-visible {
   border-color: var(--color-border-subtle);
-  background: color-mix(in srgb, var(--list-row-hover-bg) 82%, var(--color-bg-card));
+  background: color-mix(in srgb, var(--list-row-hover-bg) 82%, var(--color-bg-panel));
   color: var(--color-text-primary);
 }
 
@@ -108,9 +108,9 @@
 .sftp-tree .ui-data-grid {
   overflow: hidden;
   border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-xl);
-  background: color-mix(in srgb, var(--color-bg-card) 70%, transparent);
-  box-shadow: var(--shadow-soft);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-bg-panel) 94%, var(--color-bg-shell));
+  box-shadow: none;
 }
 
 .sftp-tree .ui-data-grid__header {
@@ -161,8 +161,8 @@
 .sftp-row:hover,
 .sftp-row:focus-visible {
   border-color: var(--color-border-subtle);
-  background: color-mix(in srgb, var(--list-row-hover-bg) 82%, var(--color-bg-card));
-  box-shadow: var(--shadow-soft);
+  background: color-mix(in srgb, var(--list-row-hover-bg) 82%, var(--color-bg-panel));
+  box-shadow: none;
   color: var(--color-text-primary);
 }
 
@@ -172,9 +172,9 @@
 }
 
 .sftp-row.selected {
-  border-color: var(--color-glow-ring);
-  background: linear-gradient(90deg, var(--list-row-selected-bg), color-mix(in srgb, var(--color-bg-card) 82%, transparent));
-  box-shadow: var(--shadow-soft);
+  border-color: color-mix(in srgb, var(--color-accent) 24%, var(--color-border-subtle));
+  background: color-mix(in srgb, var(--list-row-selected-bg) 84%, var(--color-bg-panel));
+  box-shadow: none;
   color: var(--color-text-primary);
 }
 
@@ -239,15 +239,15 @@
   padding: 8px;
   padding-inline: 8px;
   border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-xl);
-  background: color-mix(in srgb, var(--color-bg-card) 70%, transparent);
-  box-shadow: var(--shadow-soft);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-bg-panel) 94%, var(--color-bg-shell));
+  box-shadow: none;
 }
 
 .sftp-tree--loading .sftp-row {
   height: 36px;
   border-color: var(--color-border-subtle);
-  background: color-mix(in srgb, var(--color-bg-card) 72%, transparent);
+  background: color-mix(in srgb, var(--color-bg-elevated) 62%, transparent);
 }
 
 .sftp-tree--loading .sftp-row > * {
@@ -275,15 +275,15 @@
 .sftp-directory-pane {
   display: grid;
   align-content: start;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
   min-height: 0;
-  padding: 8px;
+  padding: 6px;
   overflow: auto;
   border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-xl);
-  background: color-mix(in srgb, var(--color-bg-card) 70%, transparent);
-  box-shadow: var(--shadow-soft);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-bg-panel) 94%, var(--color-bg-shell));
+  box-shadow: none;
 }
 
 .sftp-directory-pane button {
@@ -315,7 +315,7 @@
 .sftp-directory-pane button:hover,
 .sftp-directory-pane button:focus-visible {
   border-color: var(--color-border-subtle);
-  background: color-mix(in srgb, var(--list-row-hover-bg) 82%, var(--color-bg-card));
+  background: color-mix(in srgb, var(--list-row-hover-bg) 82%, var(--color-bg-panel));
   color: var(--color-text-primary);
 }
 
@@ -330,9 +330,9 @@
   margin-inline: 0;
   padding: 9px;
   border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-xl);
-  background: color-mix(in srgb, var(--color-bg-card) 72%, transparent);
-  box-shadow: var(--shadow-soft);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-bg-panel) 94%, var(--color-bg-shell));
+  box-shadow: none;
 }
 
 .sftp-explorer .task-mini-panel header button {

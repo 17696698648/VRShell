@@ -1,7 +1,7 @@
 <template>
   <div class="workbench-shell" data-testid="app-shell">
     <AppTitlebar/>
-    <div class="workbench-shell__body" :class="{'workbench-shell__body--no-sidebar': !workspaceState.sidebarVisible}">
+    <div class="workbench-shell__body" :class="{'workbench-shell__body--no-sidebar': !workspaceState.sidebarVisible, 'workbench-shell__body--right-open': rightToolWindowOpen}">
       <ActivityBar/>
       <button v-if="workspaceState.sidebarVisible" class="workbench-shell__sidebar-backdrop" type="button" aria-label="Close sidebar" @click="workspaceState.sidebarVisible = false" />
       <div v-if="workspaceState.sidebarVisible" class="workbench-shell__sidebar-resize" :style="sidebarStyle">
@@ -15,6 +15,8 @@
           <slot/>
         </slot>
       </main>
+      <RightToolWindow/>
+      <RightSider/>
     </div>
     <StatusBar/>
     <CommandPaletteHost/>
@@ -36,12 +38,15 @@ import DialogHost from './overlays/DialogHost.vue'
 import QuickOpenHost from './overlays/QuickOpenHost.vue'
 import SettingsDialogHost from './overlays/SettingsDialogHost.vue'
 import ToastHost from './overlays/ToastHost.vue'
+import RightSider from './dock/RightSider.vue'
+import RightToolWindow from './dock/RightToolWindow.vue'
 import Sidebar from './sidebar/Sidebar.vue'
 import StatusBar from './status-bar/StatusBar.vue'
 import AppTitlebar from './titlebar/AppTitlebar.vue'
 
 const resizingSidebarWidth = ref<number | null>(null)
 const sidebarStyle = computed(() => ({width: `${resizingSidebarWidth.value ?? workspaceState.sidebarWidth}px`}))
+const rightToolWindowOpen = computed(() => workspaceState.bottomPanelVisible && workspaceState.panelPlacement === 'right' && workspaceState.activeDockPanel !== 'none')
 
 onMounted(() => window.addEventListener('keydown', closeSidebarWithEscape))
 onUnmounted(() => window.removeEventListener('keydown', closeSidebarWithEscape))

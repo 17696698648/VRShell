@@ -1,6 +1,6 @@
 :root {
   --size-titlebar-height: 36px;
-  --size-activitybar-width: 48px;
+  --size-activitybar-width: 40px;
   --size-sidebar-default-width: 280px;
   --size-sidebar-min-width: 220px;
   --size-sidebar-max-width: 420px;
@@ -10,7 +10,7 @@
   --size-tab-height: 34px;
   --size-tree-row-height: 28px;
   --size-form-control-height: 32px;
-  --size-icon-activity: 20px;
+  --size-icon-activity: 18px;
   --size-icon-empty: 30px;
   --size-icon-statusbar: 14px;
   --size-icon-toolbar: 15px;

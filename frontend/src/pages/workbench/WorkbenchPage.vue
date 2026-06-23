@@ -20,7 +20,7 @@
         <template v-if="showEditorWorkbench" #secondary>
           <EditorWorkbench/>
         </template>
-        <template v-if="activeDockPanel" #dock>
+        <template v-if="activeBottomDockPanel" #dock>
           <DockHost />
         </template>
       </WorkbenchLayout>
@@ -42,6 +42,7 @@ import {WorkbenchLayout} from '../../widgets/workbench-layout'
 import WelcomePage from '../welcome/WelcomePage.vue'
 
 const activeDockPanel = useActiveDockPanel()
+const activeBottomDockPanel = computed(() => workspaceState.panelPlacement === 'bottom' ? activeDockPanel.value : null)
 const showEditorWorkbench = computed(() => workspaceState.activeMainView === 'editor')
 const mainLayoutMode = computed(() => workspaceState.compactMode || !showEditorWorkbench.value ? 'single' : workspaceState.mainAreaMode)
 </script>

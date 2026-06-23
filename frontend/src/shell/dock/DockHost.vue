@@ -1,13 +1,15 @@
 <template>
   <section v-if="activeDockPanel" :class="['dock-host', `dock-host--${workspaceState.panelPlacement}`]" :style="dockStyle">
     <div class="dock-host__resize" role="separator" tabindex="0" @pointerdown="startResize" />
-    <header class="dock-host__tabs">
+    <div class="dock-host__content">
+      <component :is="activeDockPanel.component" />
+    </div>
+    <header v-if="workspaceState.panelPlacement !== 'right'" class="dock-host__tabs">
       <UiTabs :active-id="workspaceState.activeDockPanel" :items="dockTabItems" label="Dock panels" @activate="activateDockTab" @contextmenu="openDockTabMenu" @reorder="reorderDockPanels" />
       <UiTooltip v-if="activeDockPanel.closable !== false" text="Close dock panel">
         <UiButton class="dock-host__close" size="sm" variant="ghost" @click="closeDockPanel">Close</UiButton>
       </UiTooltip>
     </header>
-    <component :is="activeDockPanel.component" />
   </section>
 </template>
 
