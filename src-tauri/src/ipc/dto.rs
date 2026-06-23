@@ -37,6 +37,7 @@ pub(crate) struct ConnectSshRequest {
     pub password: Option<String>,
     pub private_key_path: Option<String>,
     pub passphrase: Option<String>,
+    pub auth_method: Option<String>,
     pub auto_reconnect: Option<bool>,
     pub idle_timeout_secs: Option<u64>,
 }
@@ -152,12 +153,14 @@ mod tests {
             password: None,
             private_key_path: Some("~/.ssh/id_ed25519".to_string()),
             passphrase: None,
+            auth_method: Some("key".to_string()),
             auto_reconnect: Some(true),
             idle_timeout_secs: Some(60),
         };
 
         let value = serde_json::to_value(request).expect("serialize request");
         assert_eq!(value["privateKeyPath"], json!("~/.ssh/id_ed25519"));
+        assert_eq!(value["authMethod"], json!("key"));
         assert_eq!(value["autoReconnect"], json!(true));
         assert_eq!(value["idleTimeoutSecs"], json!(60));
     }

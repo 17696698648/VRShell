@@ -1,19 +1,19 @@
 ﻿<template>
-  <UiWorkbenchPanel compact class="session-explorer" title="Sessions" subtitle="SSH inventory">
+  <UiWorkbenchPanel compact class="explorer-panel session-explorer" title="Sessions" subtitle="SSH inventory">
     <template #icon><Server :size="14" /></template>
     <template #toolbar>
       <SessionToolbar :form-open="formOpen" @create="openCreateDialog()" @create-group="handleCreateGroup" />
     </template>
-    <div class="session-explorer__layout">
-      <section class="session-explorer__search">
+    <div class="explorer-layout session-explorer__layout">
+      <section class="explorer-utility session-explorer__search">
         <SessionSearchBox v-model="query" :result-count="filteredSessions.length" />
       </section>
-      <section class="session-explorer__body">
-        <div v-if="showEmptyState" class="session-empty-state" :class="{'session-empty-state--search': Boolean(query)}">
+      <section class="explorer-content session-explorer__body">
+        <div v-if="showEmptyState" class="explorer-empty-state session-empty-state" :class="{'explorer-empty-state--compact session-empty-state--search': Boolean(query)}">
           <Server :size="28" />
           <strong>{{ query ? 'No matching sessions' : 'No sessions yet' }}</strong>
           <small>{{ query ? `No sessions match “${query}”.` : 'Create a session or import your SSH config to get started.' }}</small>
-          <div class="session-empty-state__actions">
+          <div class="explorer-empty-state__actions session-empty-state__actions">
             <button v-if="query" type="button" class="ui-button ghost sm" @click="query = ''">Clear search</button>
             <template v-else>
               <button type="button" class="ui-button primary sm" @click="openCreateDialog()">New session</button>
@@ -33,10 +33,11 @@
 <script setup lang="ts">
 import {Server} from '@lucide/vue'
 import {computed, onBeforeUnmount, ref, watch} from 'vue'
-import type {SessionGroup, SessionHost} from '../../../entities/session'
+import {patchSession, type SessionGroup, type SessionHost} from '../../../entities/session'
 import {connectSession} from '../../../features/session/connect-session/connectSession'
 import {createSession, type CreateSessionInput} from '../../../features/session/create-session/createSession'
 import {importSshConfigSessions, type ImportSshConfigSummary} from '../../../features/session/create-session/importSshConfigSessions'
+import {persistSessionAuth} from '../../../features/session/manage-credentials/sessionCredentials'
 import {createSessionGroup} from '../../../features/session/manage-groups/manageSessionGroups'
 import {UiWorkbenchPanel} from '../../../shared/ui'
 import {useSessionExplorer} from '../model/useSessionExplorer'
@@ -70,7 +71,9 @@ onBeforeUnmount(() => {
 async function handleCreate(input: CreateSessionInput) {
   try {
     const session = createSession(input, targetGroupId.value)
-    await connectSession(session)
+    const auth = await persistSessionAuth(session.id, session.auth ?? {type: 'agent'})
+    patchSession(session.id, {auth})
+    await connectSession({...session, auth})
     formOpen.value = false
     message.value = `Connected ${session.name}`
   } catch (error) {

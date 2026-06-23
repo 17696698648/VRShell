@@ -1,61 +1,6 @@
-.session-explorer,
-.session-explorer .ui-workbench-panel__body {
-  --session-explorer-edge: var(--space-panel-padding);
-  display: grid;
-  min-height: 0;
-  height: 100%;
-}
-
-.session-explorer .ui-workbench-panel__header {
-  padding-inline: var(--session-explorer-edge);
-}
-
-.session-explorer .ui-workbench-panel__toolbar .ui-toolbar {
-  padding-inline: 0;
-}
-
 .session-explorer__layout {
   --session-tree-row-height: 32px;
   --session-tree-indent: 16px;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: 10px;
-  min-height: 0;
-  height: 100%;
-}
-
-.session-explorer__search,
-.session-explorer__feedback {
-  min-width: 0;
-}
-
-.session-explorer__search {
-  position: sticky;
-  top: 0;
-  z-index: 2;
-  padding-inline: var(--session-explorer-edge);
-}
-
-.session-explorer__body {
-  display: grid;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.session-explorer__feedback {
-  display: -webkit-box;
-  max-height: calc(2lh + 16px);
-  padding: 7px 9px;
-  overflow: hidden;
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--color-bg-card) 72%, transparent);
-  box-shadow: var(--shadow-soft);
-  color: var(--color-text-muted);
-  font-size: 12px;
-  line-height: 1.35;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
 }
 
 .session-tree {
@@ -65,9 +10,7 @@
   height: 100%;
   min-height: 0;
   overflow: auto;
-  scrollbar-color: color-mix(in srgb, var(--color-text-muted) 28%, transparent) transparent;
-  scrollbar-width: thin;
-  padding-inline: var(--session-explorer-edge);
+  padding-inline: var(--explorer-edge);
 }
 
 .session-tree .ui-tree,
@@ -76,16 +19,6 @@
   height: 100%;
 }
 
-.session-tree::-webkit-scrollbar {
-  width: 8px;
-}
-
-.session-tree::-webkit-scrollbar-thumb {
-  border: 2px solid transparent;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--color-text-muted) 24%, transparent);
-  background-clip: content-box;
-}
 
 .session-tree .ui-tree__item {
   padding-left: calc((var(--ui-tree-level, 1) - 1) * var(--session-tree-indent) + var(--space-row-padding-x));
@@ -234,44 +167,6 @@
   outline-offset: 2px;
 }
 
-.session-empty-state {
-  display: grid;
-  align-content: center;
-  justify-items: center;
-  gap: 9px;
-  min-height: 180px;
-  padding: 32px 16px;
-  border: 1px dashed var(--color-border-subtle);
-  border-radius: var(--radius-xl);
-  background:
-    radial-gradient(circle at 50% 0, var(--color-bg-selected), transparent 54%),
-    color-mix(in srgb, var(--color-bg-card) 68%, transparent);
-  box-shadow: var(--shadow-soft);
-  color: var(--color-text-muted);
-  text-align: center;
-}
-
-.session-empty-state--search {
-  min-height: 140px;
-  padding-block: 24px;
-}
-
-.session-empty-state strong {
-  color: var(--color-text-primary);
-  font-size: var(--font-size-lg);
-}
-
-.session-empty-state small {
-  max-width: 260px;
-}
-
-.session-empty-state__actions {
-  display: inline-flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 4px;
-}
 
 .session-node {
   position: relative;

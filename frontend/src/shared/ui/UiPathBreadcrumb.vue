@@ -9,12 +9,17 @@
     <form v-if="editing" class="ui-path-breadcrumb__input" @submit.prevent="submitPath">
       <input ref="inputRef" v-model="draftPath" aria-label="Remote path" @keydown.escape="cancelEdit" />
     </form>
-    <button v-else type="button" title="Edit path" @click="startEdit">Edit</button>
-    <button type="button" title="Copy current path" aria-label="Copy current path" @click="copyPath">Copy</button>
+    <button v-else type="button" class="ui-path-breadcrumb__action" title="Edit path" aria-label="Edit path" @click="startEdit">
+      <Pencil :size="14" aria-hidden="true" />
+    </button>
+    <button type="button" class="ui-path-breadcrumb__action" title="Copy current path" aria-label="Copy current path" @click="copyPath">
+      <Copy :size="14" aria-hidden="true" />
+    </button>
   </nav>
 </template>
 
 <script setup lang="ts">
+import {Copy, Pencil} from '@lucide/vue'
 import {computed, nextTick, ref, watch} from 'vue'
 
 interface BreadcrumbPart {

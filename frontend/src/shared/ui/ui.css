@@ -348,6 +348,21 @@
   cursor: pointer;
 }
 
+.ui-path-breadcrumb__action {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  border-radius: var(--radius-sm);
+}
+
+.ui-path-breadcrumb__action:hover,
+.ui-path-breadcrumb__action:focus-visible {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
 .ui-path-breadcrumb__input {
   min-width: 160px;
 }

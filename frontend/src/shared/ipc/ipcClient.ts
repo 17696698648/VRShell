@@ -33,7 +33,8 @@ export async function typedInvoke<K extends keyof IpcCommandMap>(
 ): Promise<IpcCommandMap[K]['result']> {
   try {
     if (!isTauriRuntime()) {
-      return await invokeMock(command, args[0]) as IpcCommandMap[K]['result']
+      if (customInvokeMock || isDefaultIpcMockEnabled()) return await invokeMock(command, args[0]) as IpcCommandMap[K]['result']
+      throw new Error(`IPC command ${command} requires the Tauri runtime. Set VITE_ENABLE_IPC_MOCKS=true to use browser-only development mocks.`)
     }
     return await tauriInvoke<IpcCommandMap[K]['result']>(command, args[0])
   } catch (error) {
@@ -43,6 +44,10 @@ export async function typedInvoke<K extends keyof IpcCommandMap>(
 
 function isTauriRuntime() {
   return typeof window !== 'undefined' && Boolean('__TAURI_INTERNALS__' in window)
+}
+
+function isDefaultIpcMockEnabled() {
+  return import.meta.env.MODE === 'test' || import.meta.env.VITE_ENABLE_IPC_MOCKS === 'true'
 }
 
 async function invokeMock(command: keyof IpcCommandMap, args: unknown) {

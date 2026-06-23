@@ -146,7 +146,7 @@ function normalizeSession(session: SessionHost): SessionHost | null {
 }
 
 function scrubSession(session: SessionHost): SessionHost {
-  if (session.auth?.type === 'password') return {...session, auth: {type: 'password', password: null}}
+  if (session.auth?.type === 'password') return {...session, auth: {...session.auth, password: null}}
   if (session.auth?.type === 'key') return {...session, auth: {...session.auth, passphrase: null}}
   return {...session}
 }

@@ -6,7 +6,12 @@ import {pushToast} from '../../shared/feedback'
 
 function reportError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error)
+  if (isResizeObserverLoopMessage(message)) return
   pushToast({level: 'error', title: 'Application error', detail: message})
+}
+
+function isResizeObserverLoopMessage(message: string) {
+  return message.includes('ResizeObserver loop completed with undelivered notifications') || message.includes('ResizeObserver loop limit exceeded')
 }
 
 onErrorCaptured((error) => {
@@ -15,10 +20,20 @@ onErrorCaptured((error) => {
 })
 
 function onUnhandledRejection(event: PromiseRejectionEvent) {
+  const message = event.reason instanceof Error ? event.reason.message : String(event.reason)
+  if (isResizeObserverLoopMessage(message)) {
+    event.preventDefault()
+    return
+  }
   reportError(event.reason)
 }
 
 function onWindowError(event: ErrorEvent) {
+  const message = event.error instanceof Error ? event.error.message : event.message
+  if (isResizeObserverLoopMessage(message)) {
+    event.preventDefault()
+    return
+  }
   reportError(event.error ?? event.message)
 }
 

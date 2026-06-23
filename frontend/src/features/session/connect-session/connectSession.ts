@@ -4,12 +4,15 @@ import {openTerminal} from '../../../entities/terminal'
 import type {SessionHost} from '../../../entities/session'
 import {pushToast} from '../../../shared/feedback'
 import {getErrorMessage} from '../../../shared/error/getErrorMessage'
+import {resolveSessionAuth} from '../manage-credentials/sessionCredentials'
 
 export async function connectSession(session: SessionHost) {
   setActiveSession(session.id)
   patchSession(session.id, {status: 'connecting'})
   try {
-    const backendSessionId = await connectTerminal(session)
+    const auth = await resolveSessionAuth(session.auth, session.id)
+    const resolvedSession = {...session, auth}
+    const backendSessionId = await connectTerminal(resolvedSession)
     patchSession(session.id, {status: 'connected', backendSessionId})
     openTerminal({
       id: `term-${session.id}`,
@@ -17,8 +20,8 @@ export async function connectSession(session: SessionHost) {
       backendSessionId,
       title: session.name,
       status: 'connected',
-      cwd: '/home/' + session.username,
-      lines: [`$ ssh ${session.username}@${session.host}`, `Connected to ${session.name}`, `${session.username}@${session.name}:~$`],
+      cwd: '~',
+      lines: [`Connecting to ${session.username}@${session.host}:${session.port}...`],
     })
   } catch (error) {
     patchSession(session.id, {status: 'failed'})

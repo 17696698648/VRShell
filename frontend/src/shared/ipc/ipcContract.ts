@@ -67,6 +67,7 @@ export interface ConnectSshArgs {
   password?: string | null
   privateKeyPath?: string | null
   passphrase?: string | null
+  authMethod?: 'agent' | 'password' | 'key'
   autoReconnect: boolean
   idleTimeoutSecs: number
 }

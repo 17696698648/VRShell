@@ -1,7 +1,7 @@
 <template>
   <div class="workbench-shell" data-testid="app-shell">
     <AppTitlebar/>
-    <div class="workbench-shell__body">
+    <div class="workbench-shell__body" :class="{'workbench-shell__body--no-sidebar': !workspaceState.sidebarVisible}">
       <ActivityBar/>
       <button v-if="workspaceState.sidebarVisible" class="workbench-shell__sidebar-backdrop" type="button" aria-label="Close sidebar" @click="workspaceState.sidebarVisible = false" />
       <div v-if="workspaceState.sidebarVisible" class="workbench-shell__sidebar-resize" :style="sidebarStyle">

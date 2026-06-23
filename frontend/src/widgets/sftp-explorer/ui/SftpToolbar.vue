@@ -2,28 +2,20 @@
   <UiToolbar class="sftp-toolbar" label="SFTP actions" :aria-busy="loading || undefined">
     <template #trailing>
       <UiToolbarButtonGroup :items="viewModeItems" label="SFTP view mode" :model-value="viewMode" @update:model-value="$emit('update:viewMode', $event as SftpViewMode)" />
-      <UiTooltip text="Create remote directory">
-        <UiButton size="sm" variant="ghost" :disabled="loading" @click="$emit('mkdir')"><FolderPlus :size="14" /> Folder</UiButton>
-      </UiTooltip>
-      <UiTooltip text="Upload file to current directory">
-        <UiButton size="sm" variant="ghost" :disabled="loading" @click="$emit('upload')"><Upload :size="14" /> Upload</UiButton>
-      </UiTooltip>
-      <UiTooltip text="Open parent directory" shortcut="Alt+Up">
-        <UiButton size="sm" variant="ghost" :disabled="loading" @click="$emit('up')"><ArrowUp :size="14" /> Up</UiButton>
-      </UiTooltip>
-      <UiTooltip text="Refresh current directory" shortcut="Ctrl+R">
-        <UiButton size="sm" variant="secondary" :disabled="loading" :loading="loading" @click="$emit('refresh')"><RefreshCw :size="14" /> Refresh</UiButton>
-      </UiTooltip>
+      <UiIconButton :icon="FolderPlus" label="Create remote directory" :disabled="disabled || loading" @click="$emit('mkdir')" />
+      <UiIconButton :icon="Upload" label="Upload file to current directory" :disabled="disabled || loading" @click="$emit('upload')" />
+      <UiIconButton :icon="ArrowUp" label="Open parent directory" :disabled="disabled || loading" @click="$emit('up')" />
+      <UiIconButton :icon="RefreshCw" label="Refresh current directory" :disabled="disabled || loading" variant="secondary" @click="$emit('refresh')" />
     </template>
   </UiToolbar>
 </template>
 
 <script setup lang="ts">
 import {Columns3, FolderTree, List, ArrowUp, FolderPlus, RefreshCw, Upload} from '@lucide/vue'
-import {UiButton, UiToolbar, UiToolbarButtonGroup, UiTooltip, type UiToolbarButtonGroupItem} from '../../../shared/ui'
+import {UiIconButton, UiToolbar, UiToolbarButtonGroup, type UiToolbarButtonGroupItem} from '../../../shared/ui'
 import type {SftpViewMode} from '../model/sftpViewMode'
 
-defineProps<{loading?: boolean; viewMode: SftpViewMode}>()
+defineProps<{disabled?: boolean; loading?: boolean; viewMode: SftpViewMode}>()
 defineEmits<{mkdir: []; refresh: []; up: []; upload: []; 'update:viewMode': [mode: SftpViewMode]}>()
 
 const viewModeItems: UiToolbarButtonGroupItem[] = [

@@ -1,5 +1,5 @@
 <template>
-  <div class="session-tree">
+  <div class="explorer-scroll session-tree">
     <UiTree :items="visibleNodes" :active-index="activeNodeIndex" :item-height="32" :get-key="(node) => node.id" :get-level="getNodeLevel" :get-parent-key="getParentKey" :expanded-keys="expandedKeys" label="Sessions" @select="selectNode" @toggle="toggleNode">
       <template #default="{item: node, treeItemProps}">
         <section v-if="node.type === 'group'" v-bind="treeItemProps" :class="['session-group', {'session-group--empty': getGroupCount(node.group.id) === 0}]" @contextmenu.prevent="openGroupMenu($event, node.group)">

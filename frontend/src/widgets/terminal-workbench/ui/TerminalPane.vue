@@ -32,6 +32,7 @@ let resizeObserver: ResizeObserver | null = null
 let xterm: Terminal | null = null
 let fitAddon: FitAddon | null = null
 let dataDisposable: IDisposable | null = null
+let resizeFrame: number | null = null
 let renderedLineCount = 0
 
 onMounted(() => {
@@ -54,11 +55,11 @@ onMounted(() => {
     if (props.terminal.status === 'connected') void sendTerminalDataToTerminalTab(props.terminal, data)
   })
   renderNewLines()
-  void nextTick(fitAndResize)
+  void nextTick(scheduleFitAndResize)
 
   if (typeof ResizeObserver === 'undefined') return
   resizeObserver = new ResizeObserver(([entry]) => {
-    if (entry.contentRect.width > 0 && entry.contentRect.height > 0) fitAndResize()
+    if (entry.contentRect.width > 0 && entry.contentRect.height > 0) scheduleFitAndResize()
   })
   resizeObserver.observe(viewportRef.value)
 })
@@ -66,6 +67,8 @@ onMounted(() => {
 onBeforeUnmount(() => {
   resizeObserver?.disconnect()
   resizeObserver = null
+  if (resizeFrame !== null) window.cancelAnimationFrame(resizeFrame)
+  resizeFrame = null
   dataDisposable?.dispose()
   dataDisposable = null
   xterm?.dispose()
@@ -86,11 +89,20 @@ function resetTerminalViewport() {
   renderedLineCount = 0
   xterm?.clear()
   renderNewLines()
-  void nextTick(fitAndResize)
+  void nextTick(scheduleFitAndResize)
+}
+
+function scheduleFitAndResize() {
+  if (resizeFrame !== null) return
+  resizeFrame = window.requestAnimationFrame(() => {
+    resizeFrame = null
+    fitAndResize()
+  })
 }
 
 function fitAndResize() {
-  if (!fitAddon || !xterm) return
+  if (!fitAddon || !xterm || !viewportRef.value) return
+  if (viewportRef.value.clientWidth === 0 || viewportRef.value.clientHeight === 0) return
   fitAddon.fit()
   scheduleTerminalResize(props.terminal, {cols: xterm.cols, rows: xterm.rows})
 }

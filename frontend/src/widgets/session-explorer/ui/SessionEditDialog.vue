@@ -18,6 +18,7 @@ import {computed, ref} from 'vue'
 import type {SessionHost} from '../../../entities/session'
 import type {CreateSessionInput} from '../../../features/session/create-session/createSession'
 import {editSession} from '../../../features/session/edit-session/editSession'
+import {persistSessionAuth} from '../../../features/session/manage-credentials/sessionCredentials'
 import SessionForm from './SessionForm.vue'
 
 const props = defineProps<{session: SessionHost}>()
@@ -32,9 +33,10 @@ const initialValue = computed<CreateSessionInput>(() => ({
   auth: props.session.auth ?? {type: 'agent'},
 }))
 
-function handleSubmit(input: CreateSessionInput) {
+async function handleSubmit(input: CreateSessionInput) {
   try {
-    editSession(props.session.id, input)
+    const auth = await persistSessionAuth(props.session.id, input.auth)
+    editSession(props.session.id, {...input, auth})
     emit('close')
   } catch (editError) {
     error.value = editError instanceof Error ? editError.message : String(editError)

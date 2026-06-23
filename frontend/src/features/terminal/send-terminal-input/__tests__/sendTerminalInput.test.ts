@@ -25,16 +25,14 @@ describe('sendInputToActiveTerminal', () => {
     terminalState.activeTerminalId = defaultActiveTerminalId
   })
 
-  it('appends local echo to active terminal', async () => {
+  it('sends input without appending a local echo to active terminal', async () => {
     const tab = terminalState.tabs[0]
     terminalState.activeTerminalId = tab.id
     const before = getTerminalBufferLines(tab.id).length
 
     await sendInputToActiveTerminal('pwd')
 
-    const lines = getTerminalBufferLines(tab.id)
-    expect(lines.length).toBe(before + 1)
-    expect(lines.at(-1)).toContain('pwd')
+    expect(getTerminalBufferLines(tab.id).length).toBe(before)
   })
 
   it('queues input when terminal is disconnected', async () => {
@@ -101,7 +99,7 @@ describe('sendInputToActiveTerminal', () => {
 
     const lines = getTerminalBufferLines(tab.id)
     expect(tab.status).toBe('failed')
-    expect(lines.length).toBe(before + 2)
+    expect(lines.length).toBe(before + 1)
     expect(lines.at(-1)).toContain('Input failed')
     expect(feedbackState.toasts.at(-1)).toMatchObject({level: 'error', title: `Failed to send input to ${tab.title}`})
   })

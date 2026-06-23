@@ -6,7 +6,6 @@ import {encodeTextBase64} from '../../../shared/lib/base64'
 export async function sendInputToActiveTerminal(input: string) {
   const tab = terminalState.tabs.find((item) => item.id === terminalState.activeTerminalId)
   if (!tab || !input) return
-  appendTerminalLines(tab.id, [`${tab.cwd}$ ${input}`])
   if (tab.status !== 'connected') {
     const queuedCount = enqueueTerminalInput(tab.id, input)
     appendTerminalLines(tab.id, [`Queued input (${queuedCount} pending) until terminal reconnects.`])

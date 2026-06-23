@@ -49,6 +49,28 @@ describe('terminal event provider', () => {
     expect(terminalState.tabs[0].lines).toEqual([])
   })
 
+  it('accepts backend snake_case terminal output payloads', async () => {
+    setIpcMock(async (command) => {
+      if (command === 'poll_events') return [{type: 'output', data_base64: encodeTextBase64('legacy')}]
+      return undefined
+    })
+
+    await createTerminalEventProvider().pollOnce()
+
+    expect(getTerminalBufferLines(terminal.id)).toEqual(['legacy'])
+  })
+
+  it('ignores malformed terminal output payloads', async () => {
+    setIpcMock(async (command) => {
+      if (command === 'poll_events') return [{type: 'output'}]
+      return undefined
+    })
+
+    await createTerminalEventProvider().pollOnce()
+
+    expect(getTerminalBufferLines(terminal.id)).toEqual([])
+  })
+
   it('marks terminal failed and reports polling errors', async () => {
     setIpcMock(async (command) => {
       if (command === 'poll_events') throw new Error('read failed')

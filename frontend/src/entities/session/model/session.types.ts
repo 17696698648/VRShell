@@ -1,8 +1,13 @@
 ﻿export type SessionProtocol = 'ssh' | 'rdp' | 'database'
 
+interface SessionCredentialRef {
+  service: string
+  key: string
+}
+
 export type SessionAuth =
   | {type: 'agent'}
-  | {type: 'password'; password?: string | null}
+  | {type: 'password'; password?: string | null; credentialRef?: SessionCredentialRef | null}
   | {type: 'key'; privateKeyPath?: string | null; passphrase?: string | null}
 
 export interface SessionHost {

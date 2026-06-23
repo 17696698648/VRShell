@@ -13,6 +13,10 @@
   overflow: hidden;
 }
 
+.workbench-shell__body--no-sidebar {
+  grid-template-columns: var(--size-activitybar-width) minmax(0, 1fr);
+}
+
 .workbench-shell__sidebar-resize {
   position: relative;
   min-width: var(--size-sidebar-min-width);

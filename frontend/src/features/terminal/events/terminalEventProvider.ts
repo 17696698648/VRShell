@@ -4,6 +4,8 @@ import {pushToast} from '../../../shared/feedback'
 import {decodeTextBase64} from '../../../shared/lib/base64'
 import type {TerminalOutputEvent} from '../../../shared/ipc/ipcContract'
 
+type TerminalOutputEventPayload = TerminalOutputEvent | string | {data_base64?: string; dataBase64?: string; type?: string}
+
 const defaultPollIntervalMs = 1200
 
 export interface TerminalEventProviderOptions {
@@ -56,11 +58,13 @@ async function pollTerminal(tab: TerminalTab) {
   }
 }
 
-function decodeEvent(event: TerminalOutputEvent | string) {
+function decodeEvent(event: TerminalOutputEventPayload) {
+  const payload = typeof event === 'string' ? event : event.dataBase64 ?? ('data_base64' in event ? event.data_base64 : '') ?? ''
+  if (!payload) return ''
   try {
-    return decodeTextBase64(typeof event === 'string' ? event : event.dataBase64)
+    return decodeTextBase64(payload)
   } catch {
-    return typeof event === 'string' ? event : event.dataBase64
+    return payload
   }
 }
 

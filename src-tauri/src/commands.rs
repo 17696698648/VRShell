@@ -118,6 +118,7 @@ fn connect_ssh(
     password: Option<String>,
     private_key_path: Option<String>,
     passphrase: Option<String>,
+    auth_method: Option<String>,
     auto_reconnect: Option<bool>,
     idle_timeout_secs: Option<u64>,
 ) -> IpcResult<String> {
@@ -128,6 +129,7 @@ fn connect_ssh(
         password,
         private_key_path,
         passphrase,
+        auth_method,
         auto_reconnect,
         idle_timeout_secs,
     };

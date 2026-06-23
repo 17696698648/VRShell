@@ -81,7 +81,7 @@ function setAuthType(type: string) {
 }
 
 function normalizeAuth(auth: SessionAuth): SessionAuth {
-  if (auth.type === 'password') return {type: 'password', password: auth.password?.trim() || null}
+  if (auth.type === 'password') return {type: 'password', password: auth.password?.trim() || null, credentialRef: auth.credentialRef ?? null}
   if (auth.type === 'key') {
     return {
       type: 'key',

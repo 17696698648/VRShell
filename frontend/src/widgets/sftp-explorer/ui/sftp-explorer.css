@@ -1,0 +1,365 @@
+.sftp-explorer .ui-workbench-panel__toolbar .ui-toolbar {
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: start;
+  min-width: 0;
+  padding-inline: 0;
+}
+
+.sftp-toolbar .ui-toolbar__group.align-end {
+  justify-content: flex-start;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  overflow: visible;
+}
+
+.sftp-toolbar .ui-toolbar-button-group {
+  gap: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.sftp-toolbar .ui-toolbar-button-group__item {
+  display: inline-grid;
+  place-items: center;
+  width: calc(var(--size-toolbar-height) - 8px);
+  min-width: calc(var(--size-toolbar-height) - 8px);
+  height: calc(var(--size-toolbar-height) - 8px);
+  min-height: calc(var(--size-toolbar-height) - 8px);
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+}
+
+.sftp-toolbar .ui-toolbar-button-group__item span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.sftp-toolbar .ui-toolbar-button-group__item.active,
+.sftp-toolbar .ui-toolbar-button-group__item:hover:not(:disabled) {
+  border-color: var(--color-border-subtle);
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.sftp-explorer__utility {
+  display: grid;
+  gap: 6px;
+}
+
+.sftp-explorer .breadcrumbs {
+  min-width: 0;
+  margin-inline: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-bg-card) 86%, transparent);
+  box-shadow: var(--shadow-soft);
+  color: var(--color-text-muted);
+}
+
+.sftp-explorer .breadcrumbs button {
+  min-height: 24px;
+  border: 1px solid transparent;
+  transition:
+    background var(--duration-normal) var(--ease-standard),
+    border-color var(--duration-normal) var(--ease-standard),
+    color var(--duration-normal) var(--ease-standard);
+}
+
+.sftp-explorer .breadcrumbs button:hover,
+.sftp-explorer .breadcrumbs button:focus-visible {
+  border-color: var(--color-border-subtle);
+  background: color-mix(in srgb, var(--list-row-hover-bg) 82%, var(--color-bg-card));
+  color: var(--color-text-primary);
+}
+
+.sftp-explorer__hint {
+  display: block;
+  min-width: 0;
+  padding-inline: 2px;
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sftp-explorer .ui-error-state {
+  margin-inline: var(--explorer-edge);
+}
+
+.sftp-tree {
+  display: grid;
+  min-height: 0;
+  height: 100%;
+  padding-inline: var(--explorer-edge);
+  overflow: hidden;
+}
+
+.sftp-tree .ui-data-grid {
+  overflow: hidden;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-xl);
+  background: color-mix(in srgb, var(--color-bg-card) 70%, transparent);
+  box-shadow: var(--shadow-soft);
+}
+
+.sftp-tree .ui-data-grid__header {
+  padding: 8px 10px;
+  background: color-mix(in srgb, var(--color-bg-elevated) 76%, transparent);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.sftp-tree .ui-data-grid__header button:hover,
+.sftp-tree .ui-data-grid__header button:focus-visible {
+  color: var(--color-text-primary);
+}
+
+.sftp-row {
+  position: relative;
+  display: grid;
+  align-items: center;
+  min-width: 0;
+  padding-inline: 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  transition:
+    background var(--duration-normal) var(--ease-standard),
+    border-color var(--duration-normal) var(--ease-standard),
+    box-shadow var(--duration-normal) var(--ease-standard),
+    color var(--duration-normal) var(--ease-standard);
+}
+
+.sftp-row::before {
+  position: absolute;
+  left: -1px;
+  width: 2px;
+  height: 18px;
+  border-radius: 999px;
+  background: transparent;
+  content: '';
+}
+
+.sftp-row.clickable {
+  cursor: pointer;
+}
+
+.sftp-row:hover,
+.sftp-row:focus-visible {
+  border-color: var(--color-border-subtle);
+  background: color-mix(in srgb, var(--list-row-hover-bg) 82%, var(--color-bg-card));
+  box-shadow: var(--shadow-soft);
+  color: var(--color-text-primary);
+}
+
+.sftp-row:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.sftp-row.selected {
+  border-color: var(--color-glow-ring);
+  background: linear-gradient(90deg, var(--list-row-selected-bg), color-mix(in srgb, var(--color-bg-card) 82%, transparent));
+  box-shadow: var(--shadow-soft);
+  color: var(--color-text-primary);
+}
+
+.sftp-row.selected::before {
+  background: var(--color-accent);
+}
+
+.sftp-row strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sftp-row small {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sftp-row__type {
+  display: inline-grid;
+  place-items: center;
+  justify-self: start;
+  min-width: 42px;
+  padding: 2px 6px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 999px;
+  background: var(--color-bg-hover);
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.sftp-row.clickable .sftp-row__type {
+  background: var(--color-bg-selected);
+  color: var(--color-accent-strong);
+}
+
+.sftp-row__actions {
+  display: inline-flex;
+  justify-content: flex-end;
+  gap: 4px;
+  opacity: 0.68;
+  transition: opacity var(--duration-normal) var(--ease-standard);
+}
+
+.sftp-row:hover .sftp-row__actions,
+.sftp-row:focus-within .sftp-row__actions,
+.sftp-row.selected .sftp-row__actions {
+  opacity: 1;
+}
+
+.sftp-tree--loading {
+  align-content: start;
+  gap: 6px;
+  margin-inline: var(--explorer-edge);
+  padding: 8px;
+  padding-inline: 8px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-xl);
+  background: color-mix(in srgb, var(--color-bg-card) 70%, transparent);
+  box-shadow: var(--shadow-soft);
+}
+
+.sftp-tree--loading .sftp-row {
+  height: 36px;
+  border-color: var(--color-border-subtle);
+  background: color-mix(in srgb, var(--color-bg-card) 72%, transparent);
+}
+
+.sftp-tree--loading .sftp-row > * {
+  height: 10px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--color-bg-hover), var(--color-bg-selected), var(--color-bg-hover));
+  background-size: 180% 100%;
+  animation: sftp-skeleton 1.4s var(--ease-standard) infinite;
+}
+
+.sftp-split-view {
+  display: grid;
+  grid-template-columns: minmax(128px, 0.42fr) minmax(0, 1fr);
+  gap: 10px;
+  min-height: 0;
+  height: 100%;
+  padding-inline: var(--explorer-edge);
+  overflow: hidden;
+}
+
+.sftp-split-view .sftp-tree {
+  padding-inline: 0;
+}
+
+.sftp-directory-pane {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+  min-height: 0;
+  padding: 8px;
+  overflow: auto;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-xl);
+  background: color-mix(in srgb, var(--color-bg-card) 70%, transparent);
+  box-shadow: var(--shadow-soft);
+}
+
+.sftp-directory-pane button {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    background var(--duration-normal) var(--ease-standard),
+    border-color var(--duration-normal) var(--ease-standard),
+    color var(--duration-normal) var(--ease-standard);
+}
+
+.sftp-directory-pane button span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sftp-directory-pane button:hover,
+.sftp-directory-pane button:focus-visible {
+  border-color: var(--color-border-subtle);
+  background: color-mix(in srgb, var(--list-row-hover-bg) 82%, var(--color-bg-card));
+  color: var(--color-text-primary);
+}
+
+.sftp-directory-pane .empty-state {
+  margin-inline: 0;
+  min-height: 120px;
+  padding: 18px 10px;
+  border-radius: var(--radius-lg);
+}
+
+.sftp-explorer .task-mini-panel {
+  margin-inline: 0;
+  padding: 9px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-xl);
+  background: color-mix(in srgb, var(--color-bg-card) 72%, transparent);
+  box-shadow: var(--shadow-soft);
+}
+
+.sftp-explorer .task-mini-panel header button {
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-hover);
+  color: var(--color-text-secondary);
+}
+
+.sftp-explorer .task-mini-panel__item {
+  padding: 7px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-bg-elevated) 58%, transparent);
+}
+
+@keyframes sftp-skeleton {
+  from {
+    background-position: 120% 0;
+  }
+
+  to {
+    background-position: -80% 0;
+  }
+}
+
+@media (max-width: 960px) {
+  .sftp-split-view {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

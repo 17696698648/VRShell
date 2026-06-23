@@ -1,5 +1,5 @@
 <template>
-  <aside class="sftp-directory-pane" aria-label="Remote directories">
+  <aside class="explorer-scroll sftp-directory-pane" aria-label="Remote directories">
     <button
       v-for="directory in directories"
       :key="directory.id"
