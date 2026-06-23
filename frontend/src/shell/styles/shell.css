@@ -53,20 +53,20 @@
   cursor: col-resize;
 }
 
-.workbench-shell__sidebar-handle::after {
-  position: absolute;
-  top: 0;
-  right: calc(var(--size-splitter-hit-area) / 2 - 1px);
-  bottom: 0;
-  width: var(--size-splitter-handle);
-  border-radius: 999px;
-  background: linear-gradient(180deg, transparent, var(--tool-window-border) 16%, var(--tool-window-border) 84%, transparent);
-  content: '';
-  transition:
-    width var(--duration-normal) var(--ease-standard),
-    background var(--duration-normal) var(--ease-standard),
-    box-shadow var(--duration-normal) var(--ease-standard);
-}
+/*.workbench-shell__sidebar-handle::after {*/
+/*  position: absolute;*/
+/*  top: 0;*/
+/*  right: calc(var(--size-splitter-hit-area) / 2 - 1px);*/
+/*  bottom: 0;*/
+/*  width: var(--size-splitter-handle);*/
+/*  border-radius: 999px;*/
+/*  background: linear-gradient(180deg, transparent, var(--tool-window-border) 16%, var(--tool-window-border) 84%, transparent);*/
+/*  content: '';*/
+/*  transition:*/
+/*    width var(--duration-normal) var(--ease-standard),*/
+/*    background var(--duration-normal) var(--ease-standard),*/
+/*    box-shadow var(--duration-normal) var(--ease-standard);*/
+/*}*/
 
 .workbench-shell__sidebar-handle:hover::after,
 .workbench-shell__sidebar-handle:focus-visible::after {
@@ -93,11 +93,11 @@
 }
 
 .workbench-shell__body:not(.workbench-shell__body--no-sidebar) .workbench-shell__main {
-  margin-left: 8px;
+  margin-left: 4px;
 }
 
 .workbench-shell__body--right-open .workbench-shell__main {
-  margin-right: 8px;
+  margin-right: 4px;
 }
 
 .right-tool-window {
@@ -148,6 +148,10 @@
   .workbench-shell__sidebar-handle {
     display: none;
   }
+
+  .right-tool-window__handle {
+    display: none;
+  }
 }
 
 .titlebar,
@@ -163,7 +167,7 @@
   display: grid;
   grid-template-columns: minmax(32px, 1fr) minmax(180px, 460px) minmax(108px, 1fr);
   gap: var(--space-3);
-  padding: 0 10px 0 14px;
+  padding: 0 10px 0 5px;
   /*box-shadow: inset 0 -1px 0 var(--color-inset-highlight);*/
 }
 
@@ -492,6 +496,33 @@
   background: color-mix(in srgb, var(--color-inset-highlight) 56%, transparent);
   content: '';
   pointer-events: none;
+}
+
+.right-tool-window__handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -4px;
+  z-index: 2;
+  width: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: col-resize;
+}
+
+/*.right-tool-window__handle::after {*/
+/*  position: absolute;*/
+/*  inset: 0 auto 0 3px;*/
+/*  width: 2px;*/
+/*  background: transparent;*/
+/*  content: '';*/
+/*  transition: background var(--transition-fast);*/
+/*}*/
+
+.right-tool-window__handle:hover::after,
+.right-tool-window__handle:focus-visible::after {
+  background: var(--color-focus-ring);
 }
 
 .status-bar {

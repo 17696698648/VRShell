@@ -91,6 +91,8 @@ pub(crate) struct SftpConnectionDto {
     pub password: Option<String>,
     pub private_key_path: Option<String>,
     pub passphrase: Option<String>,
+    pub auth_method: Option<String>,
+    pub credential_ref: Option<CredentialRef>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

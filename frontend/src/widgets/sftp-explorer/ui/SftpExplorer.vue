@@ -41,11 +41,12 @@
             <UiButton v-if="activeSession" size="sm" variant="primary" @click="refresh()">Refresh directory</UiButton>
           </template>
         </EmptyState>
+        <SftpDirectoryTree v-else-if="viewMode === 'tree'" :items="sftpState.items" :root-path="sftpState.path" :session="activeSession" />
         <div v-else-if="viewMode === 'split'" class="sftp-split-view">
           <SftpDirectoryPane :items="sftpState.items" @open-directory="refresh" />
-          <SftpTree :items="sftpState.items" @open-directory="refresh" />
+          <SftpTree :items="sftpState.items" display-mode="split" @open-directory="refresh" />
         </div>
-        <SftpTree v-else :items="visibleItems" :display-mode="viewMode" @open-directory="refresh" />
+        <SftpTree v-else :items="sftpState.items" display-mode="list" @open-directory="refresh" />
       </section>
       <SftpTaskMiniPanel />
     </div>
@@ -63,6 +64,7 @@ import {useSftpExplorer} from '../model/useSftpExplorer'
 import {useSftpViewMode} from '../model/sftpViewMode'
 import SftpBreadcrumbs from './SftpBreadcrumbs.vue'
 import SftpDirectoryPane from './SftpDirectoryPane.vue'
+import SftpDirectoryTree from './SftpDirectoryTree.vue'
 import SftpTaskMiniPanel from './SftpTaskMiniPanel.vue'
 import SftpToolbar from './SftpToolbar.vue'
 import SftpTree from './SftpTree.vue'
@@ -72,8 +74,6 @@ const {sftpState, refresh, openParentDirectory} = useSftpExplorer()
 const {viewMode} = useSftpViewMode()
 const activeSession = computed(() => getActiveSession())
 const sftpSubtitle = computed(() => activeSession.value ? `${activeSession.value.name} · ${activeSession.value.username}@${activeSession.value.host}:${activeSession.value.port}` : 'No selected session')
-const visibleItems = computed(() => viewMode.value === 'tree' ? sftpState.items.filter((item) => item.type === 'directory') : sftpState.items)
-
 async function handleMkdir() {
   const name = await requestPrompt({title: 'Create remote directory', label: 'Directory name', confirmLabel: 'Create'})
   if (name) await createRemoteDirectory(name)

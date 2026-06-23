@@ -5,10 +5,9 @@
       <ActivityBar/>
       <button v-if="workspaceState.sidebarVisible" class="workbench-shell__sidebar-backdrop" type="button" aria-label="Close sidebar" @click="workspaceState.sidebarVisible = false" />
       <div v-if="workspaceState.sidebarVisible" class="workbench-shell__sidebar-resize" :style="sidebarStyle">
-        <Sidebar :width="workspaceState.sidebarWidth">
+        <Sidebar :width="workspaceState.sidebarWidth" @resize-start="startSidebarResize">
           <slot name="sidebar"/>
         </Sidebar>
-        <button class="workbench-shell__sidebar-handle" type="button" aria-label="Resize sidebar" @pointerdown="startSidebarResize" />
       </div>
       <main class="workbench-shell__main">
         <slot name="main">

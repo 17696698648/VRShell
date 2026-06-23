@@ -97,6 +97,57 @@
   margin-inline: var(--explorer-edge);
 }
 
+.sftp-directory-tree {
+  min-height: 0;
+  height: 100%;
+  padding-inline: var(--explorer-edge);
+  overflow: hidden;
+}
+
+.sftp-directory-tree .ui-virtual-list {
+  overflow: auto;
+}
+
+.sftp-directory-tree__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  min-height: 32px;
+  padding: 0 10px 0 calc((var(--ui-tree-level, 1) - 1) * 18px + 10px);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-secondary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.sftp-directory-tree__item:hover,
+.sftp-directory-tree__item:focus-visible {
+  border-color: var(--color-border-subtle);
+  background: color-mix(in srgb, var(--list-row-hover-bg) 82%, var(--color-bg-panel));
+  color: var(--color-text-primary);
+}
+
+.sftp-directory-tree__item svg {
+  flex: 0 0 auto;
+  color: var(--color-accent-strong);
+}
+
+.sftp-directory-tree__item .sftp-directory-tree__chevron {
+  width: 14px;
+  color: var(--color-text-muted);
+}
+
+.sftp-directory-tree__item span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .sftp-tree {
   display: grid;
   min-height: 0;
@@ -106,7 +157,7 @@
 }
 
 .sftp-tree .ui-data-grid {
-  overflow: hidden;
+  overflow: auto hidden;
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--color-bg-panel) 94%, var(--color-bg-shell));
@@ -114,6 +165,7 @@
 }
 
 .sftp-tree .ui-data-grid__header {
+  min-width: max-content;
   padding: 8px 10px;
   background: color-mix(in srgb, var(--color-bg-elevated) 76%, transparent);
   color: var(--color-text-muted);
@@ -131,7 +183,10 @@
 .sftp-row {
   position: relative;
   display: grid;
+  grid-template-columns: var(--ui-data-grid-template, repeat(4, minmax(0, 1fr)));
   align-items: center;
+  min-width: max-content;
+  gap: var(--space-2);
   min-width: 0;
   padding-inline: 10px;
   border: 1px solid transparent;
@@ -190,6 +245,24 @@
   white-space: nowrap;
 }
 
+.sftp-row__name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sftp-row__name svg {
+  flex: 0 0 auto;
+  color: var(--color-accent-strong);
+}
+
+.sftp-row__name span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .sftp-row small {
   min-width: 0;
   overflow: hidden;
@@ -218,19 +291,6 @@
   color: var(--color-accent-strong);
 }
 
-.sftp-row__actions {
-  display: inline-flex;
-  justify-content: flex-end;
-  gap: 4px;
-  opacity: 0.68;
-  transition: opacity var(--duration-normal) var(--ease-standard);
-}
-
-.sftp-row:hover .sftp-row__actions,
-.sftp-row:focus-within .sftp-row__actions,
-.sftp-row.selected .sftp-row__actions {
-  opacity: 1;
-}
 
 .sftp-tree--loading {
   align-content: start;

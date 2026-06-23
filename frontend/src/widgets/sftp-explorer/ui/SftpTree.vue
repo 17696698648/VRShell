@@ -13,15 +13,14 @@
           @keydown.f2.prevent="renameItem(item)"
           @keydown.delete.prevent="confirmDeleteItem(item)"
         >
-          <span v-bind="cellProps(columns[0])" class="sftp-row__type">{{ item.type === 'directory' ? 'DIR' : 'FILE' }}</span>
-          <strong v-bind="cellProps(columns[1])">{{ item.name }}</strong>
-          <small v-bind="cellProps(columns[2])">{{ item.size }}</small>
+          <strong v-bind="cellProps(columns[0])" class="sftp-row__name">
+            <Folder v-if="item.type === 'directory'" :size="16" aria-hidden="true" />
+            <File v-else :size="16" aria-hidden="true" />
+            <span>{{ item.name }}</span>
+          </strong>
+          <small v-bind="cellProps(columns[1])">{{ item.size }}</small>
+          <span v-bind="cellProps(columns[2])" class="sftp-row__type">{{ item.type === 'directory' ? 'DIR' : 'FILE' }}</span>
           <small v-bind="cellProps(columns[3])">{{ item.modifiedAt }}</small>
-          <span v-bind="cellProps(columns[4])" class="sftp-row__actions">
-            <UiIconButton v-if="item.type === 'directory'" :icon="FolderOpen" label="Open directory" @click.stop="openItem(item)" />
-            <UiIconButton v-else :icon="Download" label="Download file" @click.stop="downloadItem(item)" />
-            <UiIconButton :icon="MoreHorizontal" label="More actions" @click.stop="openItemMenu($event, item)" />
-          </span>
         </article>
       </template>
     </UiDataGrid>
@@ -29,7 +28,7 @@
 </template>
 
 <script setup lang="ts">
-import {Download, FolderOpen, MoreHorizontal} from '@lucide/vue'
+import {File, Folder} from '@lucide/vue'
 import {computed, ref} from 'vue'
 import {workspaceState} from '../../../entities/workspace'
 import {sftpState, type SftpItem} from '../../../entities/sftp'
@@ -37,7 +36,7 @@ import {createTransferTask, deleteRemoteItem, renameRemoteItem} from '../../../f
 import {openContextMenu} from '../../../shared/context-menu'
 import {requestConfirm, requestPrompt} from '../../../shared/dialog'
 import {pushToast} from '../../../shared/feedback'
-import {UiDataGrid, UiIconButton, type UiDataGridColumn} from '../../../shared/ui'
+import {UiDataGrid, type UiDataGridColumn} from '../../../shared/ui'
 
 const props = withDefaults(defineProps<{items: SftpItem[]; displayMode?: 'tree' | 'list' | 'split'}>(), {displayMode: 'list'})
 const emit = defineEmits<{openDirectory: [path: string]}>()
@@ -49,11 +48,10 @@ const selectedItemId = ref<string | null>(null)
 const sortKey = ref<SortKey>('name')
 const sortDirection = ref<SortDirection>('asc')
 const columns: UiDataGridColumn[] = [
+  {id: 'name', title: 'Name', width: '130px'},
+  {id: 'size', title: 'Size', width: '88px'},
   {id: 'type', title: 'Type', width: '72px'},
-  {id: 'name', title: 'Name', width: 'minmax(160px, 1fr)'},
-  {id: 'size', title: 'Size', width: '96px'},
-  {id: 'modifiedAt', title: 'Modified', width: '140px'},
-  {id: 'actions', title: 'Actions', width: '96px'},
+  {id: 'modifiedAt', title: 'Modified', width: '120px'},
 ]
 
 const sortedItems = computed(() => {

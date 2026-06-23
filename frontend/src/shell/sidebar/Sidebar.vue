@@ -3,6 +3,7 @@
     <slot>
       <SidebarPanelHost/>
     </slot>
+    <button class="workbench-shell__sidebar-handle" type="button" aria-label="Resize sidebar" @pointerdown="emit('resize-start', $event)" />
   </aside>
 </template>
 
@@ -11,5 +12,9 @@ import SidebarPanelHost from './SidebarPanelHost.vue'
 
 defineProps<{
   width: number
+}>()
+
+const emit = defineEmits<{
+  'resize-start': [event: PointerEvent]
 }>()
 </script>

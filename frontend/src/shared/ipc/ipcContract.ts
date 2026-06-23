@@ -55,6 +55,17 @@ export const ipcCommandNames = [
   'keyring_delete',
 ] as const satisfies readonly (keyof IpcCommandMap)[]
 
+export interface SftpConnection {
+  host: string
+  port: number
+  username: string
+  password?: string | null
+  privateKeyPath?: string | null
+  passphrase?: string | null
+  authMethod?: 'agent' | 'password' | 'key'
+  credentialRef?: CredentialRef | null
+}
+
 export interface SftpTransferOptions {
   overwrite?: boolean
   resume?: boolean

@@ -45,6 +45,8 @@ function toConnection(session: SessionHost): SftpConnection {
     password: session.auth?.type === 'password' ? session.auth.password : null,
     privateKeyPath: session.auth?.type === 'key' ? session.auth.privateKeyPath : null,
     passphrase: session.auth?.type === 'key' ? session.auth.passphrase : null,
+    authMethod: session.auth?.type,
+    credentialRef: session.auth?.type === 'password' ? session.auth.credentialRef : null,
   }
 }
 

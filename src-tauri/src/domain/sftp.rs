@@ -1,4 +1,4 @@
-use crate::ipc::dto::SftpConnectionDto;
+use crate::{domain::credential::CredentialRef, ipc::dto::SftpConnectionDto};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Deserialize)]
@@ -10,6 +10,8 @@ pub(crate) struct SftpConnectionRequest {
     pub password: Option<String>,
     pub private_key_path: Option<String>,
     pub passphrase: Option<String>,
+    pub auth_method: Option<String>,
+    pub credential_ref: Option<CredentialRef>,
 }
 
 impl From<SftpConnectionDto> for SftpConnectionRequest {
@@ -21,6 +23,8 @@ impl From<SftpConnectionDto> for SftpConnectionRequest {
             password: connection.password,
             private_key_path: connection.private_key_path,
             passphrase: connection.passphrase,
+            auth_method: connection.auth_method,
+            credential_ref: connection.credential_ref,
         }
     }
 }
