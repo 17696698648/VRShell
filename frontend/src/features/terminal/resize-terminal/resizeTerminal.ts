@@ -1,6 +1,7 @@
-import type {TerminalTab} from '../../../entities/terminal'
+﻿import type {TerminalTab} from '../../../entities/terminal'
 import {resizeTerminalPty} from '../../../entities/terminal/api/terminalRepository'
-import {pushToast} from '../../../shared/feedback'
+import {messages} from '../../../shared/copy'
+import {notifyTerminalFailure, notifyWarning} from '../../../shared/feedback'
 
 const charWidthPx = 9
 const lineHeightPx = 22
@@ -40,7 +41,7 @@ export async function resizeTerminal(tab: TerminalTab, size: TerminalViewportSiz
     await resizeTerminalPty(tab.backendSessionId, dimensions.cols, dimensions.rows)
     lastSentDimensions.set(tab.id, dimensions)
   } catch (error) {
-    pushToast({level: 'error', title: `Failed to resize ${tab.title}`, detail: getErrorMessage(error)})
+    notifyTerminalFailure({action: 'resize-failed', terminalId: tab.id, title: messages.terminal.failures.resize(tab.title), detail: getErrorMessage(error)})
   }
 }
 
@@ -71,3 +72,6 @@ function isSameDimensions(left: {cols: number; rows: number}, right?: {cols: num
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error)
 }
+
+
+

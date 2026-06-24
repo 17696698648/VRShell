@@ -1,6 +1,7 @@
 ﻿import {terminalState, appendTerminalLines, drainTerminalInputQueue, enqueueTerminalInput, enqueueTerminalSend, patchTerminal, type TerminalTab} from '../../../entities/terminal'
 import {sendTerminalInput as sendTerminalInputRepository} from '../../../entities/terminal/api/terminalRepository'
-import {pushToast} from '../../../shared/feedback'
+import {messages} from '../../../shared/copy'
+import {notifyTerminalFailure, notifyWarning} from '../../../shared/feedback'
 import {encodeTextBase64} from '../../../shared/lib/base64'
 
 export async function sendInputToActiveTerminal(input: string) {
@@ -36,7 +37,7 @@ async function sendTerminalDataNow(tab: TerminalTab, data: string) {
   } catch (error) {
     patchTerminal(tab.id, {status: 'failed'})
     appendTerminalLines(tab.id, [`Input failed: ${getErrorMessage(error)}`])
-    pushToast({level: 'error', title: `Failed to send input to ${tab.title}`, detail: getErrorMessage(error)})
+    notifyTerminalFailure({action: 'send-input-failed', terminalId: tab.id, title: messages.terminal.failures.sendInput(tab.title), detail: getErrorMessage(error)})
     throw error
   }
 }
@@ -44,3 +45,6 @@ async function sendTerminalDataNow(tab: TerminalTab, data: string) {
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error)
 }
+
+
+

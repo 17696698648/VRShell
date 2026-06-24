@@ -38,3 +38,26 @@ pub(crate) struct SftpEntry {
     pub size_bytes: u64,
     pub modified: Option<u64>,
 }
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct SftpTaskSnapshot {
+    pub task_id: String,
+    pub kind: String,
+    pub title: String,
+    pub detail: String,
+    pub status: SftpTaskStatus,
+    pub transferred_bytes: u64,
+    pub total_bytes: Option<u64>,
+    pub error: Option<String>,
+    pub updated_at_ms: u128,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum SftpTaskStatus {
+    Running,
+    Done,
+    Failed,
+    Cancelled,
+}

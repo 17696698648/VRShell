@@ -1,10 +1,13 @@
-import {appendTerminalLines, patchTerminal, terminalState, type TerminalTab} from '../../../entities/terminal'
+﻿import {appendTerminalLines, patchTerminal, terminalState, type TerminalTab} from '../../../entities/terminal'
 import {pollTerminalOutput} from '../../../entities/terminal/api/terminalRepository'
-import {pushToast} from '../../../shared/feedback'
+import {messages} from '../../../shared/copy'
+import {notifyTerminalFailure} from '../../../shared/feedback'
 import {decodeTextBase64} from '../../../shared/lib/base64'
-import type {TerminalOutputEvent} from '../../../shared/ipc/ipcContract'
+import type {TerminalOutputEvent as PolledTerminalOutputEvent} from '../../../shared/ipc/ipcContract'
+import {listenTypedEvent, type TerminalErrorEvent, type TerminalOutputEvent} from '../../../shared/ipc/ipcEvents'
 
-type TerminalOutputEventPayload = TerminalOutputEvent | string | {data_base64?: string; dataBase64?: string; type?: string}
+type TerminalOutputEventPayload = PolledTerminalOutputEvent | string | {data_base64?: string; dataBase64?: string; type?: string}
+type EventDisposer = () => void
 
 const defaultPollIntervalMs = 180
 
@@ -23,19 +26,44 @@ export interface TerminalEventProvider {
 export function createTerminalEventProvider(options: TerminalEventProviderOptions = {}): TerminalEventProvider {
   const intervalMs = options.pollIntervalMs ?? defaultPollIntervalMs
   let pollTimer: ReturnType<typeof window.setInterval> | null = null
+  let eventDisposer: EventDisposer | null = null
+  let eventRegistration: Promise<EventDisposer> | null = null
 
   async function pollOnce() {
     await Promise.all(terminalState.tabs.map(pollTerminal))
   }
 
   function start() {
+    if (eventDisposer || eventRegistration || pollTimer !== null) return
+    if (isTauriRuntime()) {
+      eventRegistration = registerTerminalEvents().then((dispose) => {
+        eventDisposer = dispose
+        eventRegistration = null
+        return dispose
+      })
+      return
+    }
+    startPollingFallback()
+  }
+
+  function stop() {
+    eventDisposer?.()
+    eventDisposer = null
+    if (eventRegistration) {
+      void eventRegistration.then((dispose) => dispose())
+      eventRegistration = null
+    }
+    stopPollingFallback()
+  }
+
+  function startPollingFallback() {
     if (pollTimer !== null) return
     const setIntervalFn = options.setInterval ?? (typeof window === 'undefined' ? null : window.setInterval.bind(window))
     if (!setIntervalFn) return
     pollTimer = setIntervalFn(pollOnce, intervalMs)
   }
 
-  function stop() {
+  function stopPollingFallback() {
     if (pollTimer === null) return
     const clearIntervalFn = options.clearInterval ?? (typeof window === 'undefined' ? null : window.clearInterval.bind(window))
     clearIntervalFn?.(pollTimer)
@@ -45,6 +73,15 @@ export function createTerminalEventProvider(options: TerminalEventProviderOption
   return {pollOnce, start, stop}
 }
 
+async function registerTerminalEvents() {
+  const disposers = await Promise.all([
+    listenTypedEvent('terminal-output', handleTerminalOutput),
+    listenTypedEvent('terminal-closed', handleTerminalClosed),
+    listenTypedEvent('terminal-error', handleTerminalError),
+  ])
+  return () => disposers.forEach((dispose) => dispose())
+}
+
 async function pollTerminal(tab: TerminalTab) {
   if (!tab.backendSessionId || tab.status !== 'connected') return
   try {
@@ -52,9 +89,38 @@ async function pollTerminal(tab: TerminalTab) {
     const lines = events.map(decodeEvent).filter((line) => line.length > 0)
     if (lines.length > 0) appendTerminalLines(tab.id, lines)
   } catch (error) {
-    patchTerminal(tab.id, {status: 'failed'})
-    appendTerminalLines(tab.id, [`Output polling failed: ${getErrorMessage(error)}`])
-    pushToast({level: 'error', title: `Terminal output stopped for ${tab.title}`, detail: getErrorMessage(error)})
+    markTerminalOutputFailed(tab, `Output polling failed: ${getErrorMessage(error)}`, getErrorMessage(error))
+  }
+}
+
+function handleTerminalOutput(event: TerminalOutputEvent) {
+  const tab = findTerminalByBackendSessionId(event.sessionId)
+  if (!tab) return
+  const line = decodeEvent(event)
+  if (line) appendTerminalLines(tab.id, [line])
+}
+
+function handleTerminalClosed(event: {sessionId: string}) {
+  const tab = findTerminalByBackendSessionId(event.sessionId)
+  if (!tab) return
+  patchTerminal(tab.id, {status: 'disconnected'})
+}
+
+function handleTerminalError(event: TerminalErrorEvent) {
+  const tab = findTerminalByBackendSessionId(event.sessionId)
+  if (!tab) return
+  markTerminalOutputFailed(tab, `Terminal output failed: ${event.error}`, event.error)
+}
+
+function findTerminalByBackendSessionId(sessionId: string) {
+  return terminalState.tabs.find((tab) => tab.backendSessionId === sessionId)
+}
+
+function markTerminalOutputFailed(tab: TerminalTab, line: string, detail: string) {
+  patchTerminal(tab.id, {status: 'failed'})
+  appendTerminalLines(tab.id, [line])
+  if (terminalState.activeTerminalId !== tab.id) {
+    notifyTerminalFailure({action: 'output-failed', terminalId: tab.id, title: messages.terminal.failures.outputStopped(tab.title), detail})
   }
 }
 
@@ -66,6 +132,10 @@ function decodeEvent(event: TerminalOutputEventPayload) {
   } catch {
     return payload
   }
+}
+
+function isTauriRuntime() {
+  return typeof window !== 'undefined' && Boolean('__TAURI_INTERNALS__' in window)
 }
 
 function getErrorMessage(error: unknown) {

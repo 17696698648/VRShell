@@ -6,6 +6,7 @@ use crate::{
     state::BackendState,
 };
 use base64::{engine::general_purpose::STANDARD, Engine as _};
+use serde::Serialize;
 use ssh2::{Channel, Session as SshSession};
 use std::{
     env,
@@ -15,11 +16,32 @@ use std::{
     thread,
     time::Duration,
 };
+use tauri::{Emitter, Manager};
 use uuid::Uuid;
 
 pub(crate) struct TerminalRuntime {
     session: SshSession,
     channel: Channel,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct TerminalOutputEventPayload {
+    session_id: String,
+    data_base64: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct TerminalSessionEventPayload {
+    session_id: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct TerminalErrorEventPayload {
+    session_id: String,
+    error: String,
 }
 
 pub(crate) fn connect(
@@ -75,6 +97,52 @@ pub(crate) fn disconnect(state: &BackendState, session_id: &str) -> BackendResul
         .map_err(|_| BackendError::validation("terminal event state is unavailable"))?
         .remove(session_id);
     Ok(())
+}
+
+pub(crate) fn start_output_reader(window: tauri::WebviewWindow, session_id: String) {
+    thread::spawn(move || loop {
+        let read_result = {
+            let state = window.state::<BackendState>();
+            let mut runtimes = match state.terminal_runtimes.lock() {
+                Ok(runtimes) => runtimes,
+                Err(_) => {
+                    let _ = emit_terminal_error(
+                        &window,
+                        &session_id,
+                        "terminal runtime state is unavailable",
+                    );
+                    break;
+                }
+            };
+            let Some(runtime) = runtimes.get_mut(&session_id) else {
+                break;
+            };
+            read_runtime_output(runtime).map(|output| (output, runtime.channel.eof()))
+        };
+
+        match read_result {
+            Ok((output, closed)) => {
+                if !output.is_empty() {
+                    let _ = emit_terminal_output(&window, &session_id, output);
+                }
+                if closed {
+                    let _ = window.emit(
+                        crate::ipc::events::TERMINAL_CLOSED,
+                        TerminalSessionEventPayload {
+                            session_id: session_id.clone(),
+                        },
+                    );
+                    break;
+                }
+            }
+            Err(error) => {
+                let _ = emit_terminal_error(&window, &session_id, error.message);
+                break;
+            }
+        }
+
+        thread::sleep(Duration::from_millis(16));
+    });
 }
 
 pub(crate) fn send_input(
@@ -374,7 +442,9 @@ fn is_nonblocking_io_pending(error: &std::io::Error) -> bool {
         return true;
     }
     let message = error.to_string().to_ascii_lowercase();
-    message.contains("transport read") || message.contains("would block") || message.contains("again")
+    message.contains("transport read")
+        || message.contains("would block")
+        || message.contains("again")
 }
 
 fn ensure_terminal_exists(state: &BackendState, session_id: &str) -> BackendResult<()> {
@@ -400,6 +470,34 @@ fn push_output_event(state: &BackendState, session_id: &str, text: String) -> Ba
             data_base64: STANDARD.encode(text.as_bytes()),
         });
     Ok(())
+}
+
+fn emit_terminal_output(
+    window: &tauri::WebviewWindow,
+    session_id: &str,
+    text: String,
+) -> tauri::Result<()> {
+    window.emit(
+        crate::ipc::events::TERMINAL_OUTPUT,
+        TerminalOutputEventPayload {
+            session_id: session_id.to_string(),
+            data_base64: STANDARD.encode(text.as_bytes()),
+        },
+    )
+}
+
+fn emit_terminal_error(
+    window: &tauri::WebviewWindow,
+    session_id: &str,
+    error: impl Into<String>,
+) -> tauri::Result<()> {
+    window.emit(
+        crate::ipc::events::TERMINAL_ERROR,
+        TerminalErrorEventPayload {
+            session_id: session_id.to_string(),
+            error: error.into(),
+        },
+    )
 }
 
 fn validate_terminal_request(request: &ConnectTerminalRequest) -> BackendResult<()> {

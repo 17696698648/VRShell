@@ -1,32 +1,35 @@
-import {patchTask} from '../../../entities/task'
-import {listenTypedEvent, type SftpProgressEvent} from '../../../shared/ipc/ipcEvents'
+import {patchTask, upsertTask} from '../../../entities/task'
+import {listenTypedEvent, type SftpFailedEvent, type SftpProgressEvent} from '../../../shared/ipc/ipcEvents'
 
 export async function registerSftpProgressEvents() {
   const disposers = await Promise.all([
     listenTypedEvent('sftp-progress', handleSftpProgress),
-    listenTypedEvent('sftp-completed', (event) => handleSftpCompleted(event)),
-    listenTypedEvent('sftp-failed', (event) => handleSftpFailed(event.error ? {...event, error: event.error} : event)),
+    listenTypedEvent('sftp-completed', handleSftpCompleted),
+    listenTypedEvent('sftp-failed', handleSftpFailed),
   ])
   return () => disposers.forEach((dispose) => dispose())
 }
 
 export function handleSftpProgress(event: SftpProgressEvent) {
-  patchTask(event.taskId, {
-    progress: getProgressPercent(event),
-    status: 'running',
-  })
+  upsertSftpTask(event, {error: undefined, progress: getProgressPercent(event), status: 'running'})
 }
 
 export function handleSftpCompleted(event: SftpProgressEvent) {
-  patchTask(event.taskId, {
-    progress: 100,
-    status: 'done',
-  })
+  upsertSftpTask(event, {error: undefined, progress: 100, status: 'done'})
 }
 
-export function handleSftpFailed(event: SftpProgressEvent & {error?: string}) {
-  patchTask(event.taskId, {
-    status: 'failed',
+export function handleSftpFailed(event: SftpFailedEvent) {
+  upsertSftpTask(event, {error: event.error, status: 'failed'})
+}
+
+function upsertSftpTask(event: SftpProgressEvent & {title?: string; detail?: string}, patch: Parameters<typeof patchTask>[1]) {
+  upsertTask({
+    id: event.taskId,
+    title: event.title || 'SFTP transfer',
+    detail: event.detail || event.taskId,
+    progress: getProgressPercent(event),
+    status: 'running',
+    ...patch,
   })
 }
 

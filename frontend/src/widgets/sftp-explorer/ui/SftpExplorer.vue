@@ -1,5 +1,5 @@
 ﻿<template>
-  <UiWorkbenchPanel :compact="compact" :class="['explorer-panel', 'sftp-explorer', `sftp-explorer--${viewMode}`]" title="SFTP" :subtitle="sftpSubtitle">
+  <UiWorkbenchPanel :compact="compact" :class="['explorer-panel', 'sftp-explorer', `sftp-explorer--${viewMode}`]" :title="messages.sftp.explorer.title" :subtitle="sftpSubtitle">
     <template #icon><FolderTree :size="15" /></template>
     <template #toolbar>
       <SftpToolbar
@@ -16,11 +16,11 @@
     <div class="explorer-layout sftp-explorer__layout">
       <section class="explorer-utility sftp-explorer__utility">
         <SftpBreadcrumbs :path="sftpState.path" @open="refresh" />
-        <small v-if="!activeSession" class="sftp-explorer__hint">Select a connected session to enable remote file actions.</small>
+        <small v-if="!activeSession" class="sftp-explorer__hint">{{ messages.sftp.explorer.hint }}</small>
       </section>
       <section class="explorer-content sftp-explorer__body">
-        <UiErrorState v-if="sftpState.error" copyable logs-command-id="workspace.openLogsPanel" title="Unable to load remote directory" :message="sftpState.error" retry-label="Retry" @retry="refresh()" />
-        <div v-else-if="sftpState.loading" class="sftp-tree sftp-tree--loading" aria-label="Loading remote directory">
+        <UiErrorState v-if="sftpState.error" copyable logs-command-id="workspace.openLogsPanel" :title="messages.sftp.explorer.unableToLoadDirectory" :message="sftpState.error" :retry-label="messages.sftp.explorer.retry" @retry="refresh()" />
+        <div v-else-if="sftpState.loading" class="sftp-tree sftp-tree--loading" :aria-label="messages.sftp.explorer.loadingDirectory">
           <article v-for="index in 4" :key="index" class="sftp-row skeleton-row">
             <span />
             <strong />
@@ -34,11 +34,11 @@
           compact
           class="explorer-empty-state sftp-empty-state"
           icon="⇄"
-          title="No remote files"
-          :description="activeSession ? 'Refresh the current path or upload files into this directory.' : 'Select a connected session to browse remote files.'"
+          :title="messages.sftp.explorer.emptyTitle"
+          :description="activeSession ? messages.sftp.explorer.emptyWithSession : messages.sftp.explorer.emptyWithoutSession"
         >
           <template #actions>
-            <UiButton v-if="activeSession" size="sm" variant="primary" @click="refresh()">Refresh directory</UiButton>
+            <UiButton v-if="activeSession" size="sm" variant="primary" @click="refresh()">{{ messages.sftp.explorer.refreshDirectory }}</UiButton>
           </template>
         </EmptyState>
         <SftpDirectoryTree v-else-if="viewMode === 'tree'" :items="sftpState.items" :root-path="sftpState.path" :session="activeSession" />
@@ -57,7 +57,8 @@
 import {FolderTree} from '@lucide/vue'
 import {computed} from 'vue'
 import {getActiveSession} from '../../../entities/session'
-import {createRemoteDirectory, createTransferTask} from '../../../features/sftp/manage-files/manageSftpFiles'
+import {createRemoteDirectory, uploadFileToRemoteDirectory} from '../../../features/sftp/manage-files/manageSftpFiles'
+import {messages} from '../../../shared/copy'
 import {requestPrompt} from '../../../shared/dialog'
 import {EmptyState, UiButton, UiErrorState, UiWorkbenchPanel} from '../../../shared/ui'
 import {useSftpExplorer} from '../model/useSftpExplorer'
@@ -73,13 +74,13 @@ defineProps<{compact?: boolean}>()
 const {sftpState, refresh, openParentDirectory} = useSftpExplorer()
 const {viewMode} = useSftpViewMode()
 const activeSession = computed(() => getActiveSession())
-const sftpSubtitle = computed(() => activeSession.value ? `${activeSession.value.name} · ${activeSession.value.username}@${activeSession.value.host}:${activeSession.value.port}` : 'No selected session')
+const sftpSubtitle = computed(() => activeSession.value ? `${activeSession.value.name} · ${activeSession.value.username}@${activeSession.value.host}:${activeSession.value.port}` : messages.sftp.explorer.noSelectedSession)
 async function handleMkdir() {
-  const name = await requestPrompt({title: 'Create remote directory', label: 'Directory name', confirmLabel: 'Create'})
+  const name = await requestPrompt({title: messages.sftp.explorer.createRemoteDirectoryTitle, label: messages.sftp.explorer.directoryName, confirmLabel: messages.sftp.dialogs.create})
   if (name) await createRemoteDirectory(name)
 }
 
 async function handleUpload() {
-  await createTransferTask('upload', sftpState.path)
+  await uploadFileToRemoteDirectory(sftpState.path)
 }
 </script>

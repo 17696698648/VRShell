@@ -2,7 +2,6 @@
 import {getActiveSession} from '../../../entities/session'
 import {sftpState, setSftpItems} from '../../../entities/sftp'
 import {listRemoteDirectory} from '../../../entities/sftp/api/sftpRepository'
-import {pushToast} from '../../../shared/feedback'
 
 export function useSftpExplorer() {
   const activeSession = computed(() => getActiveSession())
@@ -16,7 +15,6 @@ export function useSftpExplorer() {
       setSftpItems(path, await listRemoteDirectory(session, path))
     } catch (error) {
       sftpState.error = getErrorMessage(error)
-      pushToast({level: 'error', title: `Failed to list ${path}`, detail: sftpState.error})
     } finally {
       sftpState.loading = false
     }

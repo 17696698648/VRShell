@@ -1,8 +1,9 @@
 <template>
-  <UiPathBreadcrumb class="breadcrumbs" label="Remote path breadcrumbs" :path="path" @open="emit('open', $event)" />
+  <UiPathBreadcrumb class="breadcrumbs" :label="messages.sftp.directoryTree.breadcrumbs" :path="path" @open="emit('open', $event)" />
 </template>
 
 <script setup lang="ts">
+import {messages} from '../../../shared/copy'
 import {UiPathBreadcrumb} from '../../../shared/ui'
 
 defineProps<{path: string}>()

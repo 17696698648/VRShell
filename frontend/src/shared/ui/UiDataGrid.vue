@@ -1,5 +1,5 @@
 <template>
-  <div class="ui-data-grid" role="grid" :aria-label="label" :aria-rowcount="items.length + 1" :aria-colcount="columns.length" @keydown="handleGridKeydown">
+  <div class="ui-data-grid" role="grid" :aria-label="label" :aria-rowcount="items.length + 1" :aria-colcount="columns.length" @contextmenu="handleGridContextMenu" @keydown="handleGridKeydown">
     <div class="ui-data-grid__header" role="row" :style="gridStyle">
       <button v-for="column in columns" :key="column.id" type="button" role="columnheader" :aria-sort="ariaSort(column.id)" @click="$emit('sort', column.id)">
         {{ column.title }} <UiSortIndicator :active="sortKey === column.id" :direction="sortDirection" />
@@ -34,7 +34,7 @@ const props = withDefaults(
   defineProps<{columns: UiDataGridColumn[]; emptyText?: string; getKey: (item: T, index: number) => string; itemHeight?: number; items: T[]; label?: string; selectedKey?: string | null; sortDirection?: 'asc' | 'desc'; sortKey?: string}>(),
   {emptyText: 'No data', itemHeight: 36, label: 'Data grid', selectedKey: null, sortDirection: 'asc', sortKey: ''},
 )
-const emit = defineEmits<{activate: [item: T, index: number]; contextmenu: [item: T, index: number, event: MouseEvent]; select: [item: T, index: number, key: string]; sort: [columnId: string]}>()
+const emit = defineEmits<{activate: [item: T, index: number]; contextmenu: [item: T | null, index: number, event: MouseEvent]; select: [item: T, index: number, key: string]; sort: [columnId: string]}>()
 
 const gridStyle = computed(() => ({'--ui-data-grid-template': props.columns.map((column) => column.width ?? 'minmax(0, 1fr)').join(' ')}))
 
@@ -75,6 +75,13 @@ function getCellProps(column: UiDataGridColumn, columnIndex = props.columns.find
     class: ['ui-data-grid__cell', column.align ? `ui-data-grid__cell--${column.align}` : ''],
     role: 'gridcell',
   }
+}
+
+function handleGridContextMenu(event: MouseEvent) {
+  const target = event.target as HTMLElement | null
+  if (target?.closest('[role="row"][tabindex], .ui-data-grid__header')) return
+  event.preventDefault()
+  emit('contextmenu', null, -1, event)
 }
 
 function handleGridKeydown(event: KeyboardEvent) {

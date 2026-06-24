@@ -20,6 +20,7 @@
     "test:e2e:smoke": "npm --prefix frontend run test:e2e:smoke",
     "check:json": "node scripts/check-json.mjs",
     "check:utf8": "node scripts/check-utf8.mjs",
+    "generate:ipc": "node scripts/generate-ipc-contract.mjs",
     "audit:frontend": "node scripts/npm-audit-summary.mjs",
     "rust:check": "cargo check --manifest-path src-tauri/Cargo.toml",
     "rust:fmt": "cargo fmt --manifest-path src-tauri/Cargo.toml",
@@ -28,7 +29,7 @@
     "rust:clippy": "cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings",
     "rust:audit": "cargo audit --manifest-path src-tauri/Cargo.toml",
     "security:audit": "npm run audit:frontend && npm run rust:audit",
-    "check": "npm run check:json && npm run check:utf8 && npm run lint && npm run typecheck && npm run test:frontend && npm run rust:check && npm run rust:test && npm run rust:clippy",
+    "check": "npm run generate:ipc && npm run check:json && npm run check:utf8 && npm run lint && npm run typecheck && npm run test:frontend && npm run rust:check && npm run rust:test && npm run rust:clippy",
     "tauri:dev": "npm --prefix frontend run tauri",
     "tauri:build": "npm --prefix frontend run tauri:build"
   }

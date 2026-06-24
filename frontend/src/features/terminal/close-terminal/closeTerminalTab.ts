@@ -1,7 +1,7 @@
-import {closeTerminal, getTerminalInputQueueLength, type TerminalTab} from '../../../entities/terminal'
+﻿import {closeTerminal, getTerminalInputQueueLength, type TerminalTab} from '../../../entities/terminal'
 import {disconnectTerminal} from '../../../entities/terminal/api/terminalRepository'
 import {requestConfirm} from '../../../shared/dialog'
-import {pushToast} from '../../../shared/feedback'
+import {notifyTerminalFailure, notifyWarning} from '../../../shared/feedback'
 
 interface CloseTerminalTabOptions {
   skipConfirm?: boolean
@@ -26,7 +26,7 @@ export async function closeTerminalTab(tab: TerminalTab, options: CloseTerminalT
 function disconnectClosedTerminal(tab: TerminalTab, backendSessionId: string) {
   if (!backendSessionId) return
   void disconnectTerminal(backendSessionId).catch((error) => {
-    pushToast({level: 'warning', title: `Failed to disconnect ${tab.title}`, detail: getErrorMessage(error)})
+    notifyWarning({title: `Failed to disconnect ${tab.title}`, detail: getErrorMessage(error), dedupeKey: `terminal:${tab.id}:disconnect-warning`})
   })
 }
 
@@ -44,3 +44,5 @@ function getCloseMessage(tab: TerminalTab) {
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error)
 }
+
+

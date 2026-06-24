@@ -1,5 +1,5 @@
 <template>
-  <aside class="explorer-scroll sftp-directory-pane" aria-label="Remote directories">
+  <aside class="explorer-scroll sftp-directory-pane" :aria-label="messages.sftp.directoryPane.label">
     <button
       v-for="directory in directories"
       :key="directory.id"
@@ -14,8 +14,8 @@
       v-if="directories.length === 0"
       compact
       icon="↳"
-      title="No folders"
-      description="This path has no child directories."
+      :title="messages.sftp.directoryPane.emptyTitle"
+      :description="messages.sftp.directoryPane.emptyDescription"
     />
   </aside>
 </template>
@@ -23,6 +23,7 @@
 <script setup lang="ts">
 import {computed} from 'vue'
 import type {SftpItem} from '../../../entities/sftp'
+import {messages} from '../../../shared/copy'
 import {EmptyState} from '../../../shared/ui'
 
 const props = defineProps<{items: SftpItem[]}>()

@@ -102,11 +102,42 @@
   margin-inline: var(--explorer-edge);
 }
 
-.sftp-directory-tree {
+.sftp-directory-tree-shell {
   min-height: 0;
   height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.sftp-directory-tree {
+  min-height: 0;
+  flex: 1;
   padding-inline: var(--sftp-explorer-edge);
   overflow: hidden;
+}
+
+.sftp-directory-tree__error {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 var(--sftp-explorer-edge) var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-md);
+  color: var(--color-danger);
+  font-size: var(--font-size-xs);
+}
+
+.sftp-directory-tree__error button {
+  color: inherit;
+  cursor: pointer;
+}
+
+.sftp-directory-tree__error-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: var(--space-2);
 }
 
 .sftp-directory-tree .ui-virtual-list {

@@ -126,6 +126,7 @@ pub(crate) struct SftpTransferRequest {
     pub remote_path: String,
     pub task_id: String,
     pub data_base64: Option<String>,
+    pub local_path: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]

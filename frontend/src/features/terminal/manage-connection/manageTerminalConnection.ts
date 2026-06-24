@@ -1,9 +1,10 @@
-import {patchSession, sessionState} from '../../../entities/session'
+﻿import {patchSession, sessionState} from '../../../entities/session'
 import {patchTerminal, type TerminalTab} from '../../../entities/terminal'
 import {disconnectTerminal} from '../../../entities/terminal/api/terminalRepository'
 import {connectSession} from '../../session/connect-session/connectSession'
 import {flushTerminalInputQueue} from '../send-terminal-input/sendTerminalInput'
-import {pushToast} from '../../../shared/feedback'
+import {messages} from '../../../shared/copy'
+import {notifyTerminalFailure, notifyWarning} from '../../../shared/feedback'
 
 export async function disconnectTerminalTab(tab: TerminalTab) {
   try {
@@ -12,7 +13,7 @@ export async function disconnectTerminalTab(tab: TerminalTab) {
     patchSession(tab.sessionId, {status: 'idle', backendSessionId: undefined})
   } catch (error) {
     patchTerminal(tab.id, {status: 'failed'})
-    pushToast({level: 'error', title: `Failed to disconnect ${tab.title}`, detail: getErrorMessage(error)})
+    notifyTerminalFailure({action: 'disconnect-failed', terminalId: tab.id, title: messages.terminal.failures.disconnect(tab.title), detail: getErrorMessage(error)})
     throw error
   }
 }
@@ -28,3 +29,6 @@ export async function reconnectTerminalTab(tab: TerminalTab) {
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error)
 }
+
+
+

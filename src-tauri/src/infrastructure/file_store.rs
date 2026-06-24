@@ -1,18 +1,27 @@
 use crate::{
-    domain::session::SessionGroup,
+    domain::{session::SessionGroup, sftp::SftpTaskSnapshot},
     error::{BackendError, BackendResult},
 };
 use serde::{Deserialize, Serialize};
 use std::{fs, path::PathBuf};
 
 const SESSION_TREE_FILE: &str = "session-tree.v1.json";
+const SFTP_TASKS_FILE: &str = "sftp-tasks.v1.json";
 const CURRENT_SESSION_TREE_VERSION: u32 = 1;
+const CURRENT_SFTP_TASKS_VERSION: u32 = 1;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct PersistedSessionTree {
     pub version: u32,
     pub groups: Vec<SessionGroup>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct PersistedSftpTasks {
+    pub version: u32,
+    pub tasks: Vec<SftpTaskSnapshot>,
 }
 
 pub(crate) struct FileStore {
@@ -41,9 +50,7 @@ impl FileStore {
     }
 
     pub(crate) fn save_session_tree(&self, groups: &[SessionGroup]) -> BackendResult<()> {
-        fs::create_dir_all(&self.app_data_dir).map_err(|error| {
-            BackendError::storage(format!("failed to create app data dir: {error}"))
-        })?;
+        self.ensure_app_data_dir()?;
 
         let persisted = PersistedSessionTree {
             version: CURRENT_SESSION_TREE_VERSION,
@@ -58,8 +65,49 @@ impl FileStore {
         })
     }
 
+    pub(crate) fn load_sftp_tasks(&self) -> BackendResult<Vec<SftpTaskSnapshot>> {
+        let path = self.sftp_tasks_path();
+        if !path.exists() {
+            return Ok(Vec::new());
+        }
+
+        let content = fs::read_to_string(&path).map_err(|error| {
+            BackendError::storage(format!("failed to read sftp tasks: {error}"))
+        })?;
+        let persisted: PersistedSftpTasks = serde_json::from_str(&content).map_err(|error| {
+            BackendError::storage(format!("failed to parse sftp tasks: {error}"))
+        })?;
+
+        migrate_sftp_tasks(persisted)
+    }
+
+    pub(crate) fn save_sftp_tasks(&self, tasks: &[SftpTaskSnapshot]) -> BackendResult<()> {
+        self.ensure_app_data_dir()?;
+
+        let persisted = PersistedSftpTasks {
+            version: CURRENT_SFTP_TASKS_VERSION,
+            tasks: tasks.to_vec(),
+        };
+        let content = serde_json::to_string_pretty(&persisted).map_err(|error| {
+            BackendError::storage(format!("failed to serialize sftp tasks: {error}"))
+        })?;
+
+        fs::write(self.sftp_tasks_path(), content)
+            .map_err(|error| BackendError::storage(format!("failed to write sftp tasks: {error}")))
+    }
+
+    fn ensure_app_data_dir(&self) -> BackendResult<()> {
+        fs::create_dir_all(&self.app_data_dir).map_err(|error| {
+            BackendError::storage(format!("failed to create app data dir: {error}"))
+        })
+    }
+
     fn session_tree_path(&self) -> PathBuf {
         self.app_data_dir.join(SESSION_TREE_FILE)
+    }
+
+    fn sftp_tasks_path(&self) -> PathBuf {
+        self.app_data_dir.join(SFTP_TASKS_FILE)
     }
 }
 
@@ -68,6 +116,15 @@ fn migrate_session_tree(persisted: PersistedSessionTree) -> BackendResult<Vec<Se
         CURRENT_SESSION_TREE_VERSION => Ok(normalize_session_tree(persisted.groups)),
         version => Err(BackendError::storage(format!(
             "unsupported session tree version: {version}"
+        ))),
+    }
+}
+
+fn migrate_sftp_tasks(persisted: PersistedSftpTasks) -> BackendResult<Vec<SftpTaskSnapshot>> {
+    match persisted.version {
+        CURRENT_SFTP_TASKS_VERSION => Ok(persisted.tasks),
+        version => Err(BackendError::storage(format!(
+            "unsupported sftp tasks version: {version}"
         ))),
     }
 }
@@ -89,7 +146,10 @@ mod tests {
     use super::{
         migrate_session_tree, FileStore, PersistedSessionTree, CURRENT_SESSION_TREE_VERSION,
     };
-    use crate::domain::session::SessionGroup;
+    use crate::domain::{
+        session::SessionGroup,
+        sftp::{SftpTaskSnapshot, SftpTaskStatus},
+    };
     use std::{
         fs,
         time::{SystemTime, UNIX_EPOCH},
@@ -135,6 +195,31 @@ mod tests {
 
         assert_eq!(loaded.len(), 1);
         assert_eq!(loaded[0].id, "custom");
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn file_store_round_trips_sftp_tasks() {
+        let dir = temp_dir();
+        let store = FileStore::new(dir.clone());
+        let tasks = vec![SftpTaskSnapshot {
+            task_id: "task".to_string(),
+            kind: "download".to_string(),
+            title: "Download file".to_string(),
+            detail: "/srv/app.log".to_string(),
+            status: SftpTaskStatus::Done,
+            transferred_bytes: 100,
+            total_bytes: Some(100),
+            error: None,
+            updated_at_ms: 42,
+        }];
+
+        store.save_sftp_tasks(&tasks).expect("save tasks");
+        let loaded = store.load_sftp_tasks().expect("load tasks");
+
+        assert_eq!(loaded.len(), 1);
+        assert_eq!(loaded[0].task_id, "task");
+        assert_eq!(loaded[0].detail, "/srv/app.log");
         let _ = fs::remove_dir_all(dir);
     }
 

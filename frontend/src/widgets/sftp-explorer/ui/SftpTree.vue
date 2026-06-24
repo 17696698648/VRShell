@@ -1,6 +1,6 @@
 ﻿<template>
   <div :class="['sftp-tree', `sftp-tree--${displayMode}`]">
-    <UiDataGrid :columns="columns" :items="sortedItems" :item-height="36" :get-key="(item) => item.id" label="Remote files" empty-text="No remote files" :selected-key="selectedItemId" :sort-key="sortKey" :sort-direction="sortDirection" @activate="openItem" @contextmenu="openGridMenu" @select="selectItem" @sort="toggleSort($event as SortKey)">
+    <UiDataGrid :columns="columns" :items="sortedItems" :item-height="36" :get-key="(item) => item.id" :label="messages.sftp.treeGrid.label" :empty-text="messages.sftp.treeGrid.emptyText" :selected-key="selectedItemId" :sort-key="sortKey" :sort-direction="sortDirection" @activate="openItem" @contextmenu="openGridMenu" @select="selectItem" @sort="toggleSort($event as SortKey)">
       <template #default="{item, cellProps, gridStyle, rowProps}">
         <article
           v-bind="rowProps"
@@ -12,7 +12,6 @@
           @keydown.enter.prevent="openItem(item)"
           @keydown.f2.prevent="renameItem(item)"
           @keydown.delete.prevent="confirmDeleteItem(item)"
-          @contextmenu.prevent="openItemMenu($event, item)"
         >
           <strong v-bind="cellProps(columns[0])" class="sftp-row__name">
             <Folder v-if="item.type === 'directory'" :size="16" aria-hidden="true" />
@@ -20,7 +19,7 @@
             <span>{{ item.name }}</span>
           </strong>
           <small v-bind="cellProps(columns[1])">{{ item.size }}</small>
-          <span v-bind="cellProps(columns[2])" class="sftp-row__type">{{ item.type === 'directory' ? 'DIR' : 'FILE' }}</span>
+          <span v-bind="cellProps(columns[2])" class="sftp-row__type">{{ item.type === 'directory' ? messages.sftp.treeGrid.directoryType : messages.sftp.treeGrid.fileType }}</span>
           <small v-bind="cellProps(columns[3])">{{ item.modifiedAt }}</small>
         </article>
       </template>
@@ -32,10 +31,10 @@
 import {File, Folder} from '@lucide/vue'
 import {computed, ref} from 'vue'
 import {sftpState, type SftpItem} from '../../../entities/sftp'
-import {createTransferTask, deleteRemoteItem, openRemoteFileInSessionEditor, renameRemoteItem} from '../../../features/sftp/manage-files/manageSftpFiles'
+import {createRemoteDirectory, createRemoteFile, deleteRemoteItem, downloadRemoteItem, openRemoteFileInSessionEditor, renameRemoteItem, uploadFileToRemoteDirectory, uploadFolderToRemoteDirectory} from '../../../features/sftp/manage-files/manageSftpFiles'
 import {openContextMenu} from '../../../shared/context-menu'
+import {messages} from '../../../shared/copy'
 import {requestConfirm, requestPrompt} from '../../../shared/dialog'
-import {pushToast} from '../../../shared/feedback'
 import {UiDataGrid, type UiDataGridColumn} from '../../../shared/ui'
 
 const props = withDefaults(defineProps<{items: SftpItem[]; displayMode?: 'tree' | 'list' | 'split'}>(), {displayMode: 'list'})
@@ -48,10 +47,10 @@ const selectedItemId = ref<string | null>(null)
 const sortKey = ref<SortKey>('name')
 const sortDirection = ref<SortDirection>('asc')
 const columns: UiDataGridColumn[] = [
-  {id: 'name', title: 'Name', width: '130px'},
-  {id: 'size', title: 'Size', width: '88px'},
-  {id: 'type', title: 'Type', width: '72px'},
-  {id: 'modifiedAt', title: 'Modified', width: '120px'},
+  {id: 'name', title: messages.sftp.treeGrid.columns.name, width: '130px'},
+  {id: 'size', title: messages.sftp.treeGrid.columns.size, width: '88px'},
+  {id: 'type', title: messages.sftp.treeGrid.columns.type, width: '72px'},
+  {id: 'modifiedAt', title: messages.sftp.treeGrid.columns.modified, width: '120px'},
 ]
 
 const sortedItems = computed(() => {
@@ -90,56 +89,79 @@ function openItemMenu(event: MouseEvent, item: SftpItem) {
   openContextMenu({
     x: event.clientX,
     y: event.clientY,
+    items: item.type === 'directory' ? directoryItemMenu(item) : fileItemMenu(item),
+  })
+}
+
+function directoryItemMenu(item: SftpItem) {
+  return [
+    {id: 'open', label: messages.sftp.contextMenu.openFolder, run: () => openItem(item)},
+    {id: 'mkdir', label: messages.sftp.contextMenu.newFolder, run: async () => { await createDirectory(item.path) }},
+    {id: 'create-file', label: messages.sftp.contextMenu.newFile, run: async () => { await createFile(item.path) }},
+    {id: 'upload-file', label: messages.sftp.contextMenu.uploadFile, run: async () => { await uploadFileToRemoteDirectory(item.path) }},
+    {id: 'upload-folder', label: messages.sftp.contextMenu.uploadFolder, run: async () => { await uploadFolderToRemoteDirectory(item.path) }},
+    {id: 'rename', label: messages.sftp.contextMenu.rename, run: async () => { await renameItem(item) }},
+    {id: 'delete', label: messages.sftp.contextMenu.delete, danger: true, run: async () => { await confirmDeleteItem(item) }},
+  ]
+}
+
+function fileItemMenu(item: SftpItem) {
+  return [
+    {id: 'open', label: messages.sftp.contextMenu.openFile, run: () => openItem(item)},
+    {id: 'download', label: messages.sftp.contextMenu.download, run: async () => { await downloadItem(item) }},
+    {id: 'rename', label: messages.sftp.contextMenu.rename, run: async () => { await renameItem(item) }},
+    {id: 'delete', label: messages.sftp.contextMenu.delete, danger: true, run: async () => { await confirmDeleteItem(item) }},
+  ]
+}
+
+function openGridMenu(item: SftpItem | null, _index: number, event: MouseEvent) {
+  if (item) {
+    openItemMenu(event, item)
+    return
+  }
+  openDirectoryMenu(event)
+}
+
+function openDirectoryMenu(event: MouseEvent) {
+  openContextMenu({
+    x: event.clientX,
+    y: event.clientY,
     items: [
-      {id: 'open', label: item.type === 'directory' ? 'Open directory' : 'Open file', run: () => openItem(item)},
-      {id: 'download', label: 'Download', disabled: item.type === 'directory', run: async () => { await downloadItem(item) }},
-      {id: 'rename', label: 'Rename', run: async () => { await renameItem(item) }},
-      {id: 'copy-path', label: 'Copy path', run: async () => { await copyPath(item) }},
-      {id: 'properties', label: 'Properties', run: () => showProperties(item)},
-      {id: 'delete', label: 'Delete', danger: true, run: async () => { await confirmDeleteItem(item) }},
+      {id: 'mkdir', label: messages.sftp.contextMenu.newFolder, run: async () => { await createDirectory() }},
+      {id: 'create-file', label: messages.sftp.contextMenu.newFile, run: async () => { await createFile() }},
+      {id: 'upload-file', label: messages.sftp.contextMenu.uploadFile, run: async () => { await uploadFileToRemoteDirectory(sftpState.path) }},
+      {id: 'upload-folder', label: messages.sftp.contextMenu.uploadFolder, run: async () => { await uploadFolderToRemoteDirectory(sftpState.path) }},
     ],
   })
 }
 
-function openGridMenu(item: SftpItem, _index: number, event: MouseEvent) {
-  openItemMenu(event, item)
+async function downloadItem(item: SftpItem) {
+  await downloadRemoteItem(item)
 }
 
-async function downloadItem(item: SftpItem) {
-  if (item.type === 'directory') return
-  await createTransferTask('download', item.path)
+async function createDirectory(parentPath = sftpState.path) {
+  const name = await requestPrompt({title: messages.sftp.dialogs.newRemoteFolderTitle, label: messages.sftp.dialogs.folderName, confirmLabel: messages.sftp.dialogs.create})
+  if (name) await createRemoteDirectory(name, parentPath)
+}
+
+async function createFile(parentPath = sftpState.path) {
+  const name = await requestPrompt({title: messages.sftp.dialogs.newRemoteFileTitle, label: messages.sftp.dialogs.fileName, confirmLabel: messages.sftp.dialogs.create})
+  if (name) await createRemoteFile(name, parentPath)
 }
 
 async function renameItem(item: SftpItem) {
-  const name = await requestPrompt({title: 'Rename remote item', label: 'Name', value: item.name, confirmLabel: 'Rename'})
+  const name = await requestPrompt({title: messages.sftp.dialogs.renameRemoteItemTitle, label: messages.sftp.dialogs.name, value: item.name, confirmLabel: messages.sftp.dialogs.rename})
   if (name) await renameRemoteItem(item, name)
 }
 
 async function confirmDeleteItem(item: SftpItem) {
   const confirmed = await requestConfirm({
-    title: `Delete ${item.type}`,
-    message: `Delete ${item.path}? This operation cannot be undone.`,
-    confirmLabel: 'Delete',
+    title: messages.sftp.dialogs.deleteTitle(item.type),
+    message: messages.sftp.treeGrid.deleteMessage(item.path),
+    confirmLabel: messages.sftp.dialogs.delete,
     tone: 'danger',
   })
   if (confirmed) await deleteRemoteItem(item)
-}
-
-function showProperties(item: SftpItem) {
-  pushToast({
-    level: 'info',
-    title: item.name,
-    detail: `${item.type} · ${item.size} · modified ${item.modifiedAt} · ${item.path}`,
-  })
-}
-
-async function copyPath(item: SftpItem) {
-  if (!navigator.clipboard) {
-    pushToast({level: 'warning', title: 'Clipboard unavailable', detail: item.path})
-    return
-  }
-  await navigator.clipboard.writeText(item.path)
-  pushToast({level: 'success', title: 'Copied remote path', detail: item.path})
 }
 
 function compareByKey(left: SftpItem, right: SftpItem, key: SortKey) {

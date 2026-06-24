@@ -1,4 +1,4 @@
-import {afterEach, beforeEach, describe, expect, it} from 'vitest'
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 import {sessionEditorState} from '../../../../entities/editor'
 import {sessionState, type SessionHost} from '../../../../entities/session'
 import {sftpState, type SftpItem} from '../../../../entities/sftp'
@@ -7,6 +7,11 @@ import {clearToasts, feedbackState} from '../../../../shared/feedback'
 import {setIpcMock} from '../../../../shared/ipc/ipcClient'
 import {encodeTextBase64} from '../../../../shared/lib/base64'
 import {createRemoteDirectory, createTransferTask, deleteRemoteItem, openRemoteFileInSessionEditor, renameRemoteItem} from '../manageSftpFiles'
+
+vi.mock('@tauri-apps/plugin-dialog', () => ({
+  open: vi.fn(),
+  save: vi.fn(async () => '/tmp/app.log'),
+}))
 
 const activeSession: SessionHost = {id: 'sftp-session', name: 'SFTP Session', host: 'example.com', port: 22, username: 'deploy', protocol: 'ssh', groupId: 'all', tags: [], status: 'connected'}
 const item: SftpItem = {id: '/srv/app/app.log', name: 'app.log', path: '/srv/app/app.log', type: 'file', size: '2 KB', modifiedAt: 'Now'}

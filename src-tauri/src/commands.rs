@@ -1,7 +1,7 @@
 use crate::{
     domain::{
         credential::CredentialRef, session::SessionGroup, session_tree::SessionTreeActionPayload,
-        ssh_config::SshConfigHost, terminal::TerminalOutputEvent,
+        sftp::SftpTaskSnapshot, ssh_config::SshConfigHost, terminal::TerminalOutputEvent,
     },
     error::BackendError,
     ipc::{
@@ -14,7 +14,7 @@ use crate::{
     services::{credential_service, session_service, sftp_service, terminal_service},
     state::BackendState,
 };
-use tauri::State;
+use tauri::{Manager, State};
 
 pub(crate) fn handler() -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Send + Sync + 'static {
     tauri::generate_handler![
@@ -33,11 +33,14 @@ pub(crate) fn handler() -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Sen
         tcp_latency,
         sftp_list,
         sftp_mkdir,
+        sftp_create_file,
         sftp_rename,
         sftp_delete,
         sftp_upload,
+        sftp_upload_directory,
         sftp_download,
         sftp_read_file,
+        list_sftp_tasks,
         cancel_sftp_task,
         keyring_store,
         keyring_get,
@@ -112,6 +115,7 @@ fn parse_ssh_config() -> IpcResult<Vec<SshConfigHost>> {
 
 #[tauri::command]
 fn connect_ssh(
+    window: tauri::WebviewWindow,
     state: State<'_, BackendState>,
     host: String,
     port: u16,
@@ -135,7 +139,10 @@ fn connect_ssh(
         idle_timeout_secs,
     };
     terminal_service::connect(&state, request.into())
-        .map(|session| session.id)
+        .map(|session| {
+            terminal_service::start_output_reader(window, session.id.clone());
+            session.id
+        })
         .map_err(Into::into)
 }
 
@@ -193,8 +200,12 @@ fn sftp_list(
 
 #[tauri::command]
 fn sftp_mkdir(connection: SftpConnectionDto, remote_path: String) -> IpcResult<()> {
-    let _ = (connection, remote_path);
-    sftp_service::mutate_file_system("sftp mkdir").map_err(Into::into)
+    sftp_service::mkdir(connection.into(), remote_path).map_err(Into::into)
+}
+
+#[tauri::command]
+fn sftp_create_file(connection: SftpConnectionDto, remote_path: String) -> IpcResult<()> {
+    sftp_service::create_file(connection.into(), remote_path).map_err(Into::into)
 }
 
 #[tauri::command]
@@ -204,8 +215,12 @@ fn sftp_rename(connection: SftpConnectionDto, old_path: String, new_path: String
         old_path,
         new_path,
     };
-    let _ = request;
-    sftp_service::mutate_file_system("sftp rename").map_err(Into::into)
+    sftp_service::rename(
+        request.connection.into(),
+        request.old_path,
+        request.new_path,
+    )
+    .map_err(Into::into)
 }
 
 #[tauri::command]
@@ -219,41 +234,124 @@ fn sftp_delete(
         remote_path,
         is_directory,
     };
-    let _ = request;
-    sftp_service::mutate_file_system("sftp delete").map_err(Into::into)
+    sftp_service::delete(
+        request.connection.into(),
+        request.remote_path,
+        request.is_directory,
+    )
+    .map_err(Into::into)
 }
 
 #[tauri::command]
 fn sftp_upload(
+    window: tauri::WebviewWindow,
+    state: State<'_, BackendState>,
     connection: SftpConnectionDto,
     remote_path: String,
-    data_base64: String,
+    data_base64: Option<String>,
     task_id: String,
+    local_path: Option<String>,
 ) -> IpcResult<()> {
     let request = SftpTransferRequest {
         connection,
         remote_path,
         task_id,
-        data_base64: Some(data_base64),
+        data_base64,
+        local_path,
     };
-    let _ = request;
-    sftp_service::mutate_file_system("sftp upload").map_err(Into::into)
+    clear_cancelled_sftp_task(&state, &request.task_id)?;
+    sftp_service::register_sftp_task(
+        &state,
+        &request.task_id,
+        "upload",
+        "Upload file",
+        &request.remote_path,
+    )
+    .map_err(crate::ipc::IpcError::from)?;
+    std::thread::spawn(move || {
+        let state = window.state::<BackendState>();
+        if let Err(error) = sftp_service::upload_file_with_progress(
+            Some(&window),
+            Some(&state),
+            Some(&request.task_id),
+            request.connection.into(),
+            request.remote_path,
+            request.data_base64,
+            request.local_path,
+        ) {
+            sftp_service::emit_sftp_failed(Some(&state), &window, &request.task_id, error.message);
+        }
+    });
+    Ok(())
+}
+
+#[tauri::command]
+fn sftp_upload_directory(
+    window: tauri::WebviewWindow,
+    state: State<'_, BackendState>,
+    connection: SftpConnectionDto,
+    local_path: String,
+    remote_path: String,
+    task_id: String,
+) -> IpcResult<()> {
+    clear_cancelled_sftp_task(&state, &task_id)?;
+    sftp_service::register_sftp_task(&state, &task_id, "upload", "Upload folder", &remote_path)
+        .map_err(crate::ipc::IpcError::from)?;
+    std::thread::spawn(move || {
+        let state = window.state::<BackendState>();
+        if let Err(error) = sftp_service::upload_directory_with_progress(
+            Some(&window),
+            Some(&state),
+            Some(&task_id),
+            connection.into(),
+            local_path,
+            remote_path,
+        ) {
+            sftp_service::emit_sftp_failed(Some(&state), &window, &task_id, error.message);
+        }
+    });
+    Ok(())
 }
 
 #[tauri::command]
 fn sftp_download(
+    window: tauri::WebviewWindow,
+    state: State<'_, BackendState>,
     connection: SftpConnectionDto,
     remote_path: String,
     task_id: String,
-) -> IpcResult<String> {
+    local_path: Option<String>,
+) -> IpcResult<()> {
     let request = SftpTransferRequest {
         connection,
         remote_path,
         task_id,
         data_base64: None,
+        local_path,
     };
-    let _ = request;
-    Err(BackendError::not_implemented("sftp download").into())
+    clear_cancelled_sftp_task(&state, &request.task_id)?;
+    sftp_service::register_sftp_task(
+        &state,
+        &request.task_id,
+        "download",
+        "Download file",
+        &request.remote_path,
+    )
+    .map_err(crate::ipc::IpcError::from)?;
+    std::thread::spawn(move || {
+        let state = window.state::<BackendState>();
+        if let Err(error) = sftp_service::download_file_with_progress(
+            Some(&window),
+            Some(&state),
+            Some(&request.task_id),
+            request.connection.into(),
+            request.remote_path,
+            request.local_path,
+        ) {
+            sftp_service::emit_sftp_failed(Some(&state), &window, &request.task_id, error.message);
+        }
+    });
+    Ok(())
 }
 
 #[tauri::command]
@@ -262,8 +360,26 @@ fn sftp_read_file(connection: SftpConnectionDto, remote_path: String) -> IpcResu
 }
 
 #[tauri::command]
-fn cancel_sftp_task(task_id: String) -> IpcResult<()> {
-    let _ = task_id;
+fn list_sftp_tasks(state: State<'_, BackendState>) -> IpcResult<Vec<SftpTaskSnapshot>> {
+    sftp_service::list_sftp_tasks(&state).map_err(Into::into)
+}
+
+#[tauri::command]
+fn cancel_sftp_task(state: State<'_, BackendState>, task_id: String) -> IpcResult<()> {
+    state
+        .cancelled_sftp_tasks
+        .lock()
+        .map_err(|_| BackendError::validation("sftp task state is unavailable"))?
+        .insert(task_id.clone());
+    sftp_service::mark_sftp_task_cancelled(&state, &task_id).map_err(Into::into)
+}
+
+fn clear_cancelled_sftp_task(state: &BackendState, task_id: &str) -> IpcResult<()> {
+    state
+        .cancelled_sftp_tasks
+        .lock()
+        .map_err(|_| BackendError::validation("sftp task state is unavailable"))?
+        .remove(task_id);
     Ok(())
 }
 

@@ -14,11 +14,14 @@ export type IpcCommandMap = {
   apply_session_tree_action: {args: SessionTreeActionPayload; result: SessionTreeActionResult}
   sftp_list: {args: {connection: SftpConnection; path: string}; result: SftpEntry[]}
   sftp_mkdir: {args: {connection: SftpConnection; remotePath: string}; result: void}
+  sftp_create_file: {args: {connection: SftpConnection; remotePath: string}; result: void}
   sftp_rename: {args: {connection: SftpConnection; oldPath: string; newPath: string}; result: void}
   sftp_delete: {args: {connection: SftpConnection; remotePath: string; isDirectory?: boolean}; result: void}
-  sftp_upload: {args: {connection: SftpConnection; remotePath: string; dataBase64: string; taskId: string; options?: SftpTransferOptions}; result: void}
-  sftp_download: {args: {connection: SftpConnection; remotePath: string; taskId: string}; result: string}
+  sftp_upload: {args: {connection: SftpConnection; remotePath: string; dataBase64?: string | null; taskId: string; localPath?: string | null; options?: SftpTransferOptions}; result: void}
+  sftp_upload_directory: {args: {connection: SftpConnection; localPath: string; remotePath: string; taskId: string}; result: void}
+  sftp_download: {args: {connection: SftpConnection; remotePath: string; taskId: string; localPath?: string | null}; result: void}
   sftp_read_file: {args: {connection: SftpConnection; remotePath: string}; result: string}
+  list_sftp_tasks: {args: undefined; result: SftpTaskSnapshot[]}
   cancel_sftp_task: {args: {taskId: string}; result: void}
   keyring_store: {args: {service: string; key: string; value: string}; result: void}
   keyring_get: {args: {service: string; key: string}; result: string | null}
@@ -46,11 +49,14 @@ export const ipcCommandNames = [
   'tcp_latency',
   'sftp_list',
   'sftp_mkdir',
+  'sftp_create_file',
   'sftp_rename',
   'sftp_delete',
   'sftp_upload',
+  'sftp_upload_directory',
   'sftp_download',
   'sftp_read_file',
+  'list_sftp_tasks',
   'cancel_sftp_task',
   'keyring_store',
   'keyring_get',
@@ -71,6 +77,18 @@ export interface SftpConnection {
 export interface SftpTransferOptions {
   overwrite?: boolean
   resume?: boolean
+}
+
+export interface SftpTaskSnapshot {
+  taskId: string
+  kind: 'upload' | 'download' | 'sftp' | string
+  title: string
+  detail: string
+  status: 'running' | 'done' | 'failed' | 'cancelled'
+  transferredBytes: number
+  totalBytes?: number | null
+  error?: string | null
+  updatedAtMs: number
 }
 
 export interface ConnectSshArgs {

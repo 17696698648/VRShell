@@ -1,6 +1,7 @@
 ﻿import {addSessions, sessionState} from '../../../entities/session'
 import {importSshConfig} from '../../../entities/session/api/sessionRepository'
-import {pushToast} from '../../../shared/feedback'
+import {notifyError, notifyWarning} from '../../../shared/feedback'
+import {messages} from '../../../shared/copy'
 
 export interface ImportSshConfigSummary {
   imported: number
@@ -14,7 +15,7 @@ export async function importSshConfigSessions(): Promise<ImportSshConfigSummary>
     addSessions(result.imported)
     return {imported: result.imported.length, skipped: result.skipped, total: result.total}
   } catch (error) {
-    pushToast({level: 'error', title: 'Failed to import SSH config', detail: getErrorMessage(error)})
+    notifyError({title: messages.session.failures.importSshConfig, detail: getErrorMessage(error)})
     throw error
   }
 }
@@ -22,3 +23,6 @@ export async function importSshConfigSessions(): Promise<ImportSshConfigSummary>
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error)
 }
+
+
+

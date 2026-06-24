@@ -81,6 +81,6 @@ describe('terminal event provider', () => {
 
     expect(terminalState.tabs[0].status).toBe('failed')
     expect(getTerminalBufferLines(terminal.id).at(-1)).toContain('Output polling failed')
-    expect(feedbackState.toasts.at(-1)).toMatchObject({level: 'error', title: `Terminal output stopped for ${terminal.title}`})
+    expect(feedbackState.toasts).toHaveLength(0)
   })
 })

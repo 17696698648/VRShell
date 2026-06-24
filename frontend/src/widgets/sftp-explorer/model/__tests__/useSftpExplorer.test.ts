@@ -53,6 +53,6 @@ describe('useSftpExplorer', () => {
 
     expect(sftpState.loading).toBe(false)
     expect(sftpState.error).toBe('sftp_list failed: permission denied')
-    expect(feedbackState.toasts.at(-1)).toMatchObject({level: 'error', title: 'Failed to list /root'})
+    expect(feedbackState.toasts).toHaveLength(0)
   })
 })

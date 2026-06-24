@@ -14,4 +14,13 @@ describe('feedbackStore', () => {
 
     expect(feedbackState.toasts).toHaveLength(0)
   })
+
+  it('deduplicates toast messages by key during the cooldown window', () => {
+    const firstToastId = pushToast({level: 'error', title: 'Failed', dedupeKey: 'same-error', cooldownMs: 5000})
+    const secondToastId = pushToast({level: 'error', title: 'Failed again', dedupeKey: 'same-error', cooldownMs: 5000})
+
+    expect(secondToastId).toBe(firstToastId)
+    expect(feedbackState.toasts).toHaveLength(1)
+    expect(feedbackState.toasts[0].title).toBe('Failed')
+  })
 })

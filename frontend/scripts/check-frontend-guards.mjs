@@ -36,6 +36,7 @@ for (const file of listSourceFiles('src')) {
   assertNoHardcodedColors(file, source)
   assertNoDirectTauriInvoke(file, source)
   assertNoFeatureCommandRegistryImport(file, source)
+  assertNoDirectPushToast(file, source)
 }
 
 assertTerminalOutputStaysOutsideReactiveStore()
@@ -88,6 +89,13 @@ function assertNoDirectTauriInvoke(file, source) {
 function assertNoFeatureCommandRegistryImport(file, source) {
   if (file === 'src/shared/command/commandRegistry.ts' || file.startsWith('src/features/workspace/')) return
   assert(!source.includes('features/workspace/command-registry'), `${file} imports feature command registry directly; use shared/command`)
+}
+
+function assertNoDirectPushToast(file, source) {
+  if (file.startsWith('src/shared/feedback/')) return
+  if (file.includes('/__tests__/')) return
+  assert(!/\bpushToast\s*\(/.test(source), `${file} calls pushToast directly; use shared/feedback notifyFeedback helpers`)
+  assert(!/import\s*\{[^}]*\bpushToast\b/.test(source), `${file} imports pushToast directly; use shared/feedback notifyFeedback helpers`)
 }
 
 function assertTerminalOutputStaysOutsideReactiveStore() {

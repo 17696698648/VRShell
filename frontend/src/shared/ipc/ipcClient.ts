@@ -14,6 +14,7 @@ export type {
   SessionTreeTargetType,
   SftpConnection,
   SftpEntry,
+  SftpTaskSnapshot,
   SftpTransferOptions,
   SshConfigHost,
 } from './ipcContract'
@@ -91,5 +92,6 @@ async function invokeMock(command: keyof IpcCommandMap, args: unknown) {
       {name: 'app.env', path: `${payload.path}/app.env`, is_dir: false, size: 2048, modified: Date.now()},
     ]
   }
+  if (command === 'list_sftp_tasks') return []
   return undefined
 }

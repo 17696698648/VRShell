@@ -1,9 +1,14 @@
-import {afterEach, beforeEach, describe, expect, it} from 'vitest'
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 import {sessionState} from '../../../../entities/session'
 import {addTask, taskItems} from '../../../../entities/task'
 import {clearToasts, feedbackState} from '../../../../shared/feedback'
 import {setIpcMock} from '../../../../shared/ipc/ipcClient'
-import {cancelTask, retryTask} from '../manageTask'
+import {cancelTask, restoreSftpTasks, retryTask} from '../manageTask'
+
+vi.mock('@tauri-apps/plugin-dialog', () => ({
+  open: vi.fn(),
+  save: vi.fn(async () => '/tmp/file'),
+}))
 
 const defaultTasks = JSON.parse(JSON.stringify(taskItems)) as typeof taskItems
 const defaultSessions = [{id: 'session-test', name: 'session-test', host: 'example.com', port: 22, username: 'deploy', protocol: 'ssh', groupId: 'all', tags: [], status: 'connected', auth: {type: 'agent'}, backendSessionId: 'backend-test'}] as typeof sessionState.sessions
@@ -22,6 +27,23 @@ describe('manageTask', () => {
     sessionState.activeSessionId = ''
   })
 
+  it('restores SFTP tasks from backend snapshots', async () => {
+    setIpcMock(async (command) => {
+      if (command === 'list_sftp_tasks') {
+        return [
+          {taskId: 'download-task', kind: 'download', title: 'Download file', detail: '/srv/app.log', status: 'running', transferredBytes: 25, totalBytes: 100, error: null, updatedAtMs: 2},
+          {taskId: 'failed-task', kind: 'upload', title: 'Upload file', detail: '/srv/app.env', status: 'failed', transferredBytes: 0, totalBytes: null, error: 'network lost', updatedAtMs: 1},
+        ]
+      }
+      return undefined
+    })
+
+    await expect(restoreSftpTasks()).resolves.toBe(2)
+
+    expect(taskItems.find((task) => task.id === 'download-task')).toMatchObject({title: 'Download file', detail: '/srv/app.log', progress: 25, status: 'running'})
+    expect(taskItems.find((task) => task.id === 'failed-task')).toMatchObject({title: 'Upload file', detail: '/srv/app.env', error: 'network lost', progress: 0, status: 'failed'})
+  })
+
   it('cancels running SFTP tasks through typed IPC', async () => {
     addTask({id: 'task', title: 'Download file', detail: '/tmp/file', progress: 50, status: 'running'})
     let payload: unknown = null
@@ -34,7 +56,7 @@ describe('manageTask', () => {
 
     expect(payload).toEqual({taskId: 'task'})
     expect(taskItems[0].status).toBe('cancelled')
-    expect(feedbackState.toasts.at(-1)).toMatchObject({level: 'info', title: 'Cancelled Download file'})
+    expect(feedbackState.toasts).toHaveLength(0)
   })
 
   it('reports cancel failures', async () => {
@@ -49,11 +71,12 @@ describe('manageTask', () => {
   })
 
   it('retries failed transfer tasks', async () => {
-    addTask({id: 'task', title: 'Download file', detail: '/tmp/file', progress: 50, status: 'failed'})
+    addTask({id: 'task', title: 'Download file', detail: '/tmp/file', error: 'previous failure', progress: 50, status: 'failed'})
 
     const retryTaskId = await retryTask(taskItems[0])
 
     expect(retryTaskId).toBeTruthy()
+    expect(taskItems.find((task) => task.id === 'task')?.error).toBeUndefined()
     expect(taskItems[0]).toMatchObject({id: retryTaskId, title: 'Download file', status: 'done'})
   })
 })

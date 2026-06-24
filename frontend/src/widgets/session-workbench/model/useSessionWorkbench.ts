@@ -1,9 +1,10 @@
-import {computed} from 'vue'
+﻿import {computed} from 'vue'
 import {getActiveSession, sessionState, setActiveSession} from '../../../entities/session'
 import {connectTerminal} from '../../../entities/terminal/api/terminalRepository'
 import {openTerminal, patchTerminal, terminalState} from '../../../entities/terminal'
 import {getErrorMessage} from '../../../shared/error/getErrorMessage'
-import {pushToast} from '../../../shared/feedback'
+import {messages} from '../../../shared/copy'
+import {notifyTerminalFailure, notifyWarning} from '../../../shared/feedback'
 import {resolveSessionAuth} from '../../../features/session/manage-credentials/sessionCredentials'
 import {closeTerminalTab} from '../../../features/terminal/close-terminal/closeTerminalTab'
 
@@ -57,12 +58,14 @@ export function useSessionWorkbench() {
         backendSessionId,
         status: 'connected',
       })
-      pushToast({level: 'success', title: `Opened terminal${terminalIndex}`})
     } catch (error) {
       patchTerminal(terminalId, {status: 'failed'})
-      pushToast({level: 'error', title: 'Failed to open terminal', detail: getErrorMessage(error)})
+      notifyTerminalFailure({action: 'open-failed', terminalId, title: messages.terminal.failures.open, detail: getErrorMessage(error)})
     }
   }
 
   return {terminalState, activeTerminal, activeSession, currentSessionTerminals, openSessions, activateSession, closeSessionTab, openAdditionalTerminal}
 }
+
+
+

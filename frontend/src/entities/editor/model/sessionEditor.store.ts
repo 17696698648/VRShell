@@ -26,6 +26,26 @@ export function getSessionEditorFile(sessionId: string) {
   return sessionEditorState.files.find((file) => file.id === activeFileId) ?? null
 }
 
+export function getSessionEditorFiles(sessionId: string) {
+  return sessionEditorState.files.filter((file) => file.sessionId === sessionId)
+}
+
+export function activateSessionEditorFile(sessionId: string, fileId: string) {
+  if (sessionEditorState.files.some((file) => file.sessionId === sessionId && file.id === fileId)) {
+    sessionEditorState.activeFileIdBySession[sessionId] = fileId
+  }
+}
+
+export function closeSessionEditorFile(sessionId: string, fileId: string) {
+  const fileIndex = sessionEditorState.files.findIndex((file) => file.sessionId === sessionId && file.id === fileId)
+  if (fileIndex < 0) return
+  sessionEditorState.files.splice(fileIndex, 1)
+  if (sessionEditorState.activeFileIdBySession[sessionId] !== fileId) return
+  const nextFile = sessionEditorState.files.find((file) => file.sessionId === sessionId)
+  if (nextFile) sessionEditorState.activeFileIdBySession[sessionId] = nextFile.id
+  else delete sessionEditorState.activeFileIdBySession[sessionId]
+}
+
 export function setSessionEditorSplitRatio(sessionId: string, ratio: number) {
   sessionEditorState.splitRatioBySession[sessionId] = ratio
 }
