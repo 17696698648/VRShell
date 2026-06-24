@@ -1,5 +1,5 @@
 <template>
-  <EmptyState icon="SSH" title="No terminal" description="Connect a session to open a terminal tab, or use the command palette to find a session quickly.">
+  <EmptyState icon="SSH" title="No terminal" description="Use the plus button to open a terminal for the current session, or choose another session from the sidebar.">
     <template #actions>
       <UiButton variant="primary" @click="executeCommand('workspace.openSessionsPanel')">Open Sessions</UiButton>
       <UiButton variant="ghost" @click="executeCommand('workspace.openCommandPalette')">Command Palette</UiButton>

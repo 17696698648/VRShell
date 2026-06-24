@@ -12,6 +12,7 @@ use std::{
     io::{Read, Write},
     net::{TcpStream, ToSocketAddrs},
     path::PathBuf,
+    thread,
     time::Duration,
 };
 use uuid::Uuid;
@@ -84,19 +85,24 @@ pub(crate) fn send_input(
     let input = STANDARD
         .decode(data_base64.as_bytes())
         .map_err(|_| BackendError::validation("terminal input must be base64"))?;
-    let mut runtimes = state
-        .terminal_runtimes
-        .lock()
-        .map_err(|_| BackendError::validation("terminal runtime state is unavailable"))?;
-    let runtime = runtimes
-        .get_mut(session_id)
-        .ok_or_else(|| BackendError::validation("terminal session was not found"))?;
-    runtime.channel.write_all(&input).map_err(|error| {
-        BackendError::validation(format!("failed to write terminal input: {error}"))
-    })?;
-    runtime.channel.flush().map_err(|error| {
-        BackendError::validation(format!("failed to flush terminal input: {error}"))
-    })
+    let pending_output = {
+        let mut runtimes = state
+            .terminal_runtimes
+            .lock()
+            .map_err(|_| BackendError::validation("terminal runtime state is unavailable"))?;
+        let runtime = runtimes
+            .get_mut(session_id)
+            .ok_or_else(|| BackendError::validation("terminal session was not found"))?;
+        let pending_output = read_runtime_output(runtime)?;
+        write_all_nonblocking(runtime, &input)?;
+        pending_output
+    };
+
+    if !pending_output.is_empty() {
+        push_output_event(state, session_id, pending_output)?;
+    }
+
+    Ok(())
 }
 
 pub(crate) fn resize_pty(
@@ -277,6 +283,10 @@ fn read_available_output(state: &BackendState, session_id: &str) -> BackendResul
     let runtime = runtimes
         .get_mut(session_id)
         .ok_or_else(|| BackendError::validation("terminal session was not found"))?;
+    read_runtime_output(runtime)
+}
+
+fn read_runtime_output(runtime: &mut TerminalRuntime) -> BackendResult<String> {
     let _keep_session_alive = runtime.session.authenticated();
     let mut output = Vec::new();
 
@@ -293,6 +303,51 @@ fn read_available_output(state: &BackendState, session_id: &str) -> BackendResul
     Ok(String::from_utf8_lossy(&output).into_owned())
 }
 
+fn write_all_nonblocking(runtime: &mut TerminalRuntime, input: &[u8]) -> BackendResult<()> {
+    let mut written = 0;
+    let mut pending_attempts = 0;
+
+    while written < input.len() {
+        match runtime.channel.write(&input[written..]) {
+            Ok(0) => {
+                pending_attempts += 1;
+                wait_for_nonblocking_io(runtime, pending_attempts)?;
+            }
+            Ok(count) => {
+                written += count;
+                pending_attempts = 0;
+            }
+            Err(error) if is_nonblocking_io_pending(&error) => {
+                pending_attempts += 1;
+                wait_for_nonblocking_io(runtime, pending_attempts)?;
+            }
+            Err(error) => {
+                return Err(BackendError::validation(format!(
+                    "failed to write terminal input: {error}"
+                )))
+            }
+        }
+    }
+
+    runtime.channel.flush().map_err(|error| {
+        BackendError::validation(format!("failed to flush terminal input: {error}"))
+    })
+}
+
+fn wait_for_nonblocking_io(
+    runtime: &mut TerminalRuntime,
+    pending_attempts: usize,
+) -> BackendResult<()> {
+    if pending_attempts > 50 {
+        return Err(BackendError::validation(
+            "failed to write terminal input: ssh channel is not ready",
+        ));
+    }
+    let _ = read_runtime_output(runtime)?;
+    thread::sleep(Duration::from_millis(10));
+    Ok(())
+}
+
 fn read_stream_to_buffer<R: Read>(
     stream: &mut R,
     output: &mut Vec<u8>,
@@ -303,7 +358,7 @@ fn read_stream_to_buffer<R: Read>(
         match stream.read(&mut buffer) {
             Ok(0) => break,
             Ok(count) => output.extend_from_slice(&buffer[..count]),
-            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => break,
+            Err(error) if is_nonblocking_io_pending(&error) => break,
             Err(error) => {
                 return Err(BackendError::validation(format!(
                     "failed to read {label}: {error}"
@@ -312,6 +367,14 @@ fn read_stream_to_buffer<R: Read>(
         }
     }
     Ok(())
+}
+
+fn is_nonblocking_io_pending(error: &std::io::Error) -> bool {
+    if error.kind() == std::io::ErrorKind::WouldBlock {
+        return true;
+    }
+    let message = error.to_string().to_ascii_lowercase();
+    message.contains("transport read") || message.contains("would block") || message.contains("again")
 }
 
 fn ensure_terminal_exists(state: &BackendState, session_id: &str) -> BackendResult<()> {

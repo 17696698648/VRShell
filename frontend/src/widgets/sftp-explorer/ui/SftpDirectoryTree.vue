@@ -12,7 +12,7 @@
     @toggle="toggleNode"
   >
     <template #default="{item, treeItemProps}">
-      <button v-bind="treeItemProps" class="sftp-directory-tree__item" type="button" :title="item.path">
+      <button v-bind="treeItemProps" class="sftp-directory-tree__item" type="button" :title="item.path" @contextmenu.prevent="openNodeMenu(item, $event)">
         <ChevronDown v-if="item.type === 'directory' && expandedPaths.has(item.path)" class="sftp-directory-tree__chevron" :size="14" aria-hidden="true" />
         <ChevronRight v-else-if="item.type === 'directory'" class="sftp-directory-tree__chevron" :size="14" aria-hidden="true" />
         <span v-else class="sftp-directory-tree__chevron" aria-hidden="true" />
@@ -31,6 +31,7 @@ import {computed, reactive, ref, watch} from 'vue'
 import type {SessionHost} from '../../../entities/session'
 import type {SftpItem} from '../../../entities/sftp'
 import {listRemoteDirectory} from '../../../entities/sftp/api/sftpRepository'
+import {openContextMenu} from '../../../shared/context-menu'
 import {pushToast} from '../../../shared/feedback'
 import {UiTree} from '../../../shared/ui'
 
@@ -89,6 +90,33 @@ function buildNodes(parentPath: string, items: SftpItem[], level: number, parent
     const children = item.type === 'directory' && expandedPaths.has(item.path) ? childrenByPath.get(item.path) : null
     return children ? [node, ...buildNodes(item.path, children, level + 1, item.path)] : [node]
   })
+}
+
+function openNodeMenu(node: SftpTreeNode, event: MouseEvent) {
+  selectedPath.value = node.path
+  openContextMenu({
+    x: event.clientX,
+    y: event.clientY,
+    items: [
+      {id: 'open', label: node.type === 'directory' ? 'Open directory' : 'Open file', run: () => selectNode(node)},
+      {id: 'toggle', label: expandedPaths.has(node.path) ? 'Collapse' : 'Expand', disabled: node.type !== 'directory', run: () => toggleNode(node)},
+      {id: 'copy-path', label: 'Copy path', run: () => copyPath(node.path)},
+      {id: 'properties', label: 'Properties', run: () => showProperties(node)},
+    ],
+  })
+}
+
+async function copyPath(path: string) {
+  if (!navigator.clipboard) {
+    pushToast({level: 'warning', title: 'Clipboard unavailable', detail: path})
+    return
+  }
+  await navigator.clipboard.writeText(path)
+  pushToast({level: 'success', title: 'Copied remote path', detail: path})
+}
+
+function showProperties(node: SftpTreeNode) {
+  pushToast({level: 'info', title: node.name, detail: `${node.type} · ${node.path}`})
 }
 
 function getErrorMessage(error: unknown) {

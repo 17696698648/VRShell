@@ -1,4 +1,4 @@
-﻿# VRShell UI 最终设计方案
+# VRShell UI 最终设计方案
 
 ## 1. 设计结论
 
@@ -135,10 +135,10 @@ src/
         SessionTree.vue
         SessionTreeNode.vue
         SessionSearchBox.vue
-        SessionToolbar.vue
+        TerminalToolbar.vue
       model/
         useSessionExplorer.ts
-    terminal-workbench/
+    session-workbench/
       ui/
         TerminalWorkbench.vue
         TerminalTabs.vue

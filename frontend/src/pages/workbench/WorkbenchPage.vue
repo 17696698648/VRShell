@@ -1,5 +1,5 @@
 <template>
-  <WorkbenchShell>
+  <WorkbenchShell :class="{'workbench-shell--terminal-active': terminalState.tabs.length > 0}">
     <template #sidebar>
       <SidebarPanelHost/>
     </template>
@@ -15,7 +15,7 @@
       >
         <template #primary>
           <WelcomePage v-if="terminalState.tabs.length === 0" />
-          <TerminalWorkbench v-else />
+          <SessionWorkbench v-else />
         </template>
         <template v-if="showEditorWorkbench" #secondary>
           <EditorWorkbench/>
@@ -37,7 +37,7 @@ import DockHost from '../../shell/dock/DockHost.vue'
 import SidebarPanelHost from '../../shell/sidebar/SidebarPanelHost.vue'
 import WorkbenchShell from '../../shell/WorkbenchShell.vue'
 import EditorWorkbench from '../../widgets/editor-workbench/ui/EditorWorkbench.vue'
-import TerminalWorkbench from '../../widgets/terminal-workbench/ui/TerminalWorkbench.vue'
+import SessionWorkbench from '../../widgets/session-workbench/ui/SessionWorkbench.vue'
 import {WorkbenchLayout} from '../../widgets/workbench-layout'
 import WelcomePage from '../welcome/WelcomePage.vue'
 

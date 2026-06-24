@@ -12,6 +12,7 @@
           @keydown.enter.prevent="openItem(item)"
           @keydown.f2.prevent="renameItem(item)"
           @keydown.delete.prevent="confirmDeleteItem(item)"
+          @contextmenu.prevent="openItemMenu($event, item)"
         >
           <strong v-bind="cellProps(columns[0])" class="sftp-row__name">
             <Folder v-if="item.type === 'directory'" :size="16" aria-hidden="true" />

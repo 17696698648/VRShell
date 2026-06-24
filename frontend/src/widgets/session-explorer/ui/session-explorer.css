@@ -1,6 +1,7 @@
 .session-explorer__layout {
   --session-tree-row-height: 32px;
   --session-tree-indent: 16px;
+  --session-explorer-edge: calc(var(--explorer-edge) / 2);
 }
 
 .session-tree {
@@ -10,7 +11,11 @@
   height: 100%;
   min-height: 0;
   overflow: auto;
-  padding-inline: var(--explorer-edge);
+  padding-inline: var(--session-explorer-edge);
+}
+
+.session-explorer__search {
+  padding-inline: var(--session-explorer-edge);
 }
 
 .session-tree .ui-tree,

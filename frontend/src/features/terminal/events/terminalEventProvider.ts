@@ -6,7 +6,7 @@ import type {TerminalOutputEvent} from '../../../shared/ipc/ipcContract'
 
 type TerminalOutputEventPayload = TerminalOutputEvent | string | {data_base64?: string; dataBase64?: string; type?: string}
 
-const defaultPollIntervalMs = 1200
+const defaultPollIntervalMs = 180
 
 export interface TerminalEventProviderOptions {
   pollIntervalMs?: number

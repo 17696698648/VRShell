@@ -1,3 +1,7 @@
+.sftp-explorer {
+  --sftp-explorer-edge: calc(var(--explorer-edge) / 2);
+}
+
 .sftp-explorer .ui-workbench-panel__toolbar .ui-toolbar {
   grid-template-columns: minmax(0, 1fr);
   justify-items: start;
@@ -53,6 +57,7 @@
 .sftp-explorer__utility {
   display: grid;
   gap: 6px;
+  padding-inline: var(--sftp-explorer-edge);
 }
 
 .sftp-explorer .breadcrumbs {
@@ -85,7 +90,7 @@
 .sftp-explorer__hint {
   display: block;
   min-width: 0;
-  padding-inline: 2px;
+  padding-inline: 1px;
   overflow: hidden;
   color: var(--color-text-muted);
   font-size: var(--font-size-xs);
@@ -100,7 +105,7 @@
 .sftp-directory-tree {
   min-height: 0;
   height: 100%;
-  padding-inline: var(--explorer-edge);
+  padding-inline: var(--sftp-explorer-edge);
   overflow: hidden;
 }
 
@@ -152,7 +157,7 @@
   display: grid;
   min-height: 0;
   height: 100%;
-  padding-inline: var(--explorer-edge);
+  padding-inline: var(--sftp-explorer-edge);
   overflow: hidden;
 }
 
@@ -188,7 +193,7 @@
   min-width: max-content;
   gap: var(--space-2);
   min-width: 0;
-  padding-inline: 10px;
+  padding-inline: 5px;
   border: 1px solid transparent;
   border-radius: var(--radius-md);
   color: var(--color-text-secondary);
@@ -295,9 +300,9 @@
 .sftp-tree--loading {
   align-content: start;
   gap: 6px;
-  margin-inline: var(--explorer-edge);
+  margin-inline: var(--sftp-explorer-edge);
   padding: 8px;
-  padding-inline: 8px;
+  padding-inline: 4px;
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--color-bg-panel) 94%, var(--color-bg-shell));
@@ -324,7 +329,7 @@
   gap: 10px;
   min-height: 0;
   height: 100%;
-  padding-inline: var(--explorer-edge);
+  padding-inline: var(--sftp-explorer-edge);
   overflow: hidden;
 }
 

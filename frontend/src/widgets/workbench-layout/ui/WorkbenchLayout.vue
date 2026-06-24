@@ -72,7 +72,6 @@ const dockSplitRatio = computed({
 const dockSplitMin = computed(() => (props.dockPlacement === 'right' ? 58 : 48))
 const dockSplitMax = computed(() => (props.dockPlacement === 'right' ? 82 : 78))
 const classes = computed(() => [
-  'workbench-layout',
   `workbench-layout--${props.mode}`,
   `workbench-layout--preset-${props.preset}`,
   hasDock.value ? `workbench-layout--dock-${props.dockPlacement}` : null,
@@ -93,7 +92,7 @@ const MainSplitContent = defineComponent({
   },
   setup() {
     return () => {
-      const primary = h('div', {class: ['workbench-layout__primary', responsivePaneClass('primary')]}, slots.primary?.())
+      const primary = h('div', {class: responsivePaneClass('primary')}, slots.primary?.())
       if (!hasSecondary.value) return primary
       return h(
         UiSplitPane,

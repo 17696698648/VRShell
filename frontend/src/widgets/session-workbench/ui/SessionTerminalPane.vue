@@ -1,10 +1,10 @@
 ﻿<template>
-  <section class="terminal-pane">
-    <div v-if="terminal.status !== 'connected'" :class="['terminal-status', `terminal-status--${terminal.status}`]">
+  <section class="session-terminal-pane" :class="{'session-terminal-pane--connected': terminal.status === 'connected'}">
+    <div v-if="terminal.status !== 'connected'" :class="['session-terminal-status', `session-terminal-status--${terminal.status}`]">
       <span>{{ statusMessage }}</span>
       <button v-if="terminal.status === 'failed' || terminal.status === 'disconnected'" type="button" @click="reconnectTerminalTab(terminal)">Reconnect</button>
     </div>
-    <div ref="viewportRef" class="terminal-pane__viewport" />
+    <div ref="viewportRef" class="session-terminal-pane__viewport" @wheel.prevent="handleWheel" />
   </section>
 </template>
 
@@ -33,6 +33,7 @@ let xterm: Terminal | null = null
 let fitAddon: FitAddon | null = null
 let dataDisposable: IDisposable | null = null
 let resizeFrame: number | null = null
+let scrollFrame: number | null = null
 let renderedLineCount = 0
 
 onMounted(() => {
@@ -43,6 +44,7 @@ onMounted(() => {
     convertEol: true,
     fontFamily: 'var(--font-mono)',
     fontSize: 14,
+    scrollback: 5000,
     theme: {
       background: readCssToken('--color-terminal-bg'),
       foreground: readCssToken('--color-terminal-text'),
@@ -52,7 +54,8 @@ onMounted(() => {
   xterm.loadAddon(fitAddon)
   xterm.open(viewportRef.value)
   dataDisposable = xterm.onData((data) => {
-    if (props.terminal.status === 'connected') void sendTerminalDataToTerminalTab(props.terminal, data)
+    if (props.terminal.status !== 'connected') return
+    void sendTerminalDataToTerminalTab(props.terminal, data)
   })
   renderNewLines()
   void nextTick(scheduleFitAndResize)
@@ -69,6 +72,8 @@ onBeforeUnmount(() => {
   resizeObserver = null
   if (resizeFrame !== null) window.cancelAnimationFrame(resizeFrame)
   resizeFrame = null
+  if (scrollFrame !== null) window.cancelAnimationFrame(scrollFrame)
+  scrollFrame = null
   dataDisposable?.dispose()
   dataDisposable = null
   xterm?.dispose()
@@ -83,6 +88,21 @@ function renderNewLines() {
   if (!xterm) return
   for (const line of lines.value.slice(renderedLineCount)) xterm.write(line)
   renderedLineCount = lines.value.length
+  scheduleScrollToBottom()
+}
+
+function handleWheel(event: WheelEvent) {
+  if (!xterm) return
+  const lineDelta = Math.trunc(event.deltaY / 18) || Math.sign(event.deltaY)
+  if (lineDelta !== 0) xterm.scrollLines(lineDelta)
+}
+
+function scheduleScrollToBottom() {
+  if (scrollFrame !== null) return
+  scrollFrame = window.requestAnimationFrame(() => {
+    scrollFrame = null
+    xterm?.scrollToBottom()
+  })
 }
 
 function resetTerminalViewport() {

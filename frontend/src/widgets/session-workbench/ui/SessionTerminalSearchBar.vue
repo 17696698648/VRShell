@@ -1,5 +1,5 @@
 ﻿<template>
-  <form class="terminal-search" @submit.prevent="selectNextTerminalSearchMatch(tabId)">
+  <form class="session-terminal-search" @submit.prevent="selectNextTerminalSearchMatch(tabId)">
     <input
       :value="terminalSearchState.query"
       autofocus

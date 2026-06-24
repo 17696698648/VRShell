@@ -1,14 +1,14 @@
 <template>
   <div class="window-controls" aria-label="Window controls">
     <button type="button" aria-label="Minimize window" title="Minimize" @click="minimizeWindow">
-      <Minus :size="14" aria-hidden="true" />
+      <Minus :size="12" aria-hidden="true" />
     </button>
     <button type="button" :aria-label="maximized ? 'Restore window' : 'Maximize window'" :title="maximized ? 'Restore' : 'Maximize'" @click="toggleMaximizeWindow">
-      <Copy v-if="maximized" :size="13" aria-hidden="true" />
-      <Square v-else :size="13" aria-hidden="true" />
+      <Copy v-if="maximized" :size="11" aria-hidden="true" />
+      <Square v-else :size="10" aria-hidden="true" />
     </button>
     <button class="window-controls__close" type="button" aria-label="Close window" title="Close" @click="closeWindow">
-      <X :size="15" aria-hidden="true" />
+      <X :size="13" aria-hidden="true" />
     </button>
   </div>
 </template>
