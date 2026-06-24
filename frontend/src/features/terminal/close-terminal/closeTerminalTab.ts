@@ -3,8 +3,12 @@ import {disconnectTerminal} from '../../../entities/terminal/api/terminalReposit
 import {requestConfirm} from '../../../shared/dialog'
 import {pushToast} from '../../../shared/feedback'
 
-export async function closeTerminalTab(tab: TerminalTab) {
-  if (shouldConfirmClose(tab)) {
+interface CloseTerminalTabOptions {
+  skipConfirm?: boolean
+}
+
+export async function closeTerminalTab(tab: TerminalTab, options: CloseTerminalTabOptions = {}) {
+  if (!options.skipConfirm && shouldConfirmClose(tab)) {
     const confirmed = await requestConfirm({
       title: 'Close terminal',
       message: getCloseMessage(tab),

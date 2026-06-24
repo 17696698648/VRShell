@@ -21,6 +21,7 @@ const backendCommandNames = [
   'sftp_delete',
   'sftp_upload',
   'sftp_download',
+  'sftp_read_file',
   'cancel_sftp_task',
   'keyring_store',
   'keyring_get',

@@ -18,6 +18,7 @@ export type IpcCommandMap = {
   sftp_delete: {args: {connection: SftpConnection; remotePath: string; isDirectory?: boolean}; result: void}
   sftp_upload: {args: {connection: SftpConnection; remotePath: string; dataBase64: string; taskId: string; options?: SftpTransferOptions}; result: void}
   sftp_download: {args: {connection: SftpConnection; remotePath: string; taskId: string}; result: string}
+  sftp_read_file: {args: {connection: SftpConnection; remotePath: string}; result: string}
   cancel_sftp_task: {args: {taskId: string}; result: void}
   keyring_store: {args: {service: string; key: string; value: string}; result: void}
   keyring_get: {args: {service: string; key: string}; result: string | null}
@@ -49,6 +50,7 @@ export const ipcCommandNames = [
   'sftp_delete',
   'sftp_upload',
   'sftp_download',
+  'sftp_read_file',
   'cancel_sftp_task',
   'keyring_store',
   'keyring_get',

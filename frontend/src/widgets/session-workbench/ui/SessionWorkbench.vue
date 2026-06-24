@@ -1,7 +1,10 @@
 <template>
   <section class="session-workbench" :class="{'session-workbench--search-open': terminalSearchState.open && activeTerminal}">
     <SessionTabs />
-    <SessionPane :editor-open="editorOpen">
+    <SessionPane :editor-open="editorOpen" :session-id="activeSession?.id ?? ''">
+      <template #editor>
+        <SessionEditorArea v-if="editorOpen && activeSession" :session-id="activeSession.id" />
+      </template>
       <template #terminal>
         <SessionTerminalArea>
           <SessionTerminalTabs />
@@ -10,15 +13,13 @@
           <SessionEmptyState v-else />
         </SessionTerminalArea>
       </template>
-      <template #editor>
-        <SessionEditorArea v-if="editorOpen" />
-      </template>
     </SessionPane>
   </section>
 </template>
 
 <script setup lang="ts">
 import {computed} from 'vue'
+import {getSessionEditorFile} from '../../../entities/editor'
 import {terminalSearchState} from '../../../features/terminal/search-terminal/searchTerminal'
 import {useSessionWorkbench} from '../model/useSessionWorkbench'
 import SessionEditorArea from './SessionEditorArea.vue'
@@ -30,6 +31,6 @@ import SessionTerminalPane from './SessionTerminalPane.vue'
 import SessionTerminalSearchBar from './SessionTerminalSearchBar.vue'
 import SessionTerminalTabs from './SessionTerminalTabs.vue'
 
-const {activeTerminal} = useSessionWorkbench()
-const editorOpen = computed(() => false)
+const {activeTerminal, activeSession} = useSessionWorkbench()
+const editorOpen = computed(() => Boolean(activeSession.value && getSessionEditorFile(activeSession.value.id)))
 </script>

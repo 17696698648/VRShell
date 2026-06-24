@@ -1,5 +1,5 @@
 <template>
-  <WorkbenchShell :class="{'workbench-shell--terminal-active': terminalState.tabs.length > 0}">
+  <WorkbenchShell class="workbench-shell--main-flush">
     <template #sidebar>
       <SidebarPanelHost/>
     </template>

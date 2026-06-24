@@ -4,7 +4,7 @@
       <span>{{ statusMessage }}</span>
       <button v-if="terminal.status === 'failed' || terminal.status === 'disconnected'" type="button" @click="reconnectTerminalTab(terminal)">Reconnect</button>
     </div>
-    <div ref="viewportRef" class="session-terminal-pane__viewport" @wheel.prevent="handleWheel" />
+    <div ref="viewportRef" class="session-terminal-pane__viewport" />
   </section>
 </template>
 
@@ -57,8 +57,10 @@ onMounted(() => {
     if (props.terminal.status !== 'connected') return
     void sendTerminalDataToTerminalTab(props.terminal, data)
   })
-  renderNewLines()
-  void nextTick(scheduleFitAndResize)
+  void nextTick(() => {
+    fitAndResize()
+    renderNewLines()
+  })
 
   if (typeof ResizeObserver === 'undefined') return
   resizeObserver = new ResizeObserver(([entry]) => {
@@ -86,15 +88,13 @@ watch(() => props.terminal.id, resetTerminalViewport)
 
 function renderNewLines() {
   if (!xterm) return
-  for (const line of lines.value.slice(renderedLineCount)) xterm.write(line)
+  const newLines = lines.value.slice(renderedLineCount)
+  for (const [index, line] of newLines.entries()) {
+    const isLastLine = index === newLines.length - 1
+    xterm.write(line, isLastLine ? scheduleScrollToBottom : undefined)
+  }
   renderedLineCount = lines.value.length
-  scheduleScrollToBottom()
-}
-
-function handleWheel(event: WheelEvent) {
-  if (!xterm) return
-  const lineDelta = Math.trunc(event.deltaY / 18) || Math.sign(event.deltaY)
-  if (lineDelta !== 0) xterm.scrollLines(lineDelta)
+  if (newLines.length === 0) scheduleScrollToBottom()
 }
 
 function scheduleScrollToBottom() {

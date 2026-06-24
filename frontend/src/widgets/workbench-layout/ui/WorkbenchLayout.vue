@@ -9,8 +9,6 @@
       v-if="hasDock"
       v-model="dockSplitRatio"
       :direction="dockSplitDirection"
-      :first-pane-class="responsivePaneClass('primary')"
-      :second-pane-class="responsivePaneClass('dock')"
       :min="dockSplitMin"
       :max="dockSplitMax"
       @resize-end="commitDockResize"
@@ -19,7 +17,7 @@
         <MainSplitContent :responsive-panel="responsivePanel" />
       </template>
       <template #second>
-        <aside class="workbench-layout__dock" :class="responsivePaneClass('dock')" :data-placement="dockPlacement">
+        <aside class="workbench-layout__dock" :data-placement="dockPlacement">
           <slot name="dock" />
         </aside>
       </template>
@@ -72,8 +70,7 @@ const dockSplitRatio = computed({
 const dockSplitMin = computed(() => (props.dockPlacement === 'right' ? 58 : 48))
 const dockSplitMax = computed(() => (props.dockPlacement === 'right' ? 82 : 78))
 const classes = computed(() => [
-  `workbench-layout--${props.mode}`,
-  `workbench-layout--preset-${props.preset}`,
+  'workbench-layout-root',
   hasDock.value ? `workbench-layout--dock-${props.dockPlacement}` : null,
   {'workbench-layout--has-dock': hasDock.value},
 ])
@@ -92,23 +89,23 @@ const MainSplitContent = defineComponent({
   },
   setup() {
     return () => {
-      const primary = h('div', {class: responsivePaneClass('primary')}, slots.primary?.())
+      const primary = h('div', slots.primary?.())
       if (!hasSecondary.value) return primary
       return h(
         UiSplitPane,
         {
           direction: mainSplitDirection.value,
-          firstPaneClass: responsivePaneClass('primary'),
+          firstPaneClass: null,
           max: 75,
           min: 30,
           modelValue: props.mainSplitRatio,
-          secondPaneClass: responsivePaneClass('secondary'),
+          secondPaneClass: null,
           'onUpdate:modelValue': setMainSplitRatio,
           onResizeEnd: setMainSplitRatio,
         },
         {
           first: () => primary,
-          second: () => h('div', {class: ['workbench-layout__secondary', responsivePaneClass('secondary')]}, slots.secondary?.()),
+          second: () => h('div', {class: 'workbench-layout__secondary'}, slots.secondary?.()),
         },
       )
     }
@@ -119,10 +116,6 @@ watch([hasSecondary, hasDock], () => {
   if (responsivePanel.value === 'secondary' && !hasSecondary.value) responsivePanel.value = 'primary'
   if (responsivePanel.value === 'dock' && !hasDock.value) responsivePanel.value = 'primary'
 })
-
-function responsivePaneClass(panel: ResponsivePanel) {
-  return {'workbench-layout__pane--responsive-active': responsivePanel.value === panel}
-}
 
 function commitDockResize(value: number) {
   if (props.dockPlacement === 'right') setRightDockWidth(ratioToWidth(value, 1280))

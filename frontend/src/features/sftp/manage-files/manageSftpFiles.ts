@@ -1,9 +1,10 @@
+import {openSessionEditorFile} from '../../../entities/editor'
 import {getActiveSession} from '../../../entities/session'
-import {deleteRemotePath, downloadRemoteFile, mkdirRemoteDirectory, renameRemotePath, uploadRemoteFile} from '../../../entities/sftp/api/sftpRepository'
+import {deleteRemotePath, downloadRemoteFile, mkdirRemoteDirectory, readRemoteFile, renameRemotePath, uploadRemoteFile} from '../../../entities/sftp/api/sftpRepository'
 import {addTask, patchTask} from '../../../entities/task'
 import {sftpState, type SftpItem} from '../../../entities/sftp'
 import {pushToast} from '../../../shared/feedback'
-import {encodeTextBase64} from '../../../shared/lib/base64'
+import {decodeTextBase64, encodeTextBase64} from '../../../shared/lib/base64'
 import {createId} from '../../../shared/lib/createId'
 
 export async function createRemoteDirectory(name: string) {
@@ -34,6 +35,24 @@ export async function renameRemoteItem(item: SftpItem, name: string) {
   Object.assign(item, {id: nextPath, name: trimmedName, path: nextPath, modifiedAt: 'Now'})
   pushToast({level: 'success', title: `Renamed to ${trimmedName}`})
   return item
+}
+
+export async function openRemoteFileInSessionEditor(item: SftpItem) {
+  if (item.type === 'directory') return
+  const session = requireActiveSession()
+  try {
+    const contentBase64 = await readRemoteFile(session, item.path)
+    openSessionEditorFile({
+      id: `sftp:${session.id}:${item.path}`,
+      sessionId: session.id,
+      path: item.path,
+      title: item.name,
+      content: decodeTextBase64(contentBase64),
+    })
+  } catch (error) {
+    pushToast({level: 'error', title: `Open ${item.name} failed`, detail: getErrorMessage(error)})
+    throw error
+  }
 }
 
 export async function createTransferTask(kind: 'upload' | 'download', detail: string) {

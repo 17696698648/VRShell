@@ -37,6 +37,7 @@ pub(crate) fn handler() -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Sen
         sftp_delete,
         sftp_upload,
         sftp_download,
+        sftp_read_file,
         cancel_sftp_task,
         keyring_store,
         keyring_get,
@@ -253,6 +254,11 @@ fn sftp_download(
     };
     let _ = request;
     Err(BackendError::not_implemented("sftp download").into())
+}
+
+#[tauri::command]
+fn sftp_read_file(connection: SftpConnectionDto, remote_path: String) -> IpcResult<String> {
+    sftp_service::read_file(connection.into(), remote_path).map_err(Into::into)
 }
 
 #[tauri::command]

@@ -1,9 +1,17 @@
 <template>
   <section class="session-editor-area">
     <header class="session-editor-area__header">
-      <strong>No file selected</strong>
-      <small>Open a file from this session to edit it here.</small>
+      <strong>{{ activeFile?.title ?? 'No file selected' }}</strong>
+      <small>{{ activeFile?.path ?? 'Open a file from this session to edit it here.' }}</small>
     </header>
-    <div class="session-editor-area__pane" />
+    <pre class="session-editor-area__pane"><code>{{ activeFile?.content ?? '' }}</code></pre>
   </section>
 </template>
+
+<script setup lang="ts">
+import {computed} from 'vue'
+import {getSessionEditorFile} from '../../../entities/editor'
+
+const props = defineProps<{sessionId: string}>()
+const activeFile = computed(() => getSessionEditorFile(props.sessionId))
+</script>

@@ -193,29 +193,29 @@
 
 .session-pane {
   display: grid;
+  min-height: 0;
   padding: 0;
   overflow: hidden;
   background: var(--panel-bg);
 }
 
 .session-split-view {
-  display: grid;
-  grid-template-rows: minmax(0, 1fr);
+  width: 100%;
   height: 100%;
+  min-width: 0;
+  min-height: 0;
   overflow: hidden;
-}
-
-.session-split-view--editor-open {
-  grid-template-rows: minmax(180px, 1fr) minmax(160px, 0.48fr);
 }
 
 .session-split-view__terminal,
 .session-split-view__editor {
+  height: 100%;
+  min-height: 0;
   overflow: hidden;
 }
 
 .session-split-view__editor {
-  border-top: 1px solid var(--color-border-subtle);
+  border-bottom: 1px solid var(--color-border-subtle);
 }
 
 .session-terminal-area {
@@ -335,8 +335,13 @@
 
 .session-terminal-pane {
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100%;
   overflow: hidden;
+}
+
+.session-terminal-pane--connected {
+  grid-template-rows: minmax(0, 1fr);
 }
 
 .session-terminal-status {
@@ -419,6 +424,13 @@
 
 .session-editor-area__pane {
   min-height: 0;
+  margin: 0;
+  padding: 10px 12px;
+  overflow: auto;
+  background: var(--color-terminal-bg);
+  color: var(--color-terminal-text);
+  font: var(--font-size-md)/1.6 var(--font-mono);
+  white-space: pre-wrap;
 }
 
 .terminal-input {
@@ -442,22 +454,20 @@
 }
 
 .session-terminal-pane__viewport {
-  grid-row: 2;
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
   height: 100%;
   min-height: 0;
-  padding: 8px;
   overflow: hidden;
-  overscroll-behavior: contain;
-  scrollbar-color: color-mix(in srgb, var(--color-accent) 42%, transparent) transparent;
-  scrollbar-width: thin;
   background: var(--color-terminal-bg);
   color: var(--color-terminal-text);
-  font: var(--font-size-md)/1.7 var(--font-mono);
+  line-height: normal;
 }
 
 .session-terminal-pane__viewport::-webkit-scrollbar,
 .session-terminal-pane__viewport .xterm-viewport::-webkit-scrollbar {
-  width: 10px;
+  width: 20px;
   height: 10px;
 }
 
@@ -469,29 +479,25 @@
 .session-terminal-pane__viewport::-webkit-scrollbar-thumb,
 .session-terminal-pane__viewport .xterm-viewport::-webkit-scrollbar-thumb {
   border: 3px solid transparent;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--color-accent) 46%, var(--color-terminal-bg));
-  background-clip: padding-box;
-}
-
-.session-terminal-pane__viewport::-webkit-scrollbar-thumb:hover,
-.session-terminal-pane__viewport .xterm-viewport::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in srgb, var(--color-accent) 68%, var(--color-terminal-text));
-  background-clip: padding-box;
-}
-
-.session-terminal-pane__viewport::-webkit-scrollbar-corner,
-.session-terminal-pane__viewport .xterm-viewport::-webkit-scrollbar-corner {
   background: transparent;
+  background-clip: padding-box;
 }
 
-.session-terminal-pane__viewport .xterm-viewport {
-  scrollbar-color: color-mix(in srgb, var(--color-accent) 42%, transparent) transparent;
-  scrollbar-width: thin;
+.session-terminal-pane__viewport:hover::-webkit-scrollbar-thumb,
+.session-terminal-pane__viewport .xterm:hover .xterm-viewport::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--color-terminal-text) 28%, var(--color-terminal-bg));
+  background-clip: padding-box;
 }
 
+.session-terminal-pane__viewport:hover::-webkit-scrollbar-thumb:hover,
+.session-terminal-pane__viewport .xterm:hover .xterm-viewport::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--color-terminal-text) 42%, var(--color-terminal-bg));
+  background-clip: padding-box;
+}
 .session-terminal-pane__viewport .xterm {
+  width: 100%;
   height: 100%;
+  line-height: normal;
 }
 
 .session-terminal-pane__viewport .xterm-screen,
@@ -499,9 +505,6 @@
   height: 100% !important;
 }
 
-.session-terminal-pane--connected .session-terminal-pane__viewport {
-  grid-row: 1 / -1;
-}
 
 .session-terminal-pane__viewport p {
   margin: 0;

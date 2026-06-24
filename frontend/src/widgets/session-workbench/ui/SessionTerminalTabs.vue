@@ -37,7 +37,7 @@ const tabItems = computed<UiTabItem[]>(() =>
 
 function handleClose(id: string) {
   const tab = currentSessionTerminals.value.find((item) => item.id === id)
-  if (tab) closeTerminalTab(tab)
+  if (tab) closeTerminalTab(tab, {skipConfirm: true})
 }
 
 function openTabMenu(id: string, event: MouseEvent) {
@@ -50,8 +50,8 @@ function openTabMenu(id: string, event: MouseEvent) {
       {id: 'reconnect', label: 'Reconnect', run: () => reconnectTerminalTab(tab)},
       {id: 'new-terminal', label: 'New Terminal', run: () => openAdditionalTerminal()},
       {id: 'search', label: 'Search\tCtrl+F', run: async () => { terminalState.activeTerminalId = id; await executeCommand('terminal.search') }},
-      {id: 'close', label: 'Close', run: () => closeTerminalTab(tab)},
-      {id: 'close-others', label: 'Close Others', run: () => currentSessionTerminals.value.filter((item) => item.id !== id).forEach(closeTerminalTab)},
+      {id: 'close', label: 'Close', run: () => closeTerminalTab(tab, {skipConfirm: true})},
+      {id: 'close-others', label: 'Close Others', run: () => currentSessionTerminals.value.filter((item) => item.id !== id).forEach((item) => closeTerminalTab(item, {skipConfirm: true}))},
     ],
   })
 }

@@ -28,7 +28,7 @@ export function useSessionWorkbench() {
 
   async function closeSessionTab(sessionId: string) {
     const terminals = terminalState.tabs.filter((tab) => tab.sessionId === sessionId)
-    for (const terminal of terminals) await closeTerminalTab(terminal)
+    for (const terminal of terminals) await closeTerminalTab(terminal, {skipConfirm: true})
     if (activeSession.value?.id === sessionId) {
       const nextTerminal = terminalState.tabs.find((tab) => tab.sessionId !== sessionId)
       if (nextTerminal) activateSession(nextTerminal.sessionId)

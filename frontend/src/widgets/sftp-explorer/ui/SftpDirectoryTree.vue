@@ -12,7 +12,7 @@
     @toggle="toggleNode"
   >
     <template #default="{item, treeItemProps}">
-      <button v-bind="treeItemProps" class="sftp-directory-tree__item" type="button" :title="item.path" @contextmenu.prevent="openNodeMenu(item, $event)">
+      <button v-bind="treeItemProps" class="sftp-directory-tree__item" type="button" :title="item.path" @contextmenu.prevent="openNodeMenu(item, $event)" @dblclick="openNode(item)" @keydown.enter.prevent="openNode(item)">
         <ChevronDown v-if="item.type === 'directory' && expandedPaths.has(item.path)" class="sftp-directory-tree__chevron" :size="14" aria-hidden="true" />
         <ChevronRight v-else-if="item.type === 'directory'" class="sftp-directory-tree__chevron" :size="14" aria-hidden="true" />
         <span v-else class="sftp-directory-tree__chevron" aria-hidden="true" />
@@ -31,6 +31,7 @@ import {computed, reactive, ref, watch} from 'vue'
 import type {SessionHost} from '../../../entities/session'
 import type {SftpItem} from '../../../entities/sftp'
 import {listRemoteDirectory} from '../../../entities/sftp/api/sftpRepository'
+import {openRemoteFileInSessionEditor} from '../../../features/sftp/manage-files/manageSftpFiles'
 import {openContextMenu} from '../../../shared/context-menu'
 import {pushToast} from '../../../shared/feedback'
 import {UiTree} from '../../../shared/ui'
@@ -58,6 +59,15 @@ watch(
 async function selectNode(node: SftpTreeNode) {
   selectedPath.value = node.path
   if (node.type === 'directory') await toggleNode(node)
+}
+
+async function openNode(node: SftpTreeNode) {
+  selectedPath.value = node.path
+  if (node.type === 'directory') {
+    await toggleNode(node)
+    return
+  }
+  await openRemoteFileInSessionEditor(node)
 }
 
 async function toggleNode(node: SftpTreeNode) {
@@ -98,7 +108,7 @@ function openNodeMenu(node: SftpTreeNode, event: MouseEvent) {
     x: event.clientX,
     y: event.clientY,
     items: [
-      {id: 'open', label: node.type === 'directory' ? 'Open directory' : 'Open file', run: () => selectNode(node)},
+      {id: 'open', label: node.type === 'directory' ? 'Open directory' : 'Open file', run: () => openNode(node)},
       {id: 'toggle', label: expandedPaths.has(node.path) ? 'Collapse' : 'Expand', disabled: node.type !== 'directory', run: () => toggleNode(node)},
       {id: 'copy-path', label: 'Copy path', run: () => copyPath(node.path)},
       {id: 'properties', label: 'Properties', run: () => showProperties(node)},

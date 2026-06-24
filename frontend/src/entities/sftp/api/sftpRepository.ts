@@ -37,6 +37,10 @@ export function downloadRemoteFile(session: SessionHost, remotePath: string, tas
   return typedInvoke('sftp_download', {connection: toConnection(session), remotePath, taskId})
 }
 
+export function readRemoteFile(session: SessionHost, remotePath: string) {
+  return typedInvoke('sftp_read_file', {connection: toConnection(session), remotePath})
+}
+
 function toConnection(session: SessionHost): SftpConnection {
   return {
     host: session.host,

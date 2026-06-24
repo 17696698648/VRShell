@@ -1195,19 +1195,13 @@
 }
 
 @media (max-width: 1100px) {
-  .workbench-layout--single .ui-split-pane.horizontal,
-  .workbench-layout--single .ui-split-pane.vertical,
-  .workbench-layout--horizontal-split .ui-split-pane.horizontal,
-  .workbench-layout--horizontal-split .ui-split-pane.vertical,
-  .workbench-layout--vertical-split .ui-split-pane.horizontal,
-  .workbench-layout--vertical-split .ui-split-pane.vertical {
+  .workbench-layout-root .ui-split-pane.horizontal,
+  .workbench-layout-root .ui-split-pane.vertical {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(280px, 1fr) minmax(220px, auto);
   }
 
-  .workbench-layout--single .ui-split-pane__handle,
-  .workbench-layout--horizontal-split .ui-split-pane__handle,
-  .workbench-layout--vertical-split .ui-split-pane__handle {
+  .workbench-layout-root .ui-split-pane__handle {
     display: none;
   }
 }

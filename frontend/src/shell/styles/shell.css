@@ -88,7 +88,7 @@
   box-shadow: none;
 }
 
-.workbench-shell--terminal-active .workbench-shell__main {
+.workbench-shell--main-flush .workbench-shell__main {
   padding: 0;
 }
 

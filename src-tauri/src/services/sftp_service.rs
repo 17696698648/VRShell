@@ -3,9 +3,11 @@ use crate::{
     error::{BackendError, BackendResult},
     services::credential_service,
 };
+use base64::Engine;
 use ssh2::{FileStat, Session as SshSession};
 use std::{
     env,
+    io::Read,
     net::{TcpStream, ToSocketAddrs},
     path::{Path, PathBuf},
     time::Duration,
@@ -39,6 +41,30 @@ pub(crate) fn list(
             .then_with(|| left.name.to_lowercase().cmp(&right.name.to_lowercase()))
     });
     Ok(entries)
+}
+
+pub(crate) fn read_file(
+    connection: SftpConnectionRequest,
+    remote_path: String,
+) -> BackendResult<String> {
+    validate_connection(&connection)?;
+    let remote_path = remote_path.trim();
+    if remote_path.is_empty() {
+        return Err(BackendError::validation("remote path is required"));
+    }
+
+    let session = open_ssh_session(&connection)?;
+    let sftp = session
+        .sftp()
+        .map_err(|error| BackendError::validation(format!("failed to open sftp: {error}")))?;
+    let mut file = sftp.open(Path::new(remote_path)).map_err(|error| {
+        BackendError::validation(format!("failed to open remote file: {error}"))
+    })?;
+    let mut content = Vec::new();
+    file.read_to_end(&mut content).map_err(|error| {
+        BackendError::validation(format!("failed to read remote file: {error}"))
+    })?;
+    Ok(base64::engine::general_purpose::STANDARD.encode(content))
 }
 
 pub(crate) fn mutate_file_system(feature: &str) -> BackendResult<()> {

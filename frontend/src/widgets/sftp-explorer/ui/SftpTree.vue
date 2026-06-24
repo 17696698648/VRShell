@@ -31,9 +31,8 @@
 <script setup lang="ts">
 import {File, Folder} from '@lucide/vue'
 import {computed, ref} from 'vue'
-import {workspaceState} from '../../../entities/workspace'
 import {sftpState, type SftpItem} from '../../../entities/sftp'
-import {createTransferTask, deleteRemoteItem, renameRemoteItem} from '../../../features/sftp/manage-files/manageSftpFiles'
+import {createTransferTask, deleteRemoteItem, openRemoteFileInSessionEditor, renameRemoteItem} from '../../../features/sftp/manage-files/manageSftpFiles'
 import {openContextMenu} from '../../../shared/context-menu'
 import {requestConfirm, requestPrompt} from '../../../shared/dialog'
 import {pushToast} from '../../../shared/feedback'
@@ -68,14 +67,13 @@ function selectItem(item: SftpItem) {
   sftpState.selectedItemId = item.id
 }
 
-function openItem(item: SftpItem) {
+async function openItem(item: SftpItem) {
   selectItem(item)
   if (item.type === 'directory') {
     emit('openDirectory', item.path)
     return
   }
-  workspaceState.activeMainView = 'editor'
-  workspaceState.mainAreaMode = 'horizontal-split'
+  await openRemoteFileInSessionEditor(item)
 }
 
 function toggleSort(key: SortKey) {
