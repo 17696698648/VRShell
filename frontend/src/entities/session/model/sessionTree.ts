@@ -71,6 +71,39 @@ function collectDescendantGroupIds(groups: SessionGroup[], rootGroupId: string) 
   return ids.filter((id) => groups.some((group) => group.id === id))
 }
 
+export function moveGroupInTree(groups: SessionGroup[], groupId: string, targetParentId: string | null | undefined, targetIndex: number) {
+  const currentIndex = groups.findIndex((g) => g.id === groupId)
+  if (currentIndex < 0 || groupId === 'all') return false
+
+  const group = groups[currentIndex]
+  const normalizedParentId = targetParentId ?? null
+  if (group.id === normalizedParentId || isDescendantGroup(groups, normalizedParentId, group.id)) return false
+
+  const [movedGroup] = groups.splice(currentIndex, 1)
+  movedGroup.parentId = normalizedParentId
+
+  const siblingIndexes = groups
+    .map((item, index) => ({item, index}))
+    .filter(({item}) => (item.parentId ?? null) === normalizedParentId)
+    .map(({index}) => index)
+  const boundedSiblingIndex = clampIndex(targetIndex, siblingIndexes.length)
+  const insertIndex = boundedSiblingIndex >= siblingIndexes.length ? groups.length : siblingIndexes[boundedSiblingIndex]
+  groups.splice(insertIndex, 0, movedGroup)
+  return true
+}
+
+function isDescendantGroup(groups: SessionGroup[], groupId: string | null | undefined, ancestorId: string) {
+  let current = groupId ?? null
+  const visited = new Set<string>()
+  while (current) {
+    if (current === ancestorId) return true
+    if (visited.has(current)) return false
+    visited.add(current)
+    current = groups.find((group) => group.id === current)?.parentId ?? null
+  }
+  return false
+}
+
 function clampIndex(index: number, length: number) {
   if (index < 0) return 0
   if (index > length) return length

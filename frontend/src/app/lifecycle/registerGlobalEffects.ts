@@ -1,6 +1,7 @@
-﻿import {setCompactMode} from '../../entities/workspace'
+import {setCompactMode} from '../../entities/workspace'
 import {registerDefaultDockPanels} from '../contributions/registerDefaultDockPanels'
 import {registerDefaultOutputChannels} from '../contributions/registerDefaultOutputChannels'
+import {registerDefaultRightSidebarPanels} from '../contributions/registerDefaultRightSidebarPanels'
 import {registerDefaultSettingsSections} from '../contributions/registerDefaultSettingsSections'
 import {registerDefaultSidebarPanels} from '../contributions/registerDefaultSidebarPanels'
 import {registerDefaultStatusItems} from '../../shell/status-bar/model/registerDefaultStatusItems'
@@ -15,6 +16,7 @@ export function registerGlobalEffects() {
     registerDefaultStatusItems(),
     registerDefaultDockPanels(),
     registerDefaultSidebarPanels(),
+    registerDefaultRightSidebarPanels(),
     registerDefaultSettingsSections(),
     registerDefaultOutputChannels(),
   ]

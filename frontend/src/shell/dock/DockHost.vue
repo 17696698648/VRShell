@@ -31,7 +31,6 @@ const visiblePanels = computed(() =>
 const dockTabItems = computed<UiTabItem[]>(() => visiblePanels.value.map((panel) => ({id: panel.id, title: panel.title, icon: panel.icon, subtitle: getDockGroup(panel.id)})))
 const dockStyle = computed(() => ({
   '--dock-bottom-height': `${workspaceState.bottomPanelHeight}px`,
-  '--dock-right-width': `${workspaceState.rightDockWidth}px`,
 }))
 
 function startResize(event: PointerEvent) {
@@ -53,7 +52,7 @@ function startResize(event: PointerEvent) {
 
 function activateDockTab(id: string) {
   const panel = visiblePanels.value.find((item) => item.id === id)
-  if (panel) openDockPanel(panel.id, panel.placement)
+  if (panel) openDockPanel(panel.id)
 }
 
 function getDockOrder(panelId: string) {
@@ -62,9 +61,8 @@ function getDockOrder(panelId: string) {
 }
 
 function getDockGroup(panelId: string) {
-  if (panelId === 'logs' || panelId === 'output') return 'Output'
-  if (panelId === 'problems') return 'Diagnostics'
-  if (panelId.includes('detail') || panelId.includes('info')) return 'Details'
+  if (panelId === 'logs') return 'Diagnostics'
+  if (panelId.includes('detail')) return 'Details'
   return 'Dock'
 }
 
@@ -75,8 +73,7 @@ function openDockTabMenu(id: string, event: MouseEvent) {
     x: event.clientX,
     y: event.clientY,
     items: [
-      {id: 'move-bottom', label: 'Move Dock Bottom', run: () => openDockPanel(panel.id, 'bottom')},
-      {id: 'move-right', label: 'Move Dock Right', run: () => openDockPanel(panel.id, 'right')},
+      {id: 'move-bottom', label: 'Move Dock Bottom', run: () => openDockPanel(panel.id)},
       {id: 'close', label: 'Close', disabled: panel.closable === false, run: closeDockPanel},
     ],
   })

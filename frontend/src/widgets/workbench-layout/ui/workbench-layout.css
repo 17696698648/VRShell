@@ -27,11 +27,6 @@
   grid-template-rows: minmax(0, 1fr);
 }
 
-.workbench-layout--dock-right {
-  grid-template-areas: none;
-  grid-template-columns: minmax(0, 1fr);
-}
-
 .workbench-layout__secondary {
   grid-area: auto;
   width: 100%;
@@ -72,8 +67,7 @@
     color: var(--color-text-primary);
   }
 
-  .workbench-layout--dock-bottom,
-  .workbench-layout--dock-right {
+  .workbench-layout--dock-bottom {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr);
     grid-template-areas: 'primary';

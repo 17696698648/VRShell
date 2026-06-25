@@ -52,7 +52,7 @@
 </template>
 
 <script setup lang="ts">
-import {Activity, AlertTriangle, CheckCircle2, Clock3, FolderTree, LayoutPanelLeft, ListTodo, Monitor, Palette, Server, Terminal} from '@lucide/vue'
+import {Activity, AlertTriangle, CheckCircle2, Clock3, FolderTree, ListTodo, Monitor, Server, Terminal} from '@lucide/vue'
 import type {Component} from 'vue'
 import type {StatusBarItem} from './model/statusBar.types'
 import {useStatusBarItems} from './model/statusItemRegistry'
@@ -66,9 +66,6 @@ const icons: Record<string, Component> = {
   alert: AlertTriangle,
   check: CheckCircle2,
   clock: Clock3,
-  layout: LayoutPanelLeft,
-  logs: AlertTriangle,
-  palette: Palette,
   server: Server,
   sftp: FolderTree,
   tasks: ListTodo,

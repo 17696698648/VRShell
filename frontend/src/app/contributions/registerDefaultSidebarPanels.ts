@@ -1,10 +1,9 @@
 import {markRaw} from 'vue'
-import {FolderTree, ListTodo, Search, Server} from '@lucide/vue'
+import {FolderTree, ListTodo, Server} from '@lucide/vue'
 import {sessionState} from '../../entities/session'
 import {sftpState} from '../../entities/sftp'
 import {taskItems} from '../../entities/task'
 import {registerSidebarPanel} from '../../features/workspace/sidebar-panel-registry'
-import SearchPanel from '../../widgets/search-panel/ui/SearchPanel.vue'
 import SessionExplorer from '../../widgets/session-explorer/ui/SessionExplorer.vue'
 import SftpExplorer from '../../widgets/sftp-explorer/ui/SftpExplorer.vue'
 import TaskCenter from '../../widgets/task-center/ui/TaskCenter.vue'
@@ -14,7 +13,6 @@ export function registerDefaultSidebarPanels() {
     registerSidebarPanel({id: 'sessions', title: 'Sessions', icon: markRaw(Server), order: 10, commandId: 'workspace.openSessionsPanel', component: markRaw(SessionExplorer), badge: () => getFailedSessionBadge()}),
     registerSidebarPanel({id: 'sftp', title: 'SFTP', icon: markRaw(FolderTree), order: 20, commandId: 'sftp.openPanel', component: markRaw(SftpExplorer), props: {compact: true}, badge: () => sftpState.error ? {count: 1, intent: 'danger', title: sftpState.error} : undefined}),
     registerSidebarPanel({id: 'tasks', title: 'Tasks', icon: markRaw(ListTodo), order: 30, commandId: 'workspace.openTasksPanel', component: markRaw(TaskCenter), props: {compact: true}, badge: () => getTaskBadge()}),
-    registerSidebarPanel({id: 'search', title: 'Search', icon: markRaw(Search), order: 40, commandId: 'workspace.openSearchPanel', component: markRaw(SearchPanel)}),
   ]
   return () => disposables.forEach((dispose) => dispose())
 }

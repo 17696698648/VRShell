@@ -47,7 +47,7 @@ describe('persistence', () => {
 
   it('persists session and workspace state', () => {
     sessionState.activeSessionId = 'staging-web'
-    workspaceState.activePanel = 'search'
+    workspaceState.activePanel = 'tasks'
     workspaceState.sidebarWidth = 360
     workspaceState.bottomPanelVisible = true
     workspaceState.mainAreaMode = 'vertical-split'
@@ -63,7 +63,7 @@ describe('persistence', () => {
         version: 5,
         activeSessionId: 'staging-web',
         workspaceLayout: {
-          activePanel: 'search',
+          activePanel: 'tasks',
           sidebarWidth: 360,
           bottomPanelVisible: true,
           mainAreaMode: 'vertical-split',
@@ -195,14 +195,12 @@ describe('persistence', () => {
     })
 
     expect(migrated?.data.workspaceLayout).toMatchObject({
-      activePanel: 'search',
+      activePanel: 'sessions',
       activeBottomDockPanel: 'none',
-      activeRightDockPanel: 'none',
       bottomPanelHeight: 160,
       bottomPanelVisible: false,
-      rightPanelVisible: false,
       density: 'comfortable',
-      dockOrder: ['output', 'logs'],
+      dockOrder: ['logs'],
       mainAreaMode: 'single',
       sidebarVisible: false,
       sidebarWidth: 420,

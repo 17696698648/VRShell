@@ -1,5 +1,5 @@
-﻿import {reactive} from 'vue'
-import {addGroupToTree, addSessionToTree, moveSessionInTree, removeGroupFromTree, removeSessionFromTree} from './sessionTree'
+import {reactive} from 'vue'
+import {addGroupToTree, addSessionToTree, moveGroupInTree, moveSessionInTree, removeGroupFromTree, removeSessionFromTree} from './sessionTree'
 import type {SessionGroup, SessionHost} from './session.types'
 
 interface SessionState {
@@ -51,6 +51,10 @@ export function removeSessionGroup(groupId: string, fallbackGroupId?: string) {
     sessionState.activeSessionId = sessionState.sessions[0]?.id ?? ''
   }
   return removed
+}
+
+export function moveGroup(groupId: string, targetParentId: string | null | undefined, targetIndex: number) {
+  return moveGroupInTree(sessionState.groups, groupId, targetParentId, targetIndex)
 }
 
 export function removeSession(sessionId: string) {

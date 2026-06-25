@@ -1,7 +1,11 @@
 <template>
   <WorkbenchShell class="workbench-shell--main-flush">
-    <template #sidebar>
-      <SidebarPanelHost/>
+    <template #sidebar-left>
+      <SidebarLeftPanelHost/>
+    </template>
+
+    <template #sidebar-right>
+      <SidebarRightPanelHost/>
     </template>
 
     <template #main>
@@ -11,7 +15,6 @@
         :dock-placement="'bottom'"
         :main-split-ratio="workspaceState.mainSplitRatio"
         :bottom-panel-height="workspaceState.bottomPanelHeight"
-        :right-dock-width="workspaceState.rightDockWidth"
         :visible="Boolean(activeBottomDockPanel)"
       >
         <template #primary>
@@ -35,7 +38,8 @@ import {terminalState} from '../../entities/terminal'
 import {workspaceState} from '../../entities/workspace'
 import {useBottomDockPanel} from '../../features/workspace/dock-registry'
 import DockHost from '../../shell/dock/DockHost.vue'
-import SidebarPanelHost from '../../shell/sidebar/SidebarPanelHost.vue'
+import SidebarLeftPanelHost from '../../shell/sidebar-left/SidebarLeftPanelHost.vue'
+import SidebarRightPanelHost from '../../shell/sidebar-right/SidebarRightPanelHost.vue'
 import WorkbenchShell from '../../shell/WorkbenchShell.vue'
 import EditorWorkbench from '../../widgets/editor-workbench/ui/EditorWorkbench.vue'
 import SessionWorkbench from '../../widgets/session-workbench/ui/SessionWorkbench.vue'

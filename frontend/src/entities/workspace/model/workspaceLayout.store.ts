@@ -1,17 +1,31 @@
 import {getDefaultWorkspaceLayout} from './layoutPersistence'
 import {workspaceState} from './workspace.store'
-import type {PanelPlacement, WorkspaceLayoutPreset} from './workspace.types'
+import type {PanelPlacement, WorkspaceLayoutPreset, WorkspaceRightPanel} from './workspace.types'
 
 export function setSidebarWidth(width: number) {
   workspaceState.sidebarWidth = clamp(width, 220, 420)
 }
 
-export function setBottomPanelHeight(height: number) {
-  workspaceState.bottomPanelHeight = clamp(height, 160, 520)
+export function setRightPanelWidth(width: number) {
+  workspaceState.rightPanelWidth = clamp(width, 220, 420)
 }
 
-export function setRightDockWidth(width: number) {
-  workspaceState.rightDockWidth = clamp(width, 260, 520)
+export function toggleRightPanel() {
+  workspaceState.rightPanelVisible = !workspaceState.rightPanelVisible
+}
+
+export function switchRightPanel(panel: WorkspaceRightPanel) {
+  if (workspaceState.activeRightPanel === panel && workspaceState.rightPanelVisible) {
+    workspaceState.rightPanelVisible = false
+    return
+  }
+  workspaceState.activeRightPanel = panel
+  workspaceState.recentRightPanel = panel
+  workspaceState.rightPanelVisible = true
+}
+
+export function setBottomPanelHeight(height: number) {
+  workspaceState.bottomPanelHeight = clamp(height, 160, 520)
 }
 
 export function setMainSplitRatio(ratio: number) {
@@ -26,30 +40,24 @@ export function applyLayoutPreset(preset: WorkspaceLayoutPreset) {
   workspaceState.layoutPreset = preset
   workspaceState.compactMode = false
   workspaceState.bottomPanelVisible = false
-  workspaceState.rightPanelVisible = false
   workspaceState.activeBottomDockPanel = 'none'
-  workspaceState.activeRightDockPanel = 'none'
   if (preset === 'development') {
     workspaceState.activePanel = 'sessions'
     workspaceState.mainAreaMode = 'vertical-split'
     workspaceState.mainSplitRatio = 58
-    workspaceState.activeRightDockPanel = 'session-detail'
-    workspaceState.rightPanelVisible = true
     return
   }
   if (preset === 'file-transfer') {
     workspaceState.activePanel = 'sftp'
     workspaceState.mainAreaMode = 'horizontal-split'
     workspaceState.mainSplitRatio = 52
-    workspaceState.activeRightDockPanel = 'sftp-item-detail'
-    workspaceState.rightPanelVisible = true
     return
   }
   if (preset === 'monitoring') {
     workspaceState.activePanel = 'tasks'
     workspaceState.mainAreaMode = 'single'
     workspaceState.mainSplitRatio = 68
-    workspaceState.activeBottomDockPanel = 'problems'
+    workspaceState.activeBottomDockPanel = 'logs'
     workspaceState.bottomPanelVisible = true
     return
   }
@@ -58,24 +66,6 @@ export function applyLayoutPreset(preset: WorkspaceLayoutPreset) {
   workspaceState.mainSplitRatio = 62
   workspaceState.activeBottomDockPanel = 'logs'
   workspaceState.bottomPanelVisible = true
-}
-
-export function setDockPlacement(placement: Exclude<PanelPlacement, 'sidebar' | 'floating'>) {
-  const bottomPanels = ['logs', 'problems', 'output']
-  const currentBottom = workspaceState.activeBottomDockPanel
-  const currentRight = workspaceState.activeRightDockPanel
-  if (placement === 'right' && currentBottom !== 'none' && !bottomPanels.includes(currentBottom)) {
-    workspaceState.activeRightDockPanel = currentBottom
-    workspaceState.activeBottomDockPanel = 'none'
-    workspaceState.bottomPanelVisible = false
-    workspaceState.rightPanelVisible = true
-  } else if (placement === 'bottom' && currentRight !== 'none' && bottomPanels.includes(currentRight)) {
-    workspaceState.activeBottomDockPanel = currentRight
-    workspaceState.activeRightDockPanel = 'none'
-    workspaceState.rightPanelVisible = false
-    workspaceState.bottomPanelVisible = true
-  }
-  workspaceState.panelPlacement = placement
 }
 
 export function setCompactMode(enabled: boolean) {

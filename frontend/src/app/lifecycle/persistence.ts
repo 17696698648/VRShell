@@ -179,9 +179,9 @@ function ensureRootGroup(groups: SessionGroup[]) {
 function snapshotWorkspaceLayout(): WorkspaceLayoutState {
   return normalizeWorkspaceLayout({
     activeBottomDockPanel: workspaceState.activeBottomDockPanel,
-    activeRightDockPanel: workspaceState.activeRightDockPanel,
     activeMainView: workspaceState.activeMainView,
     activePanel: workspaceState.activePanel,
+    activeRightPanel: workspaceState.activeRightPanel,
     bottomPanelHeight: workspaceState.bottomPanelHeight,
     bottomPanelVisible: workspaceState.bottomPanelVisible,
     compactMode: workspaceState.compactMode,
@@ -192,9 +192,9 @@ function snapshotWorkspaceLayout(): WorkspaceLayoutState {
     mainSplitRatio: workspaceState.mainSplitRatio,
     panelPlacement: workspaceState.panelPlacement,
     recentBottomDockPanel: workspaceState.recentBottomDockPanel,
-    recentRightDockPanel: workspaceState.recentRightDockPanel,
-    rightDockWidth: workspaceState.rightDockWidth,
+    recentRightPanel: workspaceState.recentRightPanel,
     rightPanelVisible: workspaceState.rightPanelVisible,
+    rightPanelWidth: workspaceState.rightPanelWidth,
     sidebarVisible: workspaceState.sidebarVisible,
     sidebarWidth: workspaceState.sidebarWidth,
   })
@@ -202,9 +202,9 @@ function snapshotWorkspaceLayout(): WorkspaceLayoutState {
 
 function applyWorkspaceLayout(layout: WorkspaceLayoutState) {
   workspaceState.activeBottomDockPanel = layout.activeBottomDockPanel
-  workspaceState.activeRightDockPanel = layout.activeRightDockPanel
   workspaceState.activeMainView = layout.activeMainView
   workspaceState.activePanel = layout.activePanel
+  workspaceState.activeRightPanel = layout.activeRightPanel
   workspaceState.bottomPanelHeight = layout.bottomPanelHeight
   workspaceState.bottomPanelVisible = layout.bottomPanelVisible
   workspaceState.compactMode = layout.compactMode
@@ -215,9 +215,9 @@ function applyWorkspaceLayout(layout: WorkspaceLayoutState) {
   workspaceState.mainSplitRatio = layout.mainSplitRatio
   workspaceState.panelPlacement = layout.panelPlacement
   workspaceState.recentBottomDockPanel = layout.recentBottomDockPanel
-  workspaceState.recentRightDockPanel = layout.recentRightDockPanel
-  workspaceState.rightDockWidth = layout.rightDockWidth
+  workspaceState.recentRightPanel = layout.recentRightPanel
   workspaceState.rightPanelVisible = layout.rightPanelVisible
+  workspaceState.rightPanelWidth = layout.rightPanelWidth
   workspaceState.sidebarVisible = layout.sidebarVisible
   workspaceState.sidebarWidth = layout.sidebarWidth
 }
@@ -238,10 +238,8 @@ function normalizeStartupWorkspaceLayout(layout: Partial<WorkspaceLayoutState>) 
   return normalizeWorkspaceLayout({
     ...layout,
     activeBottomDockPanel: 'none',
-    activeRightDockPanel: 'none',
     activeMainView: 'terminal',
     bottomPanelVisible: false,
-    rightPanelVisible: false,
     mainAreaMode: 'single',
   })
 }

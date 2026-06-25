@@ -28,7 +28,7 @@
 
 <script setup lang="ts">
 import {computed, defineComponent, h, ref, useSlots, watch} from 'vue'
-import {setBottomPanelHeight, setMainSplitRatio, setRightDockWidth} from '../../../entities/workspace'
+import {setBottomPanelHeight, setMainSplitRatio} from '../../../entities/workspace'
 import type {MainAreaMode, PanelPlacement, WorkspaceLayoutPreset} from '../../../entities/workspace'
 import {UiSplitPane} from '../../../shared/ui'
 
@@ -41,7 +41,6 @@ const props = withDefaults(
     mode?: MainAreaMode
     preset?: WorkspaceLayoutPreset
     dockPlacement?: PanelPlacement
-    rightDockWidth?: number
     visible?: boolean
   }>(),
   {
@@ -50,7 +49,6 @@ const props = withDefaults(
     mainSplitRatio: 62,
     mode: 'horizontal-split',
     preset: 'operations',
-    rightDockWidth: 340,
     visible: true,
   },
 )
@@ -58,19 +56,16 @@ const props = withDefaults(
 const slots = useSlots()
 const responsivePanel = ref<ResponsivePanel>('primary')
 const hasSecondary = computed(() => Boolean(slots.secondary) && props.mode !== 'single')
-const hasDock = computed(() => props.visible && (props.dockPlacement === 'bottom' || props.dockPlacement === 'right'))
+const hasDock = computed(() => props.visible && props.dockPlacement === 'bottom')
 const showResponsiveSwitcher = computed(() => hasSecondary.value || hasDock.value)
 const mainSplitDirection = computed(() => (props.mode === 'vertical-split' ? 'horizontal' : 'vertical'))
-const dockSplitDirection = computed(() => (props.dockPlacement === 'right' ? 'horizontal' : 'vertical'))
+const dockSplitDirection = 'vertical' as const
 const dockSplitRatio = computed({
-  get: () => (props.dockPlacement === 'right' ? widthToRatio(props.rightDockWidth, 1280) : heightToRatio(props.bottomPanelHeight, 820)),
-  set: (value) => {
-    if (props.dockPlacement === 'right') setRightDockWidth(ratioToWidth(value, 1280))
-    else setBottomPanelHeight(ratioToHeight(value, 820))
-  },
+  get: () => heightToRatio(props.bottomPanelHeight, 820),
+  set: (value) => setBottomPanelHeight(ratioToHeight(value, 820)),
 })
-const dockSplitMin = computed(() => (props.dockPlacement === 'right' ? 58 : 48))
-const dockSplitMax = computed(() => (props.dockPlacement === 'right' ? 82 : 78))
+const dockSplitMin = computed(() => 48)
+const dockSplitMax = computed(() => 78)
 const classes = computed(() => [
   'workbench-layout-root',
   hasDock.value ? `workbench-layout--dock-${props.dockPlacement}` : null,
@@ -78,7 +73,6 @@ const classes = computed(() => [
 ])
 const layoutStyle = computed(() => ({
   '--dock-bottom-height': `${props.bottomPanelHeight}px`,
-  '--dock-right-width': `${props.rightDockWidth}px`,
 }))
 
 const MainSplitContent = defineComponent({
@@ -120,8 +114,7 @@ watch([hasSecondary, hasDock], () => {
 })
 
 function commitDockResize(value: number) {
-  if (props.dockPlacement === 'right') setRightDockWidth(ratioToWidth(value, 1280))
-  else setBottomPanelHeight(ratioToHeight(value, 820))
+  setBottomPanelHeight(ratioToHeight(value, 820))
 }
 
 function heightToRatio(height: number, total: number) {
@@ -129,14 +122,6 @@ function heightToRatio(height: number, total: number) {
 }
 
 function ratioToHeight(ratio: number, total: number) {
-  return Math.round(total - (total * ratio) / 100)
-}
-
-function widthToRatio(width: number, total: number) {
-  return Math.round(((total - width) / total) * 100)
-}
-
-function ratioToWidth(ratio: number, total: number) {
   return Math.round(total - (total * ratio) / 100)
 }
 </script>

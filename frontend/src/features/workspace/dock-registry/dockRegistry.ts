@@ -20,9 +20,3 @@ export function useBottomDockPanel() {
   })
 }
 
-export function useRightDockPanel() {
-  return computed(() => {
-    if (!workspaceState.rightPanelVisible || workspaceState.activeRightDockPanel === 'none') return null
-    return dockPanels.get(workspaceState.activeRightDockPanel) ?? null
-  })
-}

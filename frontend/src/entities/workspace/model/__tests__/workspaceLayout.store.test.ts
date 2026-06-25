@@ -14,13 +14,11 @@ describe('workspace layout store', () => {
 
     expect(workspaceState.layoutPreset).toBe('file-transfer')
     expect(workspaceState.activePanel).toBe('sftp')
-    expect(workspaceState.activeRightDockPanel).toBe('sftp-item-detail')
-    expect(workspaceState.rightPanelVisible).toBe(true)
   })
 
   it('reorders dock panels and resets layout', () => {
-    reorderDockPanels('logs', 'problems')
-    expect(workspaceState.dockOrder.slice(0, 2)).toEqual(['logs', 'problems'])
+    reorderDockPanels('logs', 'logs')
+    expect(workspaceState.dockOrder).toEqual(['logs'])
 
     resetWorkspaceLayout()
     expect(workspaceState.layoutPreset).toBe('operations')

@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest'
 import type {SessionGroup, SessionHost} from '../session.types'
-import {addGroupToTree, addSessionToTree, moveSessionInTree, removeGroupFromTree, removeSessionFromTree} from '../sessionTree'
+import {addGroupToTree, addSessionToTree, moveGroupInTree, moveSessionInTree, removeGroupFromTree, removeSessionFromTree} from '../sessionTree'
 
 function createTree() {
   const groups: SessionGroup[] = [
@@ -35,6 +35,16 @@ describe('sessionTree', () => {
     expect(sessions[0].groupId).toBe('labs')
     expect(groups[0].sessionIds).toEqual([])
     expect(groups[1].sessionIds).toEqual(['prod', 'edge'])
+  })
+
+  it('reorders sessions in the same group', () => {
+    const {groups, sessions} = createTree()
+    groups[0].sessionIds.push('dev')
+    sessions.push({id: 'dev', name: 'dev', host: '10.0.0.3', port: 22, username: 'dev', protocol: 'ssh', groupId: 'favorites', tags: [], status: 'idle'})
+
+    expect(moveSessionInTree(groups, sessions, 'prod', 'favorites', 1)).toBe(true)
+
+    expect(groups[0].sessionIds).toEqual(['dev', 'prod'])
   })
 
   it('removes sessions from sessions and all groups', () => {
@@ -74,5 +84,30 @@ describe('sessionTree', () => {
 
     expect(groups.map((group) => group.id)).toEqual(['favorites'])
     expect(sessions.map((session) => session.id)).toEqual(['prod'])
+  })
+
+  it('moves groups within the target sibling level', () => {
+    const groups: SessionGroup[] = [
+      {id: 'all', name: '所有', sessionIds: []},
+      {id: 'ops', name: 'Ops', sessionIds: [], parentId: 'all'},
+      {id: 'labs', name: 'Labs', sessionIds: [], parentId: 'all'},
+      {id: 'db', name: 'DB', sessionIds: [], parentId: 'ops'},
+    ]
+
+    expect(moveGroupInTree(groups, 'labs', 'ops', 0)).toBe(true)
+
+    expect(groups.map((group) => group.id)).toEqual(['all', 'ops', 'labs', 'db'])
+    expect(groups.find((group) => group.id === 'labs')?.parentId).toBe('ops')
+  })
+
+  it('prevents moving a group into its descendant', () => {
+    const groups: SessionGroup[] = [
+      {id: 'all', name: '所有', sessionIds: []},
+      {id: 'ops', name: 'Ops', sessionIds: [], parentId: 'all'},
+      {id: 'db', name: 'DB', sessionIds: [], parentId: 'ops'},
+    ]
+
+    expect(moveGroupInTree(groups, 'ops', 'db', 0)).toBe(false)
+    expect(groups.find((group) => group.id === 'ops')?.parentId).toBe('all')
   })
 })
