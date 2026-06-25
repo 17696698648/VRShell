@@ -26,6 +26,8 @@ export type IpcCommandMap = {
   keyring_store: {args: {service: string; key: string; value: string}; result: void}
   keyring_get: {args: {service: string; key: string}; result: string | null}
   keyring_delete: {args: {service: string; key: string}; result: void}
+  accept_host_key: {args: AcceptHostKeyArgs; result: string}
+  reject_host_key: {args: {pendingId: string}; result: void}
 }
 
 export interface TerminalOutputEvent {
@@ -61,6 +63,8 @@ export const ipcCommandNames = [
   'keyring_store',
   'keyring_get',
   'keyring_delete',
+  'accept_host_key',
+  'reject_host_key',
 ] as const satisfies readonly (keyof IpcCommandMap)[]
 
 export interface SftpConnection {
@@ -101,6 +105,8 @@ export interface ConnectSshArgs {
   authMethod?: 'agent' | 'password' | 'key'
   autoReconnect: boolean
   idleTimeoutSecs: number
+  /** Credential reference for keyring-based authentication */
+  credentialRef?: CredentialRef | null
 }
 
 export interface SshConfigHost {
@@ -115,6 +121,23 @@ export interface SshConfigHost {
 export interface CredentialRef {
   service: string
   key: string
+}
+
+export interface AcceptHostKeyArgs {
+  pendingId: string
+  password?: string | null
+  privateKeyPath?: string | null
+  passphrase?: string | null
+  authMethod?: 'agent' | 'password' | 'key'
+  credentialRef?: CredentialRef | null
+}
+
+export interface HostKeyRequestedEvent {
+  pendingId: string
+  host: string
+  port: number
+  fingerprint: string
+  keyType: string
 }
 
 export interface BackendSessionHost {

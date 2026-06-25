@@ -1,0 +1,22 @@
+/* VRShell Global Styles - Unified Entry Point */
+
+/* Shared foundations */
+@import './shared/styles/base.css';
+@import './shared/styles/theme.css';
+@import './shared/styles/workbench.css';
+@import './shared/ui/ui.css';
+
+/* Shell layout */
+@import './shell/styles/shell.css';
+@import './shell/styles/overlays.css';
+@import './shell/dock/dock.css';
+
+/* Widgets */
+@import './widgets/styles/widgets.css';
+@import './widgets/styles/explorer.css';
+@import './widgets/session-explorer/ui/session-explorer.css';
+@import './widgets/sftp-explorer/ui/sftp-explorer.css';
+@import './widgets/workbench-layout/ui/workbench-layout.css';
+@import './widgets/logs-panel/ui/logs-panel.css';
+@import './widgets/problems-panel/ui/problems-panel.css';
+@import './widgets/output-panel/ui/output-panel.css';

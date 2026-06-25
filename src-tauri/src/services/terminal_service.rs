@@ -3,25 +3,24 @@ use crate::{
         ConnectTerminalRequest, TerminalOutputEvent, TerminalSession, TerminalStatus,
     },
     error::{BackendError, BackendResult},
-    state::BackendState,
+    infrastructure::{
+        event_bus::EventSink,
+        known_hosts_store::{HostKeyVerification, KnownHostsStore},
+        ssh_client::{SshClient, SshRuntime},
+    },
+    state::{BackendState, PendingHostKeySession},
 };
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use serde::Serialize;
-use ssh2::{Channel, Session as SshSession};
 use std::{
-    env,
-    io::{Read, Write},
-    net::{TcpStream, ToSocketAddrs},
-    path::PathBuf,
     thread,
     time::Duration,
 };
-use tauri::{Emitter, Manager};
+use tauri::Manager;
 use uuid::Uuid;
 
 pub(crate) struct TerminalRuntime {
-    session: SshSession,
-    channel: Channel,
+    ssh_runtime: SshRuntime,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -44,16 +43,126 @@ struct TerminalErrorEventPayload {
     error: String,
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct HostKeyRequestedPayload {
+    pending_id: String,
+    host: String,
+    port: u16,
+    fingerprint: String,
+    key_type: String,
+}
+
 pub(crate) fn connect(
+    event_sink: &impl EventSink,
     state: &BackendState,
     request: ConnectTerminalRequest,
 ) -> BackendResult<TerminalSession> {
+    tracing::info!(host = %request.host, port = request.port, username = %request.username, "connecting terminal");
     validate_terminal_request(&request)?;
 
+    // Phase 1: TCP + SSH handshake, get host key
+    let (session, host_key_info) = SshClient::connect_phase1(&request.host, request.port)?;
+
+    // Check known_hosts
+    let known_hosts = KnownHostsStore::new(KnownHostsStore::default_path());
+    match known_hosts.verify(&request.host, request.port, &host_key_info.fingerprint, &host_key_info.key_type)? {
+        HostKeyVerification::Accepted => {
+            // Known and matches, continue with authentication
+            let ssh_runtime = SshClient::connect_phase2(session, &request)?;
+            let session = create_terminal_session(state, request, ssh_runtime)?;
+            tracing::info!(session_id = %session.id, "terminal connected successfully");
+            Ok(session)
+        }
+        HostKeyVerification::Changed { expected_fingerprint } => {
+            // Host key changed - security risk!
+            tracing::warn!(host = %request.host, port = request.port, expected = %expected_fingerprint, "host key changed - possible MITM");
+            Err(BackendError::host_key_changed(format!(
+                "host key for {}:{} has changed. Expected: {}",
+                request.host, request.port, expected_fingerprint
+            )))
+        }
+        HostKeyVerification::Unknown { .. } => {
+            // Unknown host key - store pending session and emit event
+            tracing::info!(host = %request.host, port = request.port, "unknown host key, awaiting user acceptance");
+            let pending_id = Uuid::new_v4().to_string();
+            let mut pending = state
+                .pending_host_key_sessions
+                .lock();
+            pending.insert(
+                pending_id.clone(),
+                PendingHostKeySession {
+                    host: request.host.clone(),
+                    port: request.port,
+                    username: request.username.clone(),
+                    session,
+                    fingerprint: host_key_info.fingerprint.clone(),
+                    key_type: host_key_info.key_type.clone(),
+                    raw_key: host_key_info.raw_key,
+                },
+            );
+            drop(pending);
+
+            // Emit host key requested event
+            let _ = event_sink.emit_event(
+                crate::ipc::events::SECURITY_HOST_KEY_REQUESTED,
+                HostKeyRequestedPayload {
+                    pending_id: pending_id.clone(),
+                    host: request.host.clone(),
+                    port: request.port,
+                    fingerprint: host_key_info.fingerprint,
+                    key_type: host_key_info.key_type,
+                },
+            );
+
+            Err(BackendError::host_key_unknown(format!(
+                "unknown host key for {}:{}, pending_id: {}",
+                request.host, request.port, pending_id
+            )))
+        }
+    }
+}
+
+/// Accept a pending host key and complete the SSH connection
+pub(crate) fn accept_host_key(
+    _event_sink: &impl EventSink,
+    state: &BackendState,
+    pending_id: &str,
+    request: ConnectTerminalRequest,
+) -> BackendResult<TerminalSession> {
+    let pending = state
+        .pending_host_key_sessions
+        .lock()
+        .remove(pending_id)
+        .ok_or_else(|| BackendError::validation("pending host key session not found"))?;
+
+    // Save to known_hosts
+    let known_hosts = KnownHostsStore::new(KnownHostsStore::default_path());
+    known_hosts.accept(&pending.host, pending.port, &pending.key_type, &pending.fingerprint)?;
+
+    // Continue with phase 2
+    let ssh_runtime = SshClient::connect_phase2(pending.session, &request)?;
+    create_terminal_session(state, request, ssh_runtime)
+}
+
+/// Reject a pending host key
+pub(crate) fn reject_host_key(state: &BackendState, pending_id: &str) -> BackendResult<()> {
+    state
+        .pending_host_key_sessions
+        .lock()
+        .remove(pending_id);
+    Ok(())
+}
+
+fn create_terminal_session(
+    state: &BackendState,
+    request: ConnectTerminalRequest,
+    ssh_runtime: SshRuntime,
+) -> BackendResult<TerminalSession> {
     let id = Uuid::new_v4().to_string();
     let host = request.host.clone();
     let username = request.username.clone();
-    let runtime = open_ssh_shell(&request)?;
+    let runtime = TerminalRuntime { ssh_runtime };
 
     let session = TerminalSession {
         id: id.clone(),
@@ -65,84 +174,130 @@ pub(crate) fn connect(
     state
         .terminals
         .lock()
-        .map_err(|_| BackendError::validation("terminal state is unavailable"))?
         .insert(id.clone(), session.clone());
     state
         .terminal_runtimes
         .lock()
-        .map_err(|_| BackendError::validation("terminal runtime state is unavailable"))?
         .insert(id, runtime);
 
     Ok(session)
 }
 
-pub(crate) fn disconnect(state: &BackendState, session_id: &str) -> BackendResult<()> {
+pub(crate) fn disconnect(
+    event_sink: &impl EventSink,
+    state: &BackendState,
+    session_id: &str,
+) -> BackendResult<()> {
+    tracing::info!(session_id, "disconnecting terminal");
     if let Some(mut runtime) = state
         .terminal_runtimes
         .lock()
-        .map_err(|_| BackendError::validation("terminal runtime state is unavailable"))?
         .remove(session_id)
     {
-        let _ = runtime.channel.close();
-        let _ = runtime.channel.wait_close();
+        SshClient::close_channel(&mut runtime.ssh_runtime);
     }
     state
         .terminals
         .lock()
-        .map_err(|_| BackendError::validation("terminal state is unavailable"))?
         .remove(session_id);
     state
         .terminal_events
         .lock()
-        .map_err(|_| BackendError::validation("terminal event state is unavailable"))?
         .remove(session_id);
+
+    // 通知前端该终端已关闭
+    let _ = event_sink.emit_event(
+        crate::ipc::events::TERMINAL_CLOSED,
+        TerminalSessionEventPayload {
+            session_id: session_id.to_string(),
+        },
+    );
     Ok(())
 }
 
 pub(crate) fn start_output_reader(window: tauri::WebviewWindow, session_id: String) {
-    thread::spawn(move || loop {
+    thread::spawn(move || {
+        let exit_reason = output_reader_loop(&window, &session_id);
+        cleanup_after_output_exit(&window, &session_id, &exit_reason);
+    });
+}
+
+/// 输出读取循环，返回退出原因
+fn output_reader_loop(
+    window: &tauri::WebviewWindow,
+    session_id: &str,
+) -> String {
+    loop {
         let read_result = {
             let state = window.state::<BackendState>();
-            let mut runtimes = match state.terminal_runtimes.lock() {
-                Ok(runtimes) => runtimes,
-                Err(_) => {
-                    let _ = emit_terminal_error(
-                        &window,
-                        &session_id,
-                        "terminal runtime state is unavailable",
-                    );
-                    break;
-                }
+            let mut runtimes = state.terminal_runtimes.lock();
+            let Some(runtime) = runtimes.get_mut(session_id) else {
+                break "runtime removed from registry".to_string();
             };
-            let Some(runtime) = runtimes.get_mut(&session_id) else {
-                break;
-            };
-            read_runtime_output(runtime).map(|output| (output, runtime.channel.eof()))
+            let eof = SshClient::is_channel_eof(&runtime.ssh_runtime);
+            read_runtime_output(runtime).map(|output| (output, eof))
         };
 
         match read_result {
             Ok((output, closed)) => {
                 if !output.is_empty() {
-                    let _ = emit_terminal_output(&window, &session_id, output);
+                    let _ = emit_terminal_output(window, session_id, output);
                 }
                 if closed {
-                    let _ = window.emit(
+                    window.emit_event(
                         crate::ipc::events::TERMINAL_CLOSED,
                         TerminalSessionEventPayload {
-                            session_id: session_id.clone(),
+                            session_id: session_id.to_string(),
                         },
                     );
-                    break;
+                    break "remote shell closed (eof)".to_string();
                 }
             }
             Err(error) => {
-                let _ = emit_terminal_error(&window, &session_id, error.message);
-                break;
+                let _ = emit_terminal_error(window, session_id, error.message);
+                break "output read error".to_string();
             }
         }
 
         thread::sleep(Duration::from_millis(16));
-    });
+    }
+}
+
+/// output reader 退出后清理 runtime 并更新 terminal 状态
+fn cleanup_after_output_exit(
+    window: &tauri::WebviewWindow,
+    session_id: &str,
+    reason: &str,
+) {
+    let state = window.state::<BackendState>();
+
+    // 移除 runtime（channel 已不可用）
+    {
+        let mut runtimes = state.terminal_runtimes.lock();
+        runtimes.remove(session_id);
+    }
+
+    // 更新 terminal session 状态为 Disconnected
+    {
+        let mut terminals = state.terminals.lock();
+        if let Some(session) = terminals.get_mut(session_id) {
+            session.status = TerminalStatus::Disconnected;
+        }
+    }
+
+    // 确保前端收到 closed 事件
+    window.emit_event(
+        crate::ipc::events::TERMINAL_CLOSED,
+        TerminalSessionEventPayload {
+            session_id: session_id.to_string(),
+        },
+    );
+
+    let _ = emit_terminal_error(
+        window,
+        session_id,
+        format!("terminal output reader exited: {reason}"),
+    );
 }
 
 pub(crate) fn send_input(
@@ -156,8 +311,7 @@ pub(crate) fn send_input(
     let pending_output = {
         let mut runtimes = state
             .terminal_runtimes
-            .lock()
-            .map_err(|_| BackendError::validation("terminal runtime state is unavailable"))?;
+            .lock();
         let runtime = runtimes
             .get_mut(session_id)
             .ok_or_else(|| BackendError::validation("terminal session was not found"))?;
@@ -187,15 +341,11 @@ pub(crate) fn resize_pty(
     if let Some(session_id) = session_id {
         let mut runtimes = state
             .terminal_runtimes
-            .lock()
-            .map_err(|_| BackendError::validation("terminal runtime state is unavailable"))?;
+            .lock();
         let runtime = runtimes
             .get_mut(session_id)
             .ok_or_else(|| BackendError::validation("terminal session was not found"))?;
-        runtime
-            .channel
-            .request_pty_size(cols as u32, rows as u32, None, None)
-            .map_err(|error| BackendError::validation(format!("failed to resize pty: {error}")))?;
+        SshClient::resize_pty(&mut runtime.ssh_runtime, cols, rows)?;
     }
     Ok(())
 }
@@ -212,142 +362,14 @@ pub(crate) fn poll_events(
 
     let mut events = state
         .terminal_events
-        .lock()
-        .map_err(|_| BackendError::validation("terminal event state is unavailable"))?;
+        .lock();
     Ok(events.remove(session_id).unwrap_or_default())
-}
-
-fn open_ssh_shell(request: &ConnectTerminalRequest) -> BackendResult<TerminalRuntime> {
-    let address = (request.host.as_str(), request.port)
-        .to_socket_addrs()
-        .map_err(|error| BackendError::validation(format!("failed to resolve host: {error}")))?
-        .next()
-        .ok_or_else(|| BackendError::validation("host did not resolve to an address"))?;
-    let stream =
-        TcpStream::connect_timeout(&address, Duration::from_secs(12)).map_err(|error| {
-            BackendError::validation(format!("failed to connect ssh socket: {error}"))
-        })?;
-    stream
-        .set_read_timeout(Some(Duration::from_secs(12)))
-        .map_err(|error| {
-            BackendError::validation(format!("failed to configure ssh socket: {error}"))
-        })?;
-    stream
-        .set_write_timeout(Some(Duration::from_secs(12)))
-        .map_err(|error| {
-            BackendError::validation(format!("failed to configure ssh socket: {error}"))
-        })?;
-
-    let mut session = SshSession::new().map_err(|error| {
-        BackendError::validation(format!("failed to create ssh session: {error}"))
-    })?;
-    session.set_tcp_stream(stream);
-    session
-        .handshake()
-        .map_err(|error| BackendError::validation(format!("ssh handshake failed: {error}")))?;
-    authenticate(&session, request)?;
-
-    let mut channel = session.channel_session().map_err(|error| {
-        BackendError::validation(format!("failed to open ssh channel: {error}"))
-    })?;
-    channel
-        .request_pty("xterm-256color", None, Some((80, 24, 0, 0)))
-        .map_err(|error| BackendError::validation(format!("failed to request pty: {error}")))?;
-    channel.shell().map_err(|error| {
-        BackendError::validation(format!("failed to start remote shell: {error}"))
-    })?;
-    session.set_blocking(false);
-
-    Ok(TerminalRuntime { session, channel })
-}
-
-fn authenticate(session: &SshSession, request: &ConnectTerminalRequest) -> BackendResult<()> {
-    match request.auth_method.as_deref().unwrap_or("agent") {
-        "password" => authenticate_with_password(session, request)?,
-        "key" => authenticate_with_private_key(session, request)?,
-        "agent" => authenticate_with_agent(session, request)?,
-        method => {
-            return Err(BackendError::validation(format!(
-                "unsupported ssh auth method: {method}"
-            )))
-        }
-    }
-
-    if session.authenticated() {
-        Ok(())
-    } else {
-        Err(BackendError::credential("ssh authentication failed"))
-    }
-}
-
-fn authenticate_with_password(
-    session: &SshSession,
-    request: &ConnectTerminalRequest,
-) -> BackendResult<()> {
-    let password = request
-        .password
-        .as_deref()
-        .filter(|value| !value.is_empty())
-        .ok_or_else(|| BackendError::credential("password authentication requires a password"))?;
-    session
-        .userauth_password(&request.username, password)
-        .map_err(|error| {
-            BackendError::credential(format!("ssh password authentication failed: {error}"))
-        })
-}
-
-fn authenticate_with_private_key(
-    session: &SshSession,
-    request: &ConnectTerminalRequest,
-) -> BackendResult<()> {
-    let private_key_path = request
-        .private_key_path
-        .as_deref()
-        .filter(|value| !value.is_empty())
-        .ok_or_else(|| {
-            BackendError::credential("key authentication requires a private key path")
-        })?;
-    session
-        .userauth_pubkey_file(
-            &request.username,
-            None,
-            expand_private_key_path(private_key_path).as_path(),
-            request.passphrase.as_deref(),
-        )
-        .map_err(|error| {
-            BackendError::credential(format!("ssh key authentication failed: {error}"))
-        })
-}
-
-fn authenticate_with_agent(
-    session: &SshSession,
-    request: &ConnectTerminalRequest,
-) -> BackendResult<()> {
-    session.userauth_agent(&request.username).map_err(|error| {
-        BackendError::credential(format!("ssh agent authentication failed: {error}"))
-    })
-}
-
-fn expand_private_key_path(path: &str) -> PathBuf {
-    if let Some(rest) = path.strip_prefix("~/") {
-        if let Some(home) = home_dir() {
-            return home.join(rest);
-        }
-    }
-    PathBuf::from(path)
-}
-
-fn home_dir() -> Option<PathBuf> {
-    env::var_os("HOME")
-        .map(PathBuf::from)
-        .or_else(|| env::var_os("USERPROFILE").map(PathBuf::from))
 }
 
 fn read_available_output(state: &BackendState, session_id: &str) -> BackendResult<String> {
     let mut runtimes = state
         .terminal_runtimes
-        .lock()
-        .map_err(|_| BackendError::validation("terminal runtime state is unavailable"))?;
+        .lock();
     let runtime = runtimes
         .get_mut(session_id)
         .ok_or_else(|| BackendError::validation("terminal session was not found"))?;
@@ -355,103 +377,17 @@ fn read_available_output(state: &BackendState, session_id: &str) -> BackendResul
 }
 
 fn read_runtime_output(runtime: &mut TerminalRuntime) -> BackendResult<String> {
-    let _keep_session_alive = runtime.session.authenticated();
-    let mut output = Vec::new();
-
-    read_stream_to_buffer(&mut runtime.channel, &mut output, "terminal output")?;
-    read_stream_to_buffer(
-        &mut runtime.channel.stderr(),
-        &mut output,
-        "terminal stderr",
-    )?;
-    if runtime.channel.eof() {
-        output.extend_from_slice(b"\r\n[remote shell closed]\r\n");
-    }
-
-    Ok(String::from_utf8_lossy(&output).into_owned())
+    SshClient::read_output(&mut runtime.ssh_runtime)
 }
 
 fn write_all_nonblocking(runtime: &mut TerminalRuntime, input: &[u8]) -> BackendResult<()> {
-    let mut written = 0;
-    let mut pending_attempts = 0;
-
-    while written < input.len() {
-        match runtime.channel.write(&input[written..]) {
-            Ok(0) => {
-                pending_attempts += 1;
-                wait_for_nonblocking_io(runtime, pending_attempts)?;
-            }
-            Ok(count) => {
-                written += count;
-                pending_attempts = 0;
-            }
-            Err(error) if is_nonblocking_io_pending(&error) => {
-                pending_attempts += 1;
-                wait_for_nonblocking_io(runtime, pending_attempts)?;
-            }
-            Err(error) => {
-                return Err(BackendError::validation(format!(
-                    "failed to write terminal input: {error}"
-                )))
-            }
-        }
-    }
-
-    runtime.channel.flush().map_err(|error| {
-        BackendError::validation(format!("failed to flush terminal input: {error}"))
-    })
-}
-
-fn wait_for_nonblocking_io(
-    runtime: &mut TerminalRuntime,
-    pending_attempts: usize,
-) -> BackendResult<()> {
-    if pending_attempts > 50 {
-        return Err(BackendError::validation(
-            "failed to write terminal input: ssh channel is not ready",
-        ));
-    }
-    let _ = read_runtime_output(runtime)?;
-    thread::sleep(Duration::from_millis(10));
-    Ok(())
-}
-
-fn read_stream_to_buffer<R: Read>(
-    stream: &mut R,
-    output: &mut Vec<u8>,
-    label: &str,
-) -> BackendResult<()> {
-    let mut buffer = [0_u8; 4096];
-    loop {
-        match stream.read(&mut buffer) {
-            Ok(0) => break,
-            Ok(count) => output.extend_from_slice(&buffer[..count]),
-            Err(error) if is_nonblocking_io_pending(&error) => break,
-            Err(error) => {
-                return Err(BackendError::validation(format!(
-                    "failed to read {label}: {error}"
-                )))
-            }
-        }
-    }
-    Ok(())
-}
-
-fn is_nonblocking_io_pending(error: &std::io::Error) -> bool {
-    if error.kind() == std::io::ErrorKind::WouldBlock {
-        return true;
-    }
-    let message = error.to_string().to_ascii_lowercase();
-    message.contains("transport read")
-        || message.contains("would block")
-        || message.contains("again")
+    SshClient::write_input(&mut runtime.ssh_runtime, input)
 }
 
 fn ensure_terminal_exists(state: &BackendState, session_id: &str) -> BackendResult<()> {
     let terminals = state
         .terminals
-        .lock()
-        .map_err(|_| BackendError::validation("terminal state is unavailable"))?;
+        .lock();
     if terminals.contains_key(session_id) {
         Ok(())
     } else {
@@ -463,7 +399,6 @@ fn push_output_event(state: &BackendState, session_id: &str, text: String) -> Ba
     state
         .terminal_events
         .lock()
-        .map_err(|_| BackendError::validation("terminal event state is unavailable"))?
         .entry(session_id.to_string())
         .or_default()
         .push(TerminalOutputEvent::Output {
@@ -473,31 +408,31 @@ fn push_output_event(state: &BackendState, session_id: &str, text: String) -> Ba
 }
 
 fn emit_terminal_output(
-    window: &tauri::WebviewWindow,
+    event_sink: &impl EventSink,
     session_id: &str,
     text: String,
-) -> tauri::Result<()> {
-    window.emit(
+) {
+    event_sink.emit_event(
         crate::ipc::events::TERMINAL_OUTPUT,
         TerminalOutputEventPayload {
             session_id: session_id.to_string(),
             data_base64: STANDARD.encode(text.as_bytes()),
         },
-    )
+    );
 }
 
 fn emit_terminal_error(
-    window: &tauri::WebviewWindow,
+    event_sink: &impl EventSink,
     session_id: &str,
     error: impl Into<String>,
-) -> tauri::Result<()> {
-    window.emit(
+) {
+    event_sink.emit_event(
         crate::ipc::events::TERMINAL_ERROR,
         TerminalErrorEventPayload {
             session_id: session_id.to_string(),
             error: error.into(),
         },
-    )
+    );
 }
 
 fn validate_terminal_request(request: &ConnectTerminalRequest) -> BackendResult<()> {

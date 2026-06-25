@@ -1,5 +1,5 @@
 <template>
-  <div class="ui-tabs" :class="[density]" role="tablist" :aria-label="label">
+  <div ref="tabsRef" class="ui-tabs" :class="[density]" role="tablist" :aria-label="label" @wheel="handleWheel">
     <button
       v-for="item in items"
       :key="item.id"
@@ -61,6 +61,20 @@ const emit = defineEmits<{
 }>()
 
 const draggedId = ref<string | null>(null)
+const tabsRef = ref<HTMLElement | null>(null)
+
+function handleWheel(event: WheelEvent) {
+  // Convert vertical scroll to horizontal scroll when tabs overflow
+  if (!tabsRef.value) return
+  const {scrollWidth, clientWidth} = tabsRef.value
+  if (scrollWidth <= clientWidth) return
+  
+  // If there's horizontal overflow, convert vertical scroll to horizontal
+  if (event.deltaY !== 0 && Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
+    event.preventDefault()
+    tabsRef.value.scrollLeft += event.deltaY
+  }
+}
 
 function handleDrop(targetId: string) {
   if (draggedId.value && draggedId.value !== targetId) emit('reorder', draggedId.value, targetId)

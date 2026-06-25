@@ -7,6 +7,7 @@ export interface IpcEventMap {
   'sftp-progress': SftpProgressEvent
   'sftp-completed': SftpProgressEvent
   'sftp-failed': SftpFailedEvent
+  'security-hostKeyRequested': HostKeyRequestedEvent
 }
 
 export interface TerminalOutputEvent {
@@ -35,6 +36,14 @@ export interface SftpProgressEvent {
 
 export interface SftpFailedEvent extends SftpProgressEvent {
   error?: string
+}
+
+export interface HostKeyRequestedEvent {
+  pendingId: string
+  host: string
+  port: number
+  fingerprint: string
+  keyType: string
 }
 
 export async function listenTypedEvent<K extends keyof IpcEventMap>(eventName: K, handler: (payload: IpcEventMap[K]) => void) {

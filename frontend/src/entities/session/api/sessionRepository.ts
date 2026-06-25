@@ -1,11 +1,11 @@
-﻿import {
-  typedInvoke,
+import {
+  sessionApi,
   type BackendSessionGroup,
   type BackendSessionHost,
   type SessionTreeActionPayload,
   type SessionTreeActionResult,
   type SshConfigHost,
-} from '../../../shared/ipc/ipcClient'
+} from '../../../shared/ipc/ipcFacade'
 import {validateNewSession} from '../model/sessionValidation'
 import type {SessionHost} from '../model/session.types'
 
@@ -16,7 +16,7 @@ export interface ImportSshConfigResult {
 }
 
 export async function applySessionTreeAction(payload: SessionTreeActionPayload): Promise<SessionTreeActionResult> {
-  return typedInvoke('apply_session_tree_action', payload)
+  return sessionApi.applyTreeAction(payload)
 }
 
 export function createSessionHostAction(host: BackendSessionHost, destinationGroupId = 'all'): SessionTreeActionPayload {
@@ -48,7 +48,7 @@ export function deleteSessionGroupAction(targetId: string): SessionTreeActionPay
 }
 
 export async function importSshConfig(existingSessions: SessionHost[]): Promise<ImportSshConfigResult> {
-  const hosts = await typedInvoke('parse_ssh_config')
+  const hosts = await sessionApi.importSshConfig()
   const importedSessions: SessionHost[] = []
   let skipped = 0
   for (const host of hosts) {

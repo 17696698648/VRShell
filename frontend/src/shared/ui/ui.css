@@ -43,6 +43,7 @@
 .ui-panel__error {
   margin: 0 var(--space-3) var(--space-2);
   padding: var(--space-2) var(--space-3);
+  border-left: 2px solid var(--color-danger);
   border-radius: var(--radius-md);
   background: var(--color-danger-soft);
   color: var(--color-danger);
@@ -52,10 +53,6 @@
   min-width: 0;
   min-height: 0;
   overflow: auto;
-}
-
-.ui-panel__error {
-  border-left: 2px solid var(--color-danger);
 }
 
 .ui-workbench-panel {
@@ -586,18 +583,20 @@
 }
 
 .ui-button.sm {
-  min-height: 26px;
-  padding: 0 var(--space-2);
+  min-height: 28px;
+  padding: 5px 8px;
   font-size: var(--font-size-sm);
 }
 
 .ui-button.primary {
-  background: var(--button-primary-bg);
-  color: var(--button-primary-color);
+  background: var(--color-accent);
+  color: var(--color-bg-workspace);
+  font-weight: 700;
 }
 
 .ui-button.secondary {
-  background: var(--button-secondary-bg);
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-elevated);
 }
 
 .ui-button.ghost {
@@ -626,7 +625,7 @@
   border: 2px solid currentColor;
   border-top-color: transparent;
   border-radius: 999px;
-  animation: spin var(--duration-slow) linear infinite;
+  animation: spin 780ms linear infinite;
 }
 
 .ui-icon-button {
@@ -681,6 +680,10 @@
   color: var(--color-text-disabled);
   cursor: not-allowed;
   opacity: 0.68;
+}
+
+.ui-panel__error {
+  border-left: 2px solid var(--color-danger);
 }
 
 .ui-field {
@@ -765,48 +768,6 @@
 
 .ui-input__affix {
   color: var(--color-text-muted);
-}
-
-.ui-button.primary {
-  background: var(--color-accent);
-  color: var(--color-bg-workspace);
-  font-weight: 700;
-}
-
-.ui-button.secondary {
-  border: 1px solid var(--color-border-subtle);
-  background: var(--color-bg-elevated);
-}
-
-.ui-button.ghost {
-  background: transparent;
-  color: var(--color-text-secondary);
-}
-
-.ui-button.danger {
-  background: var(--color-danger-soft);
-  color: var(--color-danger);
-}
-
-.ui-button.sm {
-  min-height: 28px;
-  padding: 5px 8px;
-  font-size: var(--font-size-sm);
-}
-
-.ui-button:disabled {
-  color: var(--color-text-disabled);
-  cursor: not-allowed;
-  opacity: 0.68;
-}
-
-.ui-button__spinner {
-  width: 12px;
-  height: 12px;
-  border: 2px solid currentColor;
-  border-top-color: transparent;
-  border-radius: 999px;
-  animation: spin 780ms linear infinite;
 }
 
 .ui-progress {

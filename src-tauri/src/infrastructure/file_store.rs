@@ -212,6 +212,7 @@ mod tests {
             total_bytes: Some(100),
             error: None,
             updated_at_ms: 42,
+            started_at_ms: Some(0),
         }];
 
         store.save_sftp_tasks(&tasks).expect("save tasks");

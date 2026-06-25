@@ -1,4 +1,4 @@
-﻿import {readdirSync, readFileSync, statSync} from 'node:fs'
+import {readdirSync, readFileSync, statSync} from 'node:fs'
 import {fileURLToPath} from 'node:url'
 import {join, relative} from 'node:path'
 
@@ -37,6 +37,10 @@ for (const file of listSourceFiles('src')) {
   assertNoDirectTauriInvoke(file, source)
   assertNoFeatureCommandRegistryImport(file, source)
   assertNoDirectPushToast(file, source)
+  assertNoDirectIpcClientImport(file, source)
+  assertNoSecretsInStore(file, source)
+  assertNoDirectTauriWindowApi(file, source)
+  assertNoReverseDependency(file, source)
 }
 
 assertTerminalOutputStaysOutsideReactiveStore()
@@ -84,6 +88,54 @@ function assertNoDirectTauriInvoke(file, source) {
   if (file.startsWith('src/shared/ipc/')) return
   assert(!source.includes('@tauri-apps/api/core'), `${file} imports Tauri core directly; use shared/ipc typedInvoke`)
   assert(!/\btauriInvoke\b|\binvoke\s*\(/.test(source), `${file} may call Tauri invoke directly; use repository APIs`)
+}
+
+/**
+ * Guard: 禁止 features/widgets/pages/shell 直接 import ipcClient
+ * 业务代码应通过 ipcFacade 调用语义 API
+ */
+function assertNoDirectIpcClientImport(file, source) {
+  // 允许 ipc 目录内部和 repository 使用
+  if (file.startsWith('src/shared/ipc/')) return
+  if (file.includes('/api/') && file.includes('Repository')) return
+  assert(!source.includes("from '../../../shared/ipc/ipcClient'") &&
+         !source.includes("from '../../shared/ipc/ipcClient'") &&
+         !source.includes("from '../ipc/ipcClient'"),
+    `${file} imports ipcClient directly; use ipcFacade or repository APIs`)
+}
+
+/**
+ * Guard: 禁止 store 文件出现 password、passphrase 字段
+ * 凭据应通过 credentialRef 引用，不进入响应式状态
+ */
+function assertNoSecretsInStore(file, source) {
+  if (!file.includes('.store.ts')) return
+  if (file.includes('/__tests__/')) return
+  assert(!/\bpassword\s*[:=]/.test(source) && !/\bpassphrase\s*[:=]/.test(source),
+    `${file} contains password/passphrase field; use credentialRef instead`)
+}
+
+/**
+ * Guard: 禁止非 shared/window 直接 import Tauri window API
+ */
+function assertNoDirectTauriWindowApi(file, source) {
+  if (file.startsWith('src/shared/window/')) return
+  if (file.startsWith('src/shared/ipc/')) return
+  if (file.startsWith('src/shell/titlebar/')) return
+  assert(!source.includes('@tauri-apps/api/window') && !source.includes('@tauri-apps/api/webviewWindow'),
+    `${file} imports Tauri window API directly; use shared/window abstraction`)
+}
+
+/**
+ * Guard: 禁止 entities 反向依赖 features/widgets/pages/shell
+ */
+function assertNoReverseDependency(file, source) {
+  if (!file.startsWith('src/entities/')) return
+  assert(!source.includes("from '../../features/") &&
+         !source.includes("from '../../widgets/") &&
+         !source.includes("from '../../pages/") &&
+         !source.includes("from '../../shell/"),
+    `${file} has reverse dependency on features/widgets/pages/shell; entities should be leaf modules`)
 }
 
 function assertNoFeatureCommandRegistryImport(file, source) {

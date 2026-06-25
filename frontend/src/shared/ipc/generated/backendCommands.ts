@@ -27,5 +27,7 @@ export const backendCommandNames = [
   "cancel_sftp_task",
   "keyring_store",
   "keyring_get",
-  "keyring_delete"
+  "keyring_delete",
+  "accept_host_key",
+  "reject_host_key"
 ] as const

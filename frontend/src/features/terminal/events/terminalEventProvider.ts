@@ -1,4 +1,4 @@
-﻿import {appendTerminalLines, patchTerminal, terminalState, type TerminalTab} from '../../../entities/terminal'
+import {appendTerminalLines, patchTerminal, terminalState, type TerminalTab} from '../../../entities/terminal'
 import {pollTerminalOutput} from '../../../entities/terminal/api/terminalRepository'
 import {messages} from '../../../shared/copy'
 import {notifyTerminalFailure} from '../../../shared/feedback'
@@ -104,6 +104,11 @@ function handleTerminalClosed(event: {sessionId: string}) {
   const tab = findTerminalByBackendSessionId(event.sessionId)
   if (!tab) return
   patchTerminal(tab.id, {status: 'disconnected'})
+  // 如果关闭的是当前活跃终端，自动切换到第一个可用终端
+  if (terminalState.activeTerminalId === tab.id) {
+    const fallback = terminalState.tabs.find((t) => t.id !== tab!.id && t.status === 'connected')
+    terminalState.activeTerminalId = fallback?.id ?? ''
+  }
 }
 
 function handleTerminalError(event: TerminalErrorEvent) {

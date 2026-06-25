@@ -1,22 +1,23 @@
 use crate::{
     domain::sftp::{SftpConnectionRequest, SftpEntry, SftpTaskSnapshot, SftpTaskStatus},
     error::{BackendError, BackendResult},
-    infrastructure::file_store::FileStore,
-    services::credential_service,
+    infrastructure::{
+        file_store::FileStore,
+        ssh_auth::{self, SshAuthParams},
+    },
     state::BackendState,
 };
 use base64::Engine;
 use serde::Serialize;
 use ssh2::{FileStat, OpenFlags, OpenType, Session as SshSession};
 use std::{
-    env,
     fs::{self, File},
     io::{Read, Write},
     net::{TcpStream, ToSocketAddrs},
     path::{Path, PathBuf},
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
-use tauri::Emitter;
+use crate::infrastructure::event_bus::EventSink;
 
 const TRANSFER_BUFFER_SIZE: usize = 64 * 1024;
 const MAX_PERSISTED_SFTP_TASKS: usize = 100;
@@ -69,7 +70,6 @@ pub(crate) fn register_sftp_task(
     state
         .sftp_tasks
         .lock()
-        .map_err(|_| BackendError::validation("sftp task state is unavailable"))?
         .insert(
             task_id.to_string(),
             SftpTaskSnapshot {
@@ -82,6 +82,7 @@ pub(crate) fn register_sftp_task(
                 total_bytes: None,
                 error: None,
                 updated_at_ms: current_time_ms(),
+                started_at_ms: Some(current_time_ms()),
             },
         );
     persist_sftp_tasks(state)
@@ -91,7 +92,6 @@ pub(crate) fn mark_sftp_task_cancelled(state: &BackendState, task_id: &str) -> B
     let existing = state
         .sftp_tasks
         .lock()
-        .map_err(|_| BackendError::validation("sftp task state is unavailable"))?
         .get(task_id)
         .cloned();
     record_sftp_task(
@@ -114,7 +114,6 @@ fn find_sftp_task(state: &BackendState, task_id: &str) -> BackendResult<Option<S
     Ok(state
         .sftp_tasks
         .lock()
-        .map_err(|_| BackendError::validation("sftp task state is unavailable"))?
         .get(task_id)
         .cloned())
 }
@@ -123,7 +122,6 @@ fn pruned_sftp_tasks(state: &BackendState, now_ms: u128) -> BackendResult<Vec<Sf
     let tasks = state
         .sftp_tasks
         .lock()
-        .map_err(|_| BackendError::validation("sftp task state is unavailable"))?
         .values()
         .cloned()
         .collect::<Vec<_>>();
@@ -133,8 +131,7 @@ fn pruned_sftp_tasks(state: &BackendState, now_ms: u128) -> BackendResult<Vec<Sf
 fn replace_sftp_tasks(state: &BackendState, tasks: &[SftpTaskSnapshot]) -> BackendResult<()> {
     let mut stored_tasks = state
         .sftp_tasks
-        .lock()
-        .map_err(|_| BackendError::validation("sftp task state is unavailable"))?;
+        .lock();
     stored_tasks.clear();
     stored_tasks.extend(
         tasks
@@ -185,8 +182,7 @@ fn record_sftp_task(
 ) -> BackendResult<()> {
     let mut tasks = state
         .sftp_tasks
-        .lock()
-        .map_err(|_| BackendError::validation("sftp task state is unavailable"))?;
+        .lock();
     let existing = tasks.get(task_id).cloned();
     tasks.insert(
         task_id.to_string(),
@@ -206,6 +202,7 @@ fn record_sftp_task(
             total_bytes,
             error,
             updated_at_ms: current_time_ms(),
+            started_at_ms: existing.and_then(|task| task.started_at_ms),
         },
     );
     drop(tasks);
@@ -338,7 +335,7 @@ pub(crate) fn delete(
 }
 
 pub(crate) fn upload_file_with_progress(
-    window: Option<&tauri::WebviewWindow>,
+    window: Option<&impl EventSink>,
     state: Option<&BackendState>,
     task_id: Option<&str>,
     connection: SftpConnectionRequest,
@@ -346,6 +343,7 @@ pub(crate) fn upload_file_with_progress(
     data_base64: Option<String>,
     local_path: Option<String>,
 ) -> BackendResult<()> {
+    tracing::info!(task_id = ?task_id, remote_path = %remote_path, "starting SFTP upload");
     let remote_path = validate_remote_path(&connection, remote_path)?;
     let upload_source = match (data_base64, local_path) {
         (Some(data_base64), _) => UploadSource::Memory(
@@ -379,13 +377,14 @@ pub(crate) fn upload_file_with_progress(
 }
 
 pub(crate) fn download_file_with_progress(
-    window: Option<&tauri::WebviewWindow>,
+    window: Option<&impl EventSink>,
     state: Option<&BackendState>,
     task_id: Option<&str>,
     connection: SftpConnectionRequest,
     remote_path: String,
     local_path: Option<String>,
 ) -> BackendResult<String> {
+    tracing::info!(task_id = ?task_id, remote_path = %remote_path, "starting SFTP download");
     let remote_path = validate_remote_path(&connection, remote_path)?;
     let session = open_ssh_session(&connection)?;
     let sftp = open_sftp(&session)?;
@@ -421,7 +420,7 @@ pub(crate) fn download_file_with_progress(
 }
 
 pub(crate) fn upload_directory_with_progress(
-    window: Option<&tauri::WebviewWindow>,
+    window: Option<&impl EventSink>,
     state: Option<&BackendState>,
     task_id: Option<&str>,
     connection: SftpConnectionRequest,
@@ -487,7 +486,7 @@ fn open_ssh_session(request: &SftpConnectionRequest) -> BackendResult<SshSession
 }
 
 fn write_upload_source_with_progress<W: Write>(
-    window: Option<&tauri::WebviewWindow>,
+    window: Option<&impl EventSink>,
     state: Option<&BackendState>,
     task_id: Option<&str>,
     writer: &mut W,
@@ -504,7 +503,7 @@ fn write_upload_source_with_progress<W: Write>(
 }
 
 fn write_memory_with_progress<W: Write>(
-    window: Option<&tauri::WebviewWindow>,
+    window: Option<&impl EventSink>,
     state: Option<&BackendState>,
     task_id: Option<&str>,
     writer: &mut W,
@@ -526,7 +525,7 @@ fn write_memory_with_progress<W: Write>(
 }
 
 fn write_local_file_with_progress<W: Write>(
-    window: Option<&tauri::WebviewWindow>,
+    window: Option<&impl EventSink>,
     state: Option<&BackendState>,
     task_id: Option<&str>,
     writer: &mut W,
@@ -563,7 +562,7 @@ fn write_remote_chunk<W: Write>(writer: &mut W, chunk: &[u8]) -> BackendResult<(
 }
 
 fn read_to_end_with_progress<R: Read>(
-    window: Option<&tauri::WebviewWindow>,
+    window: Option<&impl EventSink>,
     state: Option<&BackendState>,
     task_id: Option<&str>,
     reader: &mut R,
@@ -592,7 +591,7 @@ fn read_to_end_with_progress<R: Read>(
 }
 
 fn write_download_to_local_file_with_progress<R: Read>(
-    window: Option<&tauri::WebviewWindow>,
+    window: Option<&impl EventSink>,
     state: Option<&BackendState>,
     task_id: Option<&str>,
     reader: &mut R,
@@ -640,7 +639,6 @@ fn ensure_task_not_cancelled(
     let cancelled = state
         .cancelled_sftp_tasks
         .lock()
-        .map_err(|_| BackendError::validation("sftp task state is unavailable"))?
         .contains(task_id);
     if cancelled {
         Err(BackendError::validation("sftp task was cancelled"))
@@ -651,7 +649,7 @@ fn ensure_task_not_cancelled(
 
 fn emit_sftp_progress(
     state: Option<&BackendState>,
-    window: Option<&tauri::WebviewWindow>,
+    window: Option<&impl EventSink>,
     task_id: Option<&str>,
     transferred_bytes: u64,
     total_bytes: Option<u64>,
@@ -675,7 +673,7 @@ fn emit_sftp_progress(
     let Some(window) = window else {
         return;
     };
-    let _ = window.emit(
+    let _ = window.emit_event(
         crate::ipc::events::SFTP_PROGRESS,
         sftp_progress_payload(task_id, snapshot.as_ref(), transferred_bytes, total_bytes),
     );
@@ -683,7 +681,7 @@ fn emit_sftp_progress(
 
 fn emit_sftp_completed(
     state: Option<&BackendState>,
-    window: Option<&tauri::WebviewWindow>,
+    window: Option<&impl EventSink>,
     task_id: Option<&str>,
     transferred_bytes: u64,
     total_bytes: Option<u64>,
@@ -707,7 +705,7 @@ fn emit_sftp_completed(
     let Some(window) = window else {
         return;
     };
-    let _ = window.emit(
+    let _ = window.emit_event(
         crate::ipc::events::SFTP_COMPLETED,
         sftp_progress_payload(task_id, snapshot.as_ref(), transferred_bytes, total_bytes),
     );
@@ -719,6 +717,16 @@ fn sftp_progress_payload(
     transferred_bytes: u64,
     total_bytes: Option<u64>,
 ) -> SftpProgressEventPayload {
+    let bytes_per_second = snapshot
+        .and_then(|task| task.started_at_ms)
+        .and_then(|started_at| {
+            let elapsed_ms = current_time_ms().saturating_sub(started_at);
+            if elapsed_ms > 0 {
+                Some(transferred_bytes * 1000 / elapsed_ms as u64)
+            } else {
+                None
+            }
+        });
     SftpProgressEventPayload {
         task_id: task_id.to_string(),
         kind: snapshot.map_or_else(|| "sftp".to_string(), |task| task.kind.clone()),
@@ -726,13 +734,13 @@ fn sftp_progress_payload(
         detail: snapshot.map_or_else(|| task_id.to_string(), |task| task.detail.clone()),
         transferred_bytes,
         total_bytes,
-        bytes_per_second: None,
+        bytes_per_second,
     }
 }
 
 pub(crate) fn emit_sftp_failed(
     state: Option<&BackendState>,
-    window: &tauri::WebviewWindow,
+    window: &impl EventSink,
     task_id: &str,
     error: impl Into<String>,
 ) {
@@ -750,7 +758,7 @@ pub(crate) fn emit_sftp_failed(
     } else {
         None
     };
-    let _ = window.emit(
+    let _ = window.emit_event(
         crate::ipc::events::SFTP_FAILED,
         SftpFailedEventPayload {
             task_id: task_id.to_string(),
@@ -772,98 +780,15 @@ pub(crate) fn emit_sftp_failed(
 }
 
 fn authenticate(session: &SshSession, request: &SftpConnectionRequest) -> BackendResult<()> {
-    match request
-        .auth_method
-        .as_deref()
-        .unwrap_or_else(|| infer_auth_method(request))
-    {
-        "password" => authenticate_with_password(session, request)?,
-        "key" => authenticate_with_private_key(session, request)?,
-        "agent" => authenticate_with_agent(session, request)?,
-        method => {
-            return Err(BackendError::validation(format!(
-                "unsupported ssh auth method: {method}"
-            )))
-        }
-    }
-
-    if session.authenticated() {
-        Ok(())
-    } else {
-        Err(BackendError::credential("ssh authentication failed"))
-    }
-}
-
-fn infer_auth_method(request: &SftpConnectionRequest) -> &'static str {
-    if request
-        .private_key_path
-        .as_deref()
-        .is_some_and(|value| !value.is_empty())
-    {
-        "key"
-    } else if request
-        .password
-        .as_deref()
-        .is_some_and(|value| !value.is_empty())
-        || request.credential_ref.is_some()
-    {
-        "password"
-    } else {
-        "agent"
-    }
-}
-
-fn authenticate_with_password(
-    session: &SshSession,
-    request: &SftpConnectionRequest,
-) -> BackendResult<()> {
-    let stored_password = match &request.credential_ref {
-        Some(credential_ref) => credential_service::get(credential_ref.clone())?,
-        None => None,
+    let params = SshAuthParams {
+        username: request.username.clone(),
+        password: request.password.clone(),
+        private_key_path: request.private_key_path.clone(),
+        passphrase: request.passphrase.clone(),
+        auth_method: request.auth_method.clone(),
+        credential_ref: request.credential_ref.clone(),
     };
-    let password = request
-        .password
-        .as_deref()
-        .filter(|value| !value.is_empty())
-        .or(stored_password.as_deref())
-        .ok_or_else(|| BackendError::credential("password authentication requires a password"))?;
-    session
-        .userauth_password(&request.username, password)
-        .map_err(|error| {
-            BackendError::credential(format!("ssh password authentication failed: {error}"))
-        })
-}
-
-fn authenticate_with_private_key(
-    session: &SshSession,
-    request: &SftpConnectionRequest,
-) -> BackendResult<()> {
-    let private_key_path = request
-        .private_key_path
-        .as_deref()
-        .filter(|value| !value.is_empty())
-        .ok_or_else(|| {
-            BackendError::credential("key authentication requires a private key path")
-        })?;
-    session
-        .userauth_pubkey_file(
-            &request.username,
-            None,
-            expand_private_key_path(private_key_path).as_path(),
-            request.passphrase.as_deref(),
-        )
-        .map_err(|error| {
-            BackendError::credential(format!("ssh key authentication failed: {error}"))
-        })
-}
-
-fn authenticate_with_agent(
-    session: &SshSession,
-    request: &SftpConnectionRequest,
-) -> BackendResult<()> {
-    session.userauth_agent(&request.username).map_err(|error| {
-        BackendError::credential(format!("ssh agent authentication failed: {error}"))
-    })
+    ssh_auth::authenticate_with_inferred_method(session, &params)
 }
 
 fn open_sftp(session: &SshSession) -> BackendResult<ssh2::Sftp> {
@@ -928,7 +853,7 @@ fn calculate_directory_size(local_directory: &Path) -> BackendResult<u64> {
 }
 
 fn upload_directory_entries(
-    window: Option<&tauri::WebviewWindow>,
+    window: Option<&impl EventSink>,
     state: Option<&BackendState>,
     task_id: Option<&str>,
     sftp: &ssh2::Sftp,
@@ -978,7 +903,7 @@ fn upload_directory_entries(
 }
 
 fn upload_directory_file(
-    window: Option<&tauri::WebviewWindow>,
+    window: Option<&impl EventSink>,
     state: Option<&BackendState>,
     task_id: Option<&str>,
     sftp: &ssh2::Sftp,
@@ -1038,21 +963,6 @@ fn join_remote_path(parent_path: &str, name: &str) -> String {
     } else {
         format!("{}/{}", parent_path.trim_end_matches('/'), name)
     }
-}
-
-fn expand_private_key_path(path: &str) -> PathBuf {
-    if let Some(rest) = path.strip_prefix("~/") {
-        if let Some(home) = home_dir() {
-            return home.join(rest);
-        }
-    }
-    PathBuf::from(path)
-}
-
-fn home_dir() -> Option<PathBuf> {
-    env::var_os("HOME")
-        .map(PathBuf::from)
-        .or_else(|| env::var_os("USERPROFILE").map(PathBuf::from))
 }
 
 fn validate_connection(connection: &SftpConnectionRequest) -> BackendResult<()> {
@@ -1207,6 +1117,7 @@ mod tests {
             total_bytes: None,
             error: None,
             updated_at_ms,
+            started_at_ms: None,
         }
     }
 

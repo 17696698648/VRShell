@@ -1,9 +1,9 @@
-﻿import {typedInvoke, type SftpConnection, type SftpTaskSnapshot, type SftpTransferOptions} from '../../../shared/ipc/ipcClient'
+import {sftpFileApi, sftpTaskApi, type SftpConnection, type SftpTaskSnapshot, type SftpTransferOptions} from '../../../shared/ipc/ipcFacade'
 import type {SessionHost} from '../../session'
 import type {SftpItem} from '../model/sftp.types'
 
 export async function listRemoteDirectory(session: SessionHost, path: string): Promise<SftpItem[]> {
-  const entries = await typedInvoke('sftp_list', {connection: toConnection(session), path})
+  const entries = await sftpFileApi.list(toConnection(session), path)
   return entries.map((entry) => {
     const isDirectory = entry.isDirectory ?? entry.is_dir ?? false
     return {
@@ -18,39 +18,39 @@ export async function listRemoteDirectory(session: SessionHost, path: string): P
 }
 
 export function mkdirRemoteDirectory(session: SessionHost, remotePath: string) {
-  return typedInvoke('sftp_mkdir', {connection: toConnection(session), remotePath})
+  return sftpFileApi.mkdir(toConnection(session), remotePath)
 }
 
 export function createRemoteFilePath(session: SessionHost, remotePath: string) {
-  return typedInvoke('sftp_create_file', {connection: toConnection(session), remotePath})
+  return sftpFileApi.createFile(toConnection(session), remotePath)
 }
 
 export function renameRemotePath(session: SessionHost, oldPath: string, newPath: string) {
-  return typedInvoke('sftp_rename', {connection: toConnection(session), oldPath, newPath})
+  return sftpFileApi.rename(toConnection(session), oldPath, newPath)
 }
 
 export function deleteRemotePath(session: SessionHost, remotePath: string, isDirectory: boolean) {
-  return typedInvoke('sftp_delete', {connection: toConnection(session), remotePath, isDirectory})
+  return sftpFileApi.remove(toConnection(session), remotePath, isDirectory)
 }
 
 export function uploadRemoteFile(session: SessionHost, remotePath: string, taskId: string, input: {dataBase64?: string; localPath?: string}, options?: SftpTransferOptions) {
-  return typedInvoke('sftp_upload', {connection: toConnection(session), remotePath, dataBase64: input.dataBase64 ?? null, localPath: input.localPath ?? null, taskId, options})
+  return sftpFileApi.upload(toConnection(session), remotePath, taskId, input, options)
 }
 
 export function uploadRemoteDirectory(session: SessionHost, localPath: string, remotePath: string, taskId: string) {
-  return typedInvoke('sftp_upload_directory', {connection: toConnection(session), localPath, remotePath, taskId})
+  return sftpFileApi.uploadDirectory(toConnection(session), localPath, remotePath, taskId)
 }
 
 export function downloadRemoteFile(session: SessionHost, remotePath: string, taskId: string, localPath?: string) {
-  return typedInvoke('sftp_download', {connection: toConnection(session), remotePath, taskId, localPath: localPath ?? null})
+  return sftpFileApi.download(toConnection(session), remotePath, taskId, localPath)
 }
 
 export function readRemoteFile(session: SessionHost, remotePath: string) {
-  return typedInvoke('sftp_read_file', {connection: toConnection(session), remotePath})
+  return sftpFileApi.readFile(toConnection(session), remotePath)
 }
 
 export function listSftpTasks(): Promise<SftpTaskSnapshot[]> {
-  return typedInvoke('list_sftp_tasks')
+  return sftpTaskApi.list()
 }
 
 function toConnection(session: SessionHost): SftpConnection {

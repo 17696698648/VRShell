@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 pub(crate) const COMMANDS: &[&str] = &[
     "open_devtools",
     "load_session_tree",
@@ -26,6 +27,8 @@ pub(crate) const COMMANDS: &[&str] = &[
     "keyring_store",
     "keyring_get",
     "keyring_delete",
+    "accept_host_key",
+    "reject_host_key",
 ];
 
 #[cfg(test)]
@@ -81,6 +84,8 @@ mod tests {
             "keyring_store",
             "keyring_get",
             "keyring_delete",
+            "accept_host_key",
+            "reject_host_key",
         ];
 
         assert_eq!(COMMANDS, frontend_commands);

@@ -4,10 +4,10 @@ use crate::{
     infrastructure::file_store::FileStore,
     services::terminal_service::TerminalRuntime,
 };
+use parking_lot::Mutex;
 use std::{
     collections::{HashMap, HashSet},
     path::PathBuf,
-    sync::Mutex,
 };
 
 pub(crate) struct BackendState {
@@ -17,6 +17,21 @@ pub(crate) struct BackendState {
     pub terminal_events: Mutex<HashMap<String, Vec<TerminalOutputEvent>>>,
     pub cancelled_sftp_tasks: Mutex<HashSet<String>>,
     pub sftp_tasks: Mutex<HashMap<String, SftpTaskSnapshot>>,
+    /// Pending SSH sessions waiting for host key acceptance
+    /// Key: pending_id, Value: (host, port, username, ssh_session)
+    pub pending_host_key_sessions: Mutex<HashMap<String, PendingHostKeySession>>,
+}
+
+/// Holds a partial SSH session (handshake done, awaiting host key acceptance)
+pub(crate) struct PendingHostKeySession {
+    pub host: String,
+    pub port: u16,
+    pub username: String,
+    pub session: ssh2::Session,
+    pub fingerprint: String,
+    pub key_type: String,
+    #[allow(dead_code)]
+    pub raw_key: Vec<u8>,
 }
 
 impl BackendState {
@@ -34,6 +49,7 @@ impl BackendState {
             terminal_events: Mutex::new(HashMap::new()),
             cancelled_sftp_tasks: Mutex::new(HashSet::new()),
             sftp_tasks: Mutex::new(sftp_tasks),
+            pending_host_key_sessions: Mutex::new(HashMap::new()),
         }
     }
 }
@@ -65,11 +81,12 @@ mod tests {
                 total_bytes: Some(100),
                 error: None,
                 updated_at_ms: 42,
+                started_at_ms: Some(0),
             }])
             .expect("save tasks");
 
         let state = BackendState::new(dir.clone());
-        let tasks = state.sftp_tasks.lock().expect("sftp tasks");
+        let tasks = state.sftp_tasks.lock();
 
         assert_eq!(tasks.len(), 1);
         assert_eq!(tasks.get("task").expect("task").detail, "/srv/app.log");

@@ -51,6 +51,7 @@ pub(crate) struct SftpTaskSnapshot {
     pub total_bytes: Option<u64>,
     pub error: Option<String>,
     pub updated_at_ms: u128,
+    pub started_at_ms: Option<u128>,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]

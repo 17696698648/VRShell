@@ -64,7 +64,6 @@ function isOneOf<const T extends readonly string[]>(value: unknown, allowed: T):
 }
 
 function normalizeActiveDockPanel(value: unknown): WorkspaceLayoutState['activeDockPanel'] {
-  if (value === 'none') return defaultLayout.activeDockPanel
   return isOneOf(value, workspaceDockPanels) ? value : defaultLayout.activeDockPanel
 }
 

@@ -23,6 +23,7 @@
     <SettingsDialogHost/>
     <ContextMenuHost/>
     <DialogHost/>
+    <HostKeyDialogHost/>
     <ToastHost/>
   </div>
 </template>
@@ -34,6 +35,7 @@ import ActivityBar from './activity-bar/ActivityBar.vue'
 import CommandPaletteHost from './overlays/CommandPaletteHost.vue'
 import ContextMenuHost from './overlays/ContextMenuHost.vue'
 import DialogHost from './overlays/DialogHost.vue'
+import HostKeyDialogHost from './overlays/HostKeyDialogHost.vue'
 import QuickOpenHost from './overlays/QuickOpenHost.vue'
 import SettingsDialogHost from './overlays/SettingsDialogHost.vue'
 import ToastHost from './overlays/ToastHost.vue'

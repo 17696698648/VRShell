@@ -40,6 +40,8 @@ pub(crate) struct ConnectSshRequest {
     pub auth_method: Option<String>,
     pub auto_reconnect: Option<bool>,
     pub idle_timeout_secs: Option<u64>,
+    /// Credential reference for keyring-based authentication
+    pub credential_ref: Option<CredentialRef>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -159,6 +161,7 @@ mod tests {
             auth_method: Some("key".to_string()),
             auto_reconnect: Some(true),
             idle_timeout_secs: Some(60),
+            credential_ref: None,
         };
 
         let value = serde_json::to_value(request).expect("serialize request");

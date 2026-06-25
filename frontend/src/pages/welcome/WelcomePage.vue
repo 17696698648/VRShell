@@ -43,6 +43,7 @@ import {computed} from 'vue'
 import {sessionState} from '../../entities/session'
 import {sftpState} from '../../entities/sftp'
 import {taskItems} from '../../entities/task'
+import {terminalState} from '../../entities/terminal'
 import {executeCommand} from '../../shared/command'
 import {UiButton, UiKbd} from '../../shared/ui'
 
@@ -51,27 +52,55 @@ const productEntries = [
   {command: 'sftp.openPanel', description: 'Browse, upload, download, and rename remote files.', icon: FolderTree, title: 'SFTP Explorer'},
   {command: 'workspace.openTasksPanel', description: 'Track long-running jobs and transfer tasks.', icon: ListTodo, title: 'Task Center'},
 ]
-const recentSections = computed(() => [
-  {
-    icon: Server,
-    status: sessionState.sessions[0]?.status ?? 'Not connected',
-    title: 'Recent connection',
-    tone: `is-${sessionState.sessions[0]?.status ?? 'idle'}`,
-    value: sessionState.sessions[0]?.name ?? 'Create your first SSH session',
-  },
-  {
-    icon: FolderTree,
-    status: sftpState.path ? 'Browsing' : 'Ready',
-    title: 'Recent path',
-    tone: sftpState.path ? 'is-connected' : 'is-idle',
-    value: sftpState.path || 'Open SFTP to browse remote files',
-  },
-  {
-    icon: ListTodo,
-    status: taskItems[0]?.status ?? 'No tasks',
-    title: 'Recent task',
-    tone: `is-${taskItems[0]?.status ?? 'idle'}`,
-    value: taskItems[0]?.title ?? 'Run a transfer or long task',
-  },
-])
+
+/** Sessions sorted by most recently used (based on terminal tab order, last active first) */
+const sessionsByRecency = computed(() => {
+  const seen = new Set<string>()
+  const ordered: string[] = []
+  // Walk tabs in reverse so the most recently opened/active appears first
+  for (let i = terminalState.tabs.length - 1; i >= 0; i--) {
+    const sid = terminalState.tabs[i].sessionId
+    if (!seen.has(sid)) {
+      seen.add(sid)
+      ordered.push(sid)
+    }
+  }
+  // Active session always first if not already in the list
+  if (sessionState.activeSessionId && !seen.has(sessionState.activeSessionId)) {
+    ordered.unshift(sessionState.activeSessionId)
+  }
+  return ordered
+    .map((id) => sessionState.sessions.find((s) => s.id === id))
+    .filter((s): s is NonNullable<typeof s> => !!s)
+})
+
+const recentSections = computed(() => {
+  const topSession = sessionsByRecency.value[0] ?? null
+  // taskItems is already ordered by most recent (addTask uses unshift)
+  const topTask = taskItems[0] ?? null
+
+  return [
+    {
+      icon: Server,
+      status: topSession?.status ?? 'Not connected',
+      title: 'Recent connection',
+      tone: `is-${topSession?.status ?? 'idle'}`,
+      value: topSession ? `${topSession.name} (${topSession.username}@${topSession.host})` : 'Create your first SSH session',
+    },
+    {
+      icon: FolderTree,
+      status: sftpState.path && sftpState.path !== '/' ? 'Browsing' : 'Ready',
+      title: 'Recent path',
+      tone: sftpState.path && sftpState.path !== '/' ? 'is-connected' : 'is-idle',
+      value: sftpState.path && sftpState.path !== '/' ? sftpState.path : 'Open SFTP to browse remote files',
+    },
+    {
+      icon: ListTodo,
+      status: topTask?.status ?? 'No tasks',
+      title: 'Recent task',
+      tone: `is-${topTask?.status ?? 'idle'}`,
+      value: topTask?.title ?? 'Run a transfer or long task',
+    },
+  ]
+})
 </script>

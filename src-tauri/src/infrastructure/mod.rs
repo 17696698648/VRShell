@@ -1,3 +1,7 @@
+pub(crate) mod event_bus;
 pub(crate) mod file_store;
 pub(crate) mod keyring_store;
+pub(crate) mod known_hosts_store;
+pub(crate) mod ssh_auth;
+pub(crate) mod ssh_client;
 pub(crate) mod ssh_config_store;

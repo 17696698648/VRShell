@@ -93,5 +93,12 @@ async function invokeMock(command: keyof IpcCommandMap, args: unknown) {
     ]
   }
   if (command === 'list_sftp_tasks') return []
+  if (command === 'accept_host_key') return 'mock-session-id'
+  if (command === 'reject_host_key') return undefined
+  if (command === 'test_ssh_connection') {
+    const payload = args as {host: string; port: number; username: string}
+    return `SSH connection to ${payload.host}:${payload.port} succeeded (mock)`
+  }
+  if (command === 'tcp_latency') return 42
   return undefined
 }

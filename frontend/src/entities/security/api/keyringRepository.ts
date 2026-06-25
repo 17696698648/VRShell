@@ -1,16 +1,16 @@
-import {typedInvoke} from '../../../shared/ipc/ipcClient'
+import {credentialApi} from '../../../shared/ipc/ipcFacade'
 import type {CredentialRef} from '../model/security.types'
 
 export function storeCredential(credentialRef: CredentialRef, value: string) {
-  return typedInvoke('keyring_store', {...credentialRef, value})
+  return credentialApi.save(credentialRef.service, credentialRef.key, value)
 }
 
 export function getCredential(credentialRef: CredentialRef) {
-  return typedInvoke('keyring_get', credentialRef)
+  return credentialApi.get(credentialRef.service, credentialRef.key)
 }
 
 export function deleteCredential(credentialRef: CredentialRef) {
-  return typedInvoke('keyring_delete', credentialRef)
+  return credentialApi.delete(credentialRef.service, credentialRef.key)
 }
 
 export function sessionPasswordRef(sessionId: string): CredentialRef {

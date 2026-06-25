@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+#[allow(dead_code)]
 pub(crate) const DEFAULT_CREDENTIAL_SERVICE: &str = "vrshell";
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
@@ -17,6 +18,7 @@ impl CredentialRef {
         }
     }
 
+    #[allow(dead_code)]
     pub(crate) fn session_password(session_id: &str) -> Self {
         Self::new(
             DEFAULT_CREDENTIAL_SERVICE,

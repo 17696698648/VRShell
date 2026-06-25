@@ -1,8 +1,8 @@
-﻿import {typedInvoke} from '../../../shared/ipc/ipcClient'
+import {terminalApi} from '../../../shared/ipc/ipcFacade'
 import type {SessionHost} from '../../session'
 
 export async function connectTerminal(session: SessionHost) {
-  return typedInvoke('connect_ssh', {
+  return terminalApi.open({
     host: session.host,
     port: session.port,
     username: session.username,
@@ -16,17 +16,17 @@ export async function connectTerminal(session: SessionHost) {
 }
 
 export function disconnectTerminal(sessionId: string) {
-  return typedInvoke('disconnect_session', {sessionId})
+  return terminalApi.close(sessionId)
 }
 
 export function pollTerminalOutput(sessionId: string) {
-  return typedInvoke('poll_events', {sessionId})
+  return terminalApi.pollEvents(sessionId)
 }
 
 export function sendTerminalInput(sessionId: string, dataBase64: string) {
-  return typedInvoke('send_input', {sessionId, dataBase64})
+  return terminalApi.write(sessionId, dataBase64)
 }
 
 export function resizeTerminalPty(sessionId: string | null, cols: number, rows: number) {
-  return typedInvoke('resize_pty', {sessionId, cols, rows})
+  return terminalApi.resize(sessionId, cols, rows)
 }

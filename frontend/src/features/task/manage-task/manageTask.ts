@@ -1,8 +1,8 @@
-﻿import {patchTask, upsertTask, type TaskItem} from '../../../entities/task'
+import {patchTask, upsertTask, type TaskItem} from '../../../entities/task'
 import {listSftpTasks} from '../../../entities/sftp/api/sftpRepository'
 import {messages} from '../../../shared/copy'
 import {notifyTaskFailure} from '../../../shared/feedback'
-import {typedInvoke, type SftpTaskSnapshot} from '../../../shared/ipc/ipcClient'
+import {sftpTaskApi, type SftpTaskSnapshot} from '../../../shared/ipc/ipcFacade'
 import {createTransferTask} from '../../sftp/manage-files/manageSftpFiles'
 
 export async function restoreSftpTasks() {
@@ -25,7 +25,7 @@ export function toTaskItem(snapshot: SftpTaskSnapshot): TaskItem {
 export async function cancelTask(task: TaskItem) {
   if (task.status !== 'running') return false
   try {
-    await typedInvoke('cancel_sftp_task', {taskId: task.id})
+    await sftpTaskApi.cancel(task.id)
     patchTask(task.id, {error: undefined, status: 'cancelled'})
     return true
   } catch (error) {

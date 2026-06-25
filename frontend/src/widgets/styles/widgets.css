@@ -109,7 +109,15 @@
   display: flex;
   gap: 6px;
   min-width: 0;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.session-tabs::-webkit-scrollbar,
+.session-terminal-tabs::-webkit-scrollbar,
+.editor-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .session-tabs {
@@ -171,6 +179,33 @@
   font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.session-tabs__status-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.session-tabs__status-dot--connected {
+  background: var(--color-success);
+  box-shadow: 0 0 4px var(--color-success);
+}
+
+.session-tabs__status-dot--connecting {
+  background: var(--color-warning);
+  animation: pulse-dot 1.2s ease-in-out infinite;
+}
+
+.session-tabs__status-dot--failed {
+  background: var(--color-danger);
+  box-shadow: 0 0 4px var(--color-danger);
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
 }
 
 .session-tabs__item.active .session-tabs__title,

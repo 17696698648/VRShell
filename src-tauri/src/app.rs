@@ -1,7 +1,15 @@
 use crate::{commands, state::BackendState};
 use tauri::Manager;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 pub(crate) fn run() {
+    // Initialize tracing with env filter (default: info level)
+    tracing_subscriber::registry()
+        .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")))
+        .with(tracing_subscriber::fmt::layer())
+        .init();
+
+    tracing::info!("starting VRShell backend");
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {

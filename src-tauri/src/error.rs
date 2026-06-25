@@ -12,6 +12,7 @@ pub(crate) struct BackendError {
 }
 
 impl BackendError {
+    #[allow(dead_code)]
     pub(crate) fn not_implemented(feature: impl Into<String>) -> Self {
         let feature = feature.into();
         Self {
@@ -40,6 +41,31 @@ impl BackendError {
     pub(crate) fn credential(message: impl Into<String>) -> Self {
         Self {
             code: "credentialError".to_string(),
+            message: scrub_sensitive_message(message.into()),
+            recoverable: true,
+        }
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn host_key_rejected(message: impl Into<String>) -> Self {
+        Self {
+            code: "hostKeyRejected".to_string(),
+            message: scrub_sensitive_message(message.into()),
+            recoverable: true,
+        }
+    }
+
+    pub(crate) fn host_key_changed(message: impl Into<String>) -> Self {
+        Self {
+            code: "hostKeyChanged".to_string(),
+            message: scrub_sensitive_message(message.into()),
+            recoverable: false,
+        }
+    }
+
+    pub(crate) fn host_key_unknown(message: impl Into<String>) -> Self {
+        Self {
+            code: "hostKeyUnknown".to_string(),
             message: scrub_sensitive_message(message.into()),
             recoverable: true,
         }

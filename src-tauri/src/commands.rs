@@ -4,6 +4,7 @@ use crate::{
         sftp::SftpTaskSnapshot, ssh_config::SshConfigHost, terminal::TerminalOutputEvent,
     },
     error::BackendError,
+    infrastructure::ssh_client::SshClient,
     ipc::{
         dto::{
             ConnectSshRequest, SessionTreeActionResult, SftpConnectionDto, SftpDeleteRequest,
@@ -45,6 +46,8 @@ pub(crate) fn handler() -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Sen
         keyring_store,
         keyring_get,
         keyring_delete,
+        accept_host_key,
+        reject_host_key,
     ]
 }
 
@@ -126,6 +129,7 @@ fn connect_ssh(
     auth_method: Option<String>,
     auto_reconnect: Option<bool>,
     idle_timeout_secs: Option<u64>,
+    credential_ref: Option<CredentialRef>,
 ) -> IpcResult<String> {
     let request = ConnectSshRequest {
         host,
@@ -137,8 +141,9 @@ fn connect_ssh(
         auth_method,
         auto_reconnect,
         idle_timeout_secs,
+        credential_ref,
     };
-    terminal_service::connect(&state, request.into())
+    terminal_service::connect(&window, &state, request.into())
         .map(|session| {
             terminal_service::start_output_reader(window, session.id.clone());
             session.id
@@ -156,8 +161,8 @@ fn send_input(
 }
 
 #[tauri::command]
-fn disconnect_session(state: State<'_, BackendState>, session_id: String) -> IpcResult<()> {
-    terminal_service::disconnect(&state, &session_id).map_err(Into::into)
+fn disconnect_session(window: tauri::WebviewWindow, state: State<'_, BackendState>, session_id: String) -> IpcResult<()> {
+    terminal_service::disconnect(&window, &state, &session_id).map_err(Into::into)
 }
 
 #[tauri::command]
@@ -180,14 +185,24 @@ fn poll_events(
 
 #[tauri::command]
 fn test_ssh_connection(host: String, port: u16, username: String) -> IpcResult<String> {
-    let _ = (host, port, username);
-    Err(BackendError::not_implemented("ssh connection test").into())
+    let request = crate::domain::terminal::ConnectTerminalRequest {
+        host,
+        port,
+        username,
+        password: None,
+        private_key_path: None,
+        passphrase: None,
+        auth_method: Some("agent".to_string()),
+        auto_reconnect: None,
+        idle_timeout_secs: None,
+        credential_ref: None,
+    };
+    SshClient::test_connection(&request).map_err(Into::into)
 }
 
 #[tauri::command]
 fn tcp_latency(host: String, port: u16, timeout_ms: Option<u64>) -> IpcResult<u64> {
-    let _ = (host, port, timeout_ms);
-    Err(BackendError::not_implemented("tcp latency").into())
+    SshClient::measure_tcp_latency(&host, port, timeout_ms).map_err(Into::into)
 }
 
 #[tauri::command]
@@ -369,7 +384,6 @@ fn cancel_sftp_task(state: State<'_, BackendState>, task_id: String) -> IpcResul
     state
         .cancelled_sftp_tasks
         .lock()
-        .map_err(|_| BackendError::validation("sftp task state is unavailable"))?
         .insert(task_id.clone());
     sftp_service::mark_sftp_task_cancelled(&state, &task_id).map_err(Into::into)
 }
@@ -378,7 +392,6 @@ fn clear_cancelled_sftp_task(state: &BackendState, task_id: &str) -> IpcResult<(
     state
         .cancelled_sftp_tasks
         .lock()
-        .map_err(|_| BackendError::validation("sftp task state is unavailable"))?
         .remove(task_id);
     Ok(())
 }
@@ -396,4 +409,52 @@ fn keyring_get(service: String, key: String) -> IpcResult<Option<String>> {
 #[tauri::command]
 fn keyring_delete(service: String, key: String) -> IpcResult<()> {
     credential_service::delete(CredentialRef::new(service, key)).map_err(Into::into)
+}
+
+#[tauri::command]
+fn accept_host_key(
+    window: tauri::WebviewWindow,
+    state: State<'_, BackendState>,
+    pending_id: String,
+    password: Option<String>,
+    private_key_path: Option<String>,
+    passphrase: Option<String>,
+    auth_method: Option<String>,
+    credential_ref: Option<CredentialRef>,
+) -> IpcResult<String> {
+    // Retrieve pending session info to build the request
+    let (host, port, username) = {
+        let pending = state
+            .pending_host_key_sessions
+            .lock();
+        let session = pending
+            .get(&pending_id)
+            .ok_or_else(|| BackendError::validation("pending host key session not found"))?;
+        (session.host.clone(), session.port, session.username.clone())
+    };
+
+    let request = ConnectSshRequest {
+        host,
+        port,
+        username,
+        password,
+        private_key_path,
+        passphrase,
+        auth_method,
+        auto_reconnect: None,
+        idle_timeout_secs: None,
+        credential_ref,
+    };
+
+    terminal_service::accept_host_key(&window, &state, &pending_id, request.into())
+        .map(|session| {
+            terminal_service::start_output_reader(window, session.id.clone());
+            session.id
+        })
+        .map_err(Into::into)
+}
+
+#[tauri::command]
+fn reject_host_key(state: State<'_, BackendState>, pending_id: String) -> IpcResult<()> {
+    terminal_service::reject_host_key(&state, &pending_id).map_err(Into::into)
 }

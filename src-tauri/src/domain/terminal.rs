@@ -1,4 +1,5 @@
 use crate::ipc::dto::ConnectSshRequest;
+use crate::domain::credential::CredentialRef;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Deserialize)]
@@ -15,6 +16,8 @@ pub(crate) struct ConnectTerminalRequest {
     pub auto_reconnect: Option<bool>,
     #[allow(dead_code)]
     pub idle_timeout_secs: Option<u64>,
+    /// Credential reference for keyring-based authentication
+    pub credential_ref: Option<CredentialRef>,
 }
 
 impl From<ConnectSshRequest> for ConnectTerminalRequest {
@@ -29,6 +32,7 @@ impl From<ConnectSshRequest> for ConnectTerminalRequest {
             auth_method: request.auth_method,
             auto_reconnect: request.auto_reconnect,
             idle_timeout_secs: request.idle_timeout_secs,
+            credential_ref: request.credential_ref,
         }
     }
 }
