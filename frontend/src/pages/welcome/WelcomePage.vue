@@ -31,6 +31,16 @@
           <span>{{ section.value }}</span>
         </div>
         <small>{{ section.status }}</small>
+        <!-- Quick connect button for recent sessions -->
+        <button
+          v-if="section.sessionId"
+          type="button"
+          class="welcome-page__quick-connect"
+          @click="reconnectSession(section.sessionId)"
+          title="Reconnect to this session"
+        >
+          <Server :size="14" />
+        </button>
       </article>
     </div>
     <p class="welcome-page__hint">Tip: press <UiKbd label="Ctrl+P" /> to search commands and sessions.</p>
@@ -82,6 +92,7 @@ const recentSections = computed(() => {
   return [
     {
       icon: Server,
+      sessionId: topSession?.id,
       status: topSession?.status ?? 'Not connected',
       title: 'Recent connection',
       tone: `is-${topSession?.status ?? 'idle'}`,
@@ -103,4 +114,8 @@ const recentSections = computed(() => {
     },
   ]
 })
+
+function reconnectSession(sessionId: string) {
+  executeCommand('session.reconnect', {sessionId})
+}
 </script>

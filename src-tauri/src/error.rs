@@ -30,6 +30,27 @@ impl BackendError {
         }
     }
 
+    pub(crate) fn network(message: impl Into<String>, host: Option<String>) -> Self {
+        let msg = message.into();
+        Self {
+            code: "networkError".to_string(),
+            message: if let Some(h) = host {
+                scrub_sensitive_message(format!("{} (host: {})", msg, h))
+            } else {
+                scrub_sensitive_message(msg)
+            },
+            recoverable: true,
+        }
+    }
+
+    pub(crate) fn authentication(method: String, reason: String) -> Self {
+        Self {
+            code: "authenticationError".to_string(),
+            message: scrub_sensitive_message(format!("auth method {}: {}", method, reason)),
+            recoverable: true,
+        }
+    }
+
     pub(crate) fn storage(message: impl Into<String>) -> Self {
         Self {
             code: "storageError".to_string(),
@@ -42,6 +63,22 @@ impl BackendError {
         Self {
             code: "credentialError".to_string(),
             message: scrub_sensitive_message(message.into()),
+            recoverable: true,
+        }
+    }
+
+    pub(crate) fn channel_error(session_id: String, kind: String) -> Self {
+        Self {
+            code: "channelError".to_string(),
+            message: format!("session {}: {}", session_id, kind),
+            recoverable: true,
+        }
+    }
+
+    pub(crate) fn sftp_error(path: String, operation: String) -> Self {
+        Self {
+            code: "sftpError".to_string(),
+            message: format!("{} on {}: operation failed", operation, path),
             recoverable: true,
         }
     }

@@ -515,7 +515,42 @@
   border-radius: var(--radius-tool-window);
   background: var(--color-bg-tool-window);
   box-shadow: none;
-  transition: opacity var(--duration-normal) var(--ease-standard), transform var(--duration-normal) var(--ease-standard);
+  transition:
+    width var(--duration-normal) var(--ease-standard),
+    opacity var(--duration-normal) var(--ease-standard),
+    transform var(--duration-normal) var(--ease-standard);
+}
+
+/* Smooth sidebar slide-in animation */
+.sidebar {
+  animation: sidebar-slide-in var(--duration-normal) var(--ease-emphasized);
+}
+
+@keyframes sidebar-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Smooth right tool window slide-in */
+.right-tool-window {
+  animation: right-panel-slide-in var(--duration-normal) var(--ease-emphasized);
+}
+
+@keyframes right-panel-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .sidebar::before {

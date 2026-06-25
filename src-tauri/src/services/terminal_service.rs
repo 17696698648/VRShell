@@ -54,7 +54,7 @@ struct HostKeyRequestedPayload {
 }
 
 pub(crate) fn connect(
-    event_sink: &impl EventSink,
+    window: &tauri::WebviewWindow,
     state: &BackendState,
     request: ConnectTerminalRequest,
 ) -> BackendResult<TerminalSession> {
@@ -70,7 +70,7 @@ pub(crate) fn connect(
         HostKeyVerification::Accepted => {
             // Known and matches, continue with authentication
             let ssh_runtime = SshClient::connect_phase2(session, &request)?;
-            let session = create_terminal_session(state, request, ssh_runtime)?;
+            let session = create_terminal_session(window, state, request, ssh_runtime)?;
             tracing::info!(session_id = %session.id, "terminal connected successfully");
             Ok(session)
         }
@@ -104,7 +104,7 @@ pub(crate) fn connect(
             drop(pending);
 
             // Emit host key requested event
-            let _ = event_sink.emit_event(
+            let _ = window.emit_event(
                 crate::ipc::events::SECURITY_HOST_KEY_REQUESTED,
                 HostKeyRequestedPayload {
                     pending_id: pending_id.clone(),
@@ -125,7 +125,7 @@ pub(crate) fn connect(
 
 /// Accept a pending host key and complete the SSH connection
 pub(crate) fn accept_host_key(
-    _event_sink: &impl EventSink,
+    window: &tauri::WebviewWindow,
     state: &BackendState,
     pending_id: &str,
     request: ConnectTerminalRequest,
@@ -142,7 +142,7 @@ pub(crate) fn accept_host_key(
 
     // Continue with phase 2
     let ssh_runtime = SshClient::connect_phase2(pending.session, &request)?;
-    create_terminal_session(state, request, ssh_runtime)
+    create_terminal_session(window, state, request, ssh_runtime)
 }
 
 /// Reject a pending host key
@@ -155,6 +155,7 @@ pub(crate) fn reject_host_key(state: &BackendState, pending_id: &str) -> Backend
 }
 
 fn create_terminal_session(
+    window: &tauri::WebviewWindow,
     state: &BackendState,
     request: ConnectTerminalRequest,
     ssh_runtime: SshRuntime,
@@ -163,6 +164,9 @@ fn create_terminal_session(
     let host = request.host.clone();
     let username = request.username.clone();
     let runtime = TerminalRuntime { ssh_runtime };
+
+    // Start keepalive thread for this session (every 30 seconds)
+    start_keepalive(window, &id);
 
     let session = TerminalSession {
         id: id.clone(),
@@ -181,6 +185,33 @@ fn create_terminal_session(
         .insert(id, runtime);
 
     Ok(session)
+}
+
+/// Start a keepalive thread that sends SSH ignore messages periodically
+fn start_keepalive(window: &tauri::WebviewWindow, session_id: &str) {
+    let session_id = session_id.to_string();
+    let window = window.clone();
+    
+    std::thread::spawn(move || {
+        loop {
+            std::thread::sleep(Duration::from_secs(30));
+            
+            let state = window.state::<BackendState>();
+            let mut runtimes = state.terminal_runtimes.lock();
+            let Some(runtime) = runtimes.get_mut(&session_id) else {
+                // Session disconnected, exit keepalive
+                break;
+            };
+            
+            // Send channel request to keep connection alive (resize to same size)
+            if runtime.ssh_runtime.channel.request_pty_size(80, 24, None, None).is_err() {
+                tracing::warn!(session_id = %session_id, "keepalive failed, connection may be dead");
+                break;
+            }
+            
+            tracing::debug!(session_id = %session_id, "keepalive sent");
+        }
+    });
 }
 
 pub(crate) fn disconnect(

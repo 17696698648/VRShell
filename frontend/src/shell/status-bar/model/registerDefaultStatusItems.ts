@@ -33,6 +33,23 @@ export function registerDefaultStatusItems() {
       priority: 20,
       title: `${getConnectedSessionCount()} SSH sessions connected`,
     })),
+    registerStatusBarItem('network.latency', () => {
+      // Show latency for active terminal if available
+      const activeTerminal = terminalState.tabs.find((tab) => tab.id === terminalState.activeTerminalId)
+      if (!activeTerminal) return null
+      
+      return {
+        align: 'left',
+        id: 'network.latency',
+        iconName: 'activity',
+        intent: 'info',
+        label: `${activeTerminal.latency ?? '--'}ms`,
+        compactLabel: `${activeTerminal.latency ?? '--'}ms`,
+        fullLabel: `Latency ${activeTerminal.latency ?? '--'}ms`,
+        priority: 25,
+        title: `Network latency to ${activeTerminal.title}: ${activeTerminal.latency ?? 'unknown'}ms`,
+      }
+    }),
     registerStatusBarItem('terminal.active', () => {
       const activeTerminal = terminalState.tabs.find((tab) => tab.id === terminalState.activeTerminalId)
       if (!activeTerminal) return null
