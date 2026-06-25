@@ -7,6 +7,11 @@
           <p v-if="toast.detail">{{ toast.detail }}</p>
         </div>
         <button type="button" aria-label="Dismiss notification" @click="removeToast(toast.id)">×</button>
+        <span
+          v-if="toast.timeoutMs && toast.timeoutMs > 0"
+          class="toast__progress"
+          :style="{animationDuration: `${toast.timeoutMs}ms`}"
+        />
       </article>
     </TransitionGroup>
   </div>

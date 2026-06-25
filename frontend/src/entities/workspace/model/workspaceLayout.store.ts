@@ -25,37 +25,56 @@ export function setLayoutPreset(preset: WorkspaceLayoutPreset) {
 export function applyLayoutPreset(preset: WorkspaceLayoutPreset) {
   workspaceState.layoutPreset = preset
   workspaceState.compactMode = false
-  workspaceState.activeDockPanel = 'none'
   workspaceState.bottomPanelVisible = false
+  workspaceState.rightPanelVisible = false
+  workspaceState.activeBottomDockPanel = 'none'
+  workspaceState.activeRightDockPanel = 'none'
   if (preset === 'development') {
     workspaceState.activePanel = 'sessions'
     workspaceState.mainAreaMode = 'vertical-split'
     workspaceState.mainSplitRatio = 58
-    workspaceState.panelPlacement = 'right'
+    workspaceState.activeRightDockPanel = 'session-detail'
+    workspaceState.rightPanelVisible = true
     return
   }
   if (preset === 'file-transfer') {
     workspaceState.activePanel = 'sftp'
-    workspaceState.activeDockPanel = 'task-detail'
     workspaceState.mainAreaMode = 'horizontal-split'
     workspaceState.mainSplitRatio = 52
-    workspaceState.panelPlacement = 'right'
+    workspaceState.activeRightDockPanel = 'sftp-item-detail'
+    workspaceState.rightPanelVisible = true
     return
   }
   if (preset === 'monitoring') {
     workspaceState.activePanel = 'tasks'
     workspaceState.mainAreaMode = 'single'
     workspaceState.mainSplitRatio = 68
-    workspaceState.panelPlacement = 'bottom'
+    workspaceState.activeBottomDockPanel = 'problems'
+    workspaceState.bottomPanelVisible = true
     return
   }
   workspaceState.activePanel = 'sessions'
   workspaceState.mainAreaMode = 'horizontal-split'
   workspaceState.mainSplitRatio = 62
-  workspaceState.panelPlacement = 'bottom'
+  workspaceState.activeBottomDockPanel = 'logs'
+  workspaceState.bottomPanelVisible = true
 }
 
 export function setDockPlacement(placement: Exclude<PanelPlacement, 'sidebar' | 'floating'>) {
+  const bottomPanels = ['logs', 'problems', 'output']
+  const currentBottom = workspaceState.activeBottomDockPanel
+  const currentRight = workspaceState.activeRightDockPanel
+  if (placement === 'right' && currentBottom !== 'none' && !bottomPanels.includes(currentBottom)) {
+    workspaceState.activeRightDockPanel = currentBottom
+    workspaceState.activeBottomDockPanel = 'none'
+    workspaceState.bottomPanelVisible = false
+    workspaceState.rightPanelVisible = true
+  } else if (placement === 'bottom' && currentRight !== 'none' && bottomPanels.includes(currentRight)) {
+    workspaceState.activeBottomDockPanel = currentRight
+    workspaceState.activeRightDockPanel = 'none'
+    workspaceState.rightPanelVisible = false
+    workspaceState.bottomPanelVisible = true
+  }
   workspaceState.panelPlacement = placement
 }
 

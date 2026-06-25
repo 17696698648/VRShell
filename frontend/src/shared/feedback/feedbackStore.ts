@@ -11,6 +11,7 @@ export interface ToastMessage {
   level: FeedbackLevel
   createdAt: number
   dedupeKey?: string
+  timeoutMs?: number | null
 }
 
 export interface PushToastInput extends Omit<ToastMessage, 'id' | 'createdAt'> {
@@ -32,9 +33,9 @@ export function pushToast(input: PushToastInput) {
     ...input,
     id: createId('toast'),
     createdAt: now,
+    timeoutMs: input.timeoutMs ?? getDefaultTimeoutMs(input.level),
   }
   delete (toast as ToastMessage & {cooldownMs?: number}).cooldownMs
-  delete (toast as ToastMessage & {timeoutMs?: number}).timeoutMs
   feedbackState.toasts.push(toast)
   scheduleToastRemoval(toast.id, input.timeoutMs ?? getDefaultTimeoutMs(toast.level))
   logMessage({

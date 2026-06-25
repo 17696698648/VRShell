@@ -14,8 +14,8 @@ describe('workspace layout store', () => {
 
     expect(workspaceState.layoutPreset).toBe('file-transfer')
     expect(workspaceState.activePanel).toBe('sftp')
-    expect(workspaceState.panelPlacement).toBe('right')
-    expect(workspaceState.activeDockPanel).toBe('task-detail')
+    expect(workspaceState.activeRightDockPanel).toBe('sftp-item-detail')
+    expect(workspaceState.rightPanelVisible).toBe(true)
   })
 
   it('reorders dock panels and resets layout', () => {

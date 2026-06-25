@@ -196,9 +196,11 @@ describe('persistence', () => {
 
     expect(migrated?.data.workspaceLayout).toMatchObject({
       activePanel: 'search',
-      activeDockPanel: 'none',
+      activeBottomDockPanel: 'none',
+      activeRightDockPanel: 'none',
       bottomPanelHeight: 160,
       bottomPanelVisible: false,
+      rightPanelVisible: false,
       density: 'comfortable',
       dockOrder: ['output', 'logs'],
       mainAreaMode: 'single',

@@ -1,5 +1,6 @@
 <template>
-  <div v-if="workspaceState.settingsDialogOpen" class="settings-dialog-backdrop" @click.self="closeSettings">
+  <Transition name="overlay-fade">
+    <div v-if="workspaceState.settingsDialogOpen" class="settings-dialog-backdrop" @click.self="closeSettings">
     <section class="settings-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-dialog-title">
       <header class="settings-dialog__header">
         <div>
@@ -11,6 +12,7 @@
       <SettingsPage embedded />
     </section>
   </div>
+  </Transition>
 </template>
 
 <script setup lang="ts">

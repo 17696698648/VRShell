@@ -9,7 +9,7 @@
       :aria-selected="item.id === activeId"
       :tabindex="item.id === activeId ? 0 : -1"
       draggable="true"
-      :title="item.title"
+      :title="item.tooltip ?? item.title"
       @click="emit('activate', item.id)"
       @contextmenu.prevent="emit('contextmenu', item.id, $event)"
       @dragstart="draggedId = item.id"
@@ -42,6 +42,7 @@ export interface UiTabItem {
   status?: 'connecting' | 'connected' | 'warning' | 'error' | 'disconnected'
   subtitle?: string
   title: string
+  tooltip?: string
 }
 
 const props = withDefaults(defineProps<{

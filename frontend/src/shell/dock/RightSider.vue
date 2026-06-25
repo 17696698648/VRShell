@@ -3,7 +3,7 @@
     <button
       v-for="item in items"
       :key="item.id"
-      :class="['right-sider__item', {active: workspaceState.bottomPanelVisible && workspaceState.activeDockPanel === item.id}]"
+      :class="['right-sider__item', {active: workspaceState.rightPanelVisible && workspaceState.activeRightDockPanel === item.id}]"
       type="button"
       :title="item.title"
       :aria-label="item.title"
@@ -37,9 +37,9 @@ function getPanelIcon(id: Exclude<WorkspaceDockPanel, 'none'>) {
 }
 
 function activateRightPanel(id: Exclude<WorkspaceDockPanel, 'none'>) {
-  if (workspaceState.bottomPanelVisible && workspaceState.activeDockPanel === id) {
-    workspaceState.bottomPanelVisible = false
-    workspaceState.activeDockPanel = 'none'
+  if (workspaceState.rightPanelVisible && workspaceState.activeRightDockPanel === id) {
+    workspaceState.rightPanelVisible = false
+    workspaceState.activeRightDockPanel = 'none'
     return
   }
   openDockPanel(id, 'right')

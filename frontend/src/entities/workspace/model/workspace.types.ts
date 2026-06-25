@@ -21,9 +21,12 @@ export interface WorkspaceLayoutState {
   sidebarWidth: number
   activePanel: WorkspacePanel
   activeMainView: WorkspaceMainView
-  activeDockPanel: WorkspaceDockPanel
-  recentDockPanel: Exclude<WorkspaceDockPanel, 'none'>
+  activeBottomDockPanel: WorkspaceDockPanel
+  activeRightDockPanel: WorkspaceDockPanel
+  recentBottomDockPanel: Exclude<WorkspaceDockPanel, 'none'>
+  recentRightDockPanel: Exclude<WorkspaceDockPanel, 'none'>
   bottomPanelVisible: boolean
+  rightPanelVisible: boolean
   bottomPanelHeight: number
   rightDockWidth: number
   mainSplitRatio: number

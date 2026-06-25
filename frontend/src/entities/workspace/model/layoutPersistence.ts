@@ -6,11 +6,13 @@ import {
   workspaceLayoutPresets,
   workspaceMainViews,
   workspacePanels,
+  type WorkspaceDockPanel,
   type WorkspaceLayoutState,
 } from './workspace.types'
 
 const defaultLayout: WorkspaceLayoutState = {
-  activeDockPanel: 'terminal-info',
+  activeBottomDockPanel: 'logs',
+  activeRightDockPanel: 'terminal-info',
   activeMainView: 'terminal',
   activePanel: 'sessions',
   bottomPanelHeight: 220,
@@ -21,9 +23,11 @@ const defaultLayout: WorkspaceLayoutState = {
   layoutPreset: 'operations',
   mainAreaMode: 'single',
   mainSplitRatio: 62,
-  panelPlacement: 'right',
-  recentDockPanel: 'terminal-info',
+  panelPlacement: 'bottom',
+  recentBottomDockPanel: 'logs',
+  recentRightDockPanel: 'terminal-info',
   rightDockWidth: 340,
+  rightPanelVisible: false,
   sidebarVisible: true,
   sidebarWidth: 280,
 }
@@ -33,13 +37,14 @@ export function getDefaultWorkspaceLayout(): WorkspaceLayoutState {
 }
 
 export function normalizeWorkspaceLayout(input: Partial<WorkspaceLayoutState> | null | undefined): WorkspaceLayoutState {
-  const activeDockPanel = normalizeActiveDockPanel(input?.activeDockPanel)
+  const {activeBottom, activeRight, recentBottom, recentRight} = normalizeDockPanels(input)
   return {
-    activeDockPanel,
+    activeBottomDockPanel: activeBottom,
+    activeRightDockPanel: activeRight,
     activeMainView: isOneOf(input?.activeMainView, workspaceMainViews) ? input.activeMainView : defaultLayout.activeMainView,
     activePanel: isOneOf(input?.activePanel, workspacePanels) ? input.activePanel : defaultLayout.activePanel,
     bottomPanelHeight: clampNumber(input?.bottomPanelHeight, 160, 520, defaultLayout.bottomPanelHeight),
-    bottomPanelVisible: normalizeDockVisibility(input?.bottomPanelVisible, activeDockPanel),
+    bottomPanelVisible: normalizeBottomVisibility(input?.bottomPanelVisible, activeBottom),
     compactMode: typeof input?.compactMode === 'boolean' ? input.compactMode : defaultLayout.compactMode,
     density: isOneOf(input?.density, workspaceDensities) ? input.density : defaultLayout.density,
     dockOrder: Array.isArray(input?.dockOrder) ? input.dockOrder.filter((panel) => isOneOf(panel, workspaceDockPanels)) : defaultLayout.dockOrder,
@@ -47,8 +52,10 @@ export function normalizeWorkspaceLayout(input: Partial<WorkspaceLayoutState> | 
     mainAreaMode: isOneOf(input?.mainAreaMode, mainAreaModes) ? input.mainAreaMode : defaultLayout.mainAreaMode,
     mainSplitRatio: clampNumber(input?.mainSplitRatio, 30, 75, defaultLayout.mainSplitRatio),
     panelPlacement: normalizePanelPlacement(input?.panelPlacement),
-    recentDockPanel: normalizeRecentDockPanel(input?.recentDockPanel),
+    recentBottomDockPanel: recentBottom,
+    recentRightDockPanel: recentRight,
     rightDockWidth: clampNumber(input?.rightDockWidth, 260, 520, defaultLayout.rightDockWidth),
+    rightPanelVisible: normalizeRightVisibility(input?.rightPanelVisible, activeRight),
     sidebarVisible: typeof input?.sidebarVisible === 'boolean' ? input.sidebarVisible : defaultLayout.sidebarVisible,
     sidebarWidth: clampNumber(input?.sidebarWidth, 220, 420, defaultLayout.sidebarWidth),
   }
@@ -63,18 +70,52 @@ function isOneOf<const T extends readonly string[]>(value: unknown, allowed: T):
   return typeof value === 'string' && allowed.includes(value)
 }
 
-function normalizeActiveDockPanel(value: unknown): WorkspaceLayoutState['activeDockPanel'] {
-  return isOneOf(value, workspaceDockPanels) ? value : defaultLayout.activeDockPanel
+function normalizeDockPanels(input: Partial<WorkspaceLayoutState> | null | undefined) {
+  const bottomPanels: WorkspaceDockPanel[] = ['logs', 'problems', 'output']
+  const rightPanels: WorkspaceDockPanel[] = ['session-detail', 'sftp-item-detail', 'task-detail', 'terminal-info']
+  const legacyPanel = (input as Record<string, unknown>)?.activeDockPanel
+  const legacyRecent = (input as Record<string, unknown>)?.recentDockPanel
+  const legacyPlacement = input?.panelPlacement
+
+  let activeBottom = defaultLayout.activeBottomDockPanel
+  let activeRight = defaultLayout.activeRightDockPanel
+  let recentBottom = defaultLayout.recentBottomDockPanel
+  let recentRight = defaultLayout.recentRightDockPanel
+
+  if (typeof legacyPanel === 'string' && workspaceDockPanels.includes(legacyPanel as never) && legacyPanel !== 'none') {
+    if (legacyPlacement === 'right' || rightPanels.includes(legacyPanel as never)) {
+      activeRight = legacyPanel as WorkspaceDockPanel
+    } else {
+      activeBottom = legacyPanel as WorkspaceDockPanel
+    }
+  }
+  if (typeof input?.activeBottomDockPanel === 'string' && workspaceDockPanels.includes(input.activeBottomDockPanel as never)) {
+    activeBottom = input.activeBottomDockPanel
+  }
+  if (typeof input?.activeRightDockPanel === 'string' && workspaceDockPanels.includes(input.activeRightDockPanel as never)) {
+    activeRight = input.activeRightDockPanel
+  }
+  if (typeof legacyRecent === 'string' && workspaceDockPanels.includes(legacyRecent as never) && legacyRecent !== 'none') {
+    if (rightPanels.includes(legacyRecent as never)) recentRight = legacyRecent as Exclude<WorkspaceDockPanel, 'none'>
+    else recentBottom = legacyRecent as Exclude<WorkspaceDockPanel, 'none'>
+  }
+  if (typeof input?.recentBottomDockPanel === 'string' && workspaceDockPanels.includes(input.recentBottomDockPanel as never)) {
+    recentBottom = input.recentBottomDockPanel as Exclude<WorkspaceDockPanel, 'none'>
+  }
+  if (typeof input?.recentRightDockPanel === 'string' && workspaceDockPanels.includes(input.recentRightDockPanel as never)) {
+    recentRight = input.recentRightDockPanel as Exclude<WorkspaceDockPanel, 'none'>
+  }
+  return {activeBottom, activeRight, recentBottom, recentRight}
 }
 
-function normalizeDockVisibility(value: unknown, activeDockPanel: WorkspaceLayoutState['activeDockPanel']) {
-  if (activeDockPanel !== 'none') return true
+function normalizeBottomVisibility(value: unknown, activePanel: WorkspaceDockPanel): boolean {
+  if (activePanel !== 'none') return true
   return typeof value === 'boolean' ? value : defaultLayout.bottomPanelVisible
 }
 
-function normalizeRecentDockPanel(value: unknown): Exclude<(typeof workspaceDockPanels)[number], 'none'> {
-  if (typeof value === 'string' && value !== 'none' && workspaceDockPanels.includes(value as never)) return value as Exclude<(typeof workspaceDockPanels)[number], 'none'>
-  return defaultLayout.recentDockPanel
+function normalizeRightVisibility(value: unknown, activePanel: WorkspaceDockPanel): boolean {
+  if (activePanel !== 'none') return typeof value === 'boolean' ? value : defaultLayout.rightPanelVisible
+  return false
 }
 
 function normalizePanelPlacement(value: unknown): WorkspaceLayoutState['panelPlacement'] {

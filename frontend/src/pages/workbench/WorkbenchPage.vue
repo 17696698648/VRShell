@@ -8,10 +8,11 @@
       <WorkbenchLayout
         :mode="mainLayoutMode"
         :preset="workspaceState.layoutPreset"
-        :dock-placement="workspaceState.panelPlacement"
+        :dock-placement="'bottom'"
         :main-split-ratio="workspaceState.mainSplitRatio"
         :bottom-panel-height="workspaceState.bottomPanelHeight"
         :right-dock-width="workspaceState.rightDockWidth"
+        :visible="Boolean(activeBottomDockPanel)"
       >
         <template #primary>
           <WelcomePage v-if="terminalState.tabs.length === 0" />
@@ -32,7 +33,7 @@
 import {computed} from 'vue'
 import {terminalState} from '../../entities/terminal'
 import {workspaceState} from '../../entities/workspace'
-import {useActiveDockPanel} from '../../features/workspace/dock-registry'
+import {useBottomDockPanel} from '../../features/workspace/dock-registry'
 import DockHost from '../../shell/dock/DockHost.vue'
 import SidebarPanelHost from '../../shell/sidebar/SidebarPanelHost.vue'
 import WorkbenchShell from '../../shell/WorkbenchShell.vue'
@@ -41,8 +42,7 @@ import SessionWorkbench from '../../widgets/session-workbench/ui/SessionWorkbenc
 import {WorkbenchLayout} from '../../widgets/workbench-layout'
 import WelcomePage from '../welcome/WelcomePage.vue'
 
-const activeDockPanel = useActiveDockPanel()
-const activeBottomDockPanel = computed(() => workspaceState.panelPlacement === 'bottom' ? activeDockPanel.value : null)
+const activeBottomDockPanel = useBottomDockPanel()
 const showEditorWorkbench = computed(() => workspaceState.activeMainView === 'editor')
 const mainLayoutMode = computed(() => workspaceState.compactMode || !showEditorWorkbench.value ? 'single' : workspaceState.mainAreaMode)
 </script>

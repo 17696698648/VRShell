@@ -13,9 +13,16 @@ export function getDockPanels() {
   return Array.from(dockPanels.values())
 }
 
-export function useActiveDockPanel() {
+export function useBottomDockPanel() {
   return computed(() => {
-    if (!workspaceState.bottomPanelVisible || workspaceState.activeDockPanel === 'none') return null
-    return dockPanels.get(workspaceState.activeDockPanel) ?? null
+    if (!workspaceState.bottomPanelVisible || workspaceState.activeBottomDockPanel === 'none') return null
+    return dockPanels.get(workspaceState.activeBottomDockPanel) ?? null
+  })
+}
+
+export function useRightDockPanel() {
+  return computed(() => {
+    if (!workspaceState.rightPanelVisible || workspaceState.activeRightDockPanel === 'none') return null
+    return dockPanels.get(workspaceState.activeRightDockPanel) ?? null
   })
 }

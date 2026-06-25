@@ -1,5 +1,6 @@
 <template>
-  <div v-if="hostKeyState.pendingRequest" class="dialog-backdrop">
+  <Transition name="overlay-fade">
+    <div v-if="hostKeyState.pendingRequest" class="dialog-backdrop">
     <section class="dialog host-key-dialog" role="alertdialog" aria-modal="true" aria-labelledby="host-key-title">
       <header>
         <h2 id="host-key-title">Unknown Host Key</h2>
@@ -26,6 +27,7 @@
       </footer>
     </section>
   </div>
+  </Transition>
 </template>
 
 <script setup lang="ts">

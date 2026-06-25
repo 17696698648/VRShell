@@ -42,6 +42,7 @@ const props = withDefaults(
     preset?: WorkspaceLayoutPreset
     dockPlacement?: PanelPlacement
     rightDockWidth?: number
+    visible?: boolean
   }>(),
   {
     bottomPanelHeight: 220,
@@ -50,13 +51,14 @@ const props = withDefaults(
     mode: 'horizontal-split',
     preset: 'operations',
     rightDockWidth: 340,
+    visible: true,
   },
 )
 
 const slots = useSlots()
 const responsivePanel = ref<ResponsivePanel>('primary')
 const hasSecondary = computed(() => Boolean(slots.secondary) && props.mode !== 'single')
-const hasDock = computed(() => Boolean(slots.dock) && (props.dockPlacement === 'bottom' || props.dockPlacement === 'right'))
+const hasDock = computed(() => props.visible && (props.dockPlacement === 'bottom' || props.dockPlacement === 'right'))
 const showResponsiveSwitcher = computed(() => hasSecondary.value || hasDock.value)
 const mainSplitDirection = computed(() => (props.mode === 'vertical-split' ? 'horizontal' : 'vertical'))
 const dockSplitDirection = computed(() => (props.dockPlacement === 'right' ? 'horizontal' : 'vertical'))

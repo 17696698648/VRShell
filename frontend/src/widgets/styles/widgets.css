@@ -149,12 +149,20 @@
   place-items: center;
   border-radius: var(--radius-sm);
   color: var(--color-text-muted);
+  transition:
+    background var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
 }
 
 .session-tabs__close:hover,
 .session-tabs__item:hover .session-tabs__close {
   background: var(--color-bg-hover);
   color: var(--color-text-primary);
+}
+
+.session-tabs__item.active .session-tabs__close:hover {
+  background: color-mix(in srgb, var(--color-danger) 18%, transparent);
+  color: var(--color-danger);
 }
 
 .session-tabs__item.active {
@@ -288,12 +296,21 @@
   background: transparent;
   color: var(--color-text-muted);
   cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard),
+    transform var(--duration-fast) var(--ease-emphasized);
 }
 
 .session-terminal-tabs__add:hover,
 .session-terminal-tabs__add:focus-visible {
   background: var(--color-bg-hover);
-  color: var(--color-text-primary);
+  color: var(--color-accent);
+  transform: scale(1.1);
+}
+
+.session-terminal-tabs__add:active {
+  transform: scale(0.95);
 }
 
 .session-terminal-tabs .ui-tabs__item {
@@ -366,6 +383,19 @@
 .session-terminal-tabs__warning {
   flex: 0 0 auto;
   color: var(--color-warning);
+}
+
+.session-terminal-tabs__rename-input {
+  min-width: 0;
+  max-width: 140px;
+  padding: 1px 4px;
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-elevated);
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  outline: none;
 }
 
 .session-terminal-pane {
@@ -875,7 +905,8 @@
   transition:
     border-color var(--duration-normal) var(--ease-standard),
     background var(--duration-normal) var(--ease-standard),
-    box-shadow var(--duration-normal) var(--ease-standard);
+    box-shadow var(--duration-normal) var(--ease-standard),
+    transform var(--duration-normal) var(--ease-emphasized);
 }
 
 .welcome-page__card:hover,
@@ -883,6 +914,7 @@
   border-color: var(--color-accent);
   background: var(--color-bg-card-hover);
   box-shadow: var(--shadow-card-hover);
+  transform: translateY(-3px);
 }
 
 .welcome-page__card:focus-visible {

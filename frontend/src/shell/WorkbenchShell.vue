@@ -4,11 +4,13 @@
     <div class="workbench-shell__body" :class="{'workbench-shell__body--no-sidebar': !workspaceState.sidebarVisible, 'workbench-shell__body--right-open': rightToolWindowOpen}">
       <ActivityBar/>
       <button v-if="workspaceState.sidebarVisible" class="workbench-shell__sidebar-backdrop" type="button" aria-label="Close sidebar" @click="workspaceState.sidebarVisible = false" />
-      <div v-if="workspaceState.sidebarVisible" class="workbench-shell__sidebar-resize" :style="sidebarStyle">
-        <Sidebar :width="workspaceState.sidebarWidth" @resize-start="startSidebarResize">
-          <slot name="sidebar"/>
-        </Sidebar>
-      </div>
+      <Transition name="sidebar-slide">
+        <div v-if="workspaceState.sidebarVisible" class="workbench-shell__sidebar-resize" :style="sidebarStyle">
+          <Sidebar :width="workspaceState.sidebarWidth" @resize-start="startSidebarResize">
+            <slot name="sidebar"/>
+          </Sidebar>
+        </div>
+      </Transition>
       <main class="workbench-shell__main">
         <slot name="main">
           <slot/>
@@ -47,7 +49,7 @@ import AppTitlebar from './titlebar/AppTitlebar.vue'
 
 const resizingSidebarWidth = ref<number | null>(null)
 const sidebarStyle = computed(() => ({width: `${resizingSidebarWidth.value ?? workspaceState.sidebarWidth}px`}))
-const rightToolWindowOpen = computed(() => workspaceState.bottomPanelVisible && workspaceState.panelPlacement === 'right' && workspaceState.activeDockPanel !== 'none')
+const rightToolWindowOpen = computed(() => workspaceState.rightPanelVisible && workspaceState.activeRightDockPanel !== 'none')
 
 onMounted(() => window.addEventListener('keydown', closeSidebarWithEscape))
 onUnmounted(() => window.removeEventListener('keydown', closeSidebarWithEscape))
@@ -56,15 +58,19 @@ function startSidebarResize(event: PointerEvent) {
   event.preventDefault()
   const startX = event.clientX
   const startWidth = workspaceState.sidebarWidth
+  document.body.classList.add('is-resizing')
 
   function move(pointerEvent: PointerEvent) {
     resizingSidebarWidth.value = clampSidebarWidth(startWidth + pointerEvent.clientX - startX)
+    document.body.style.setProperty('--resize-guide-x', `${pointerEvent.clientX}px`)
   }
 
   function end(pointerEvent: PointerEvent) {
     move(pointerEvent)
     if (resizingSidebarWidth.value !== null) setSidebarWidth(resizingSidebarWidth.value)
     resizingSidebarWidth.value = null
+    document.body.classList.remove('is-resizing')
+    document.body.style.removeProperty('--resize-guide-x')
     window.removeEventListener('pointermove', move)
     window.removeEventListener('pointerup', end)
   }

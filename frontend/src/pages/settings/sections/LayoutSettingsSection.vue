@@ -11,7 +11,7 @@
     <div class="layout-inspector">
       <strong>Current layout</strong>
       <span>Sidebar {{ workspaceState.sidebarWidth }}px</span>
-      <span>Dock {{ workspaceState.panelPlacement }} · {{ workspaceState.activeDockPanel }}</span>
+      <span>Dock {{ workspaceState.panelPlacement }} · B:{{ workspaceState.activeBottomDockPanel }} R:{{ workspaceState.activeRightDockPanel }}</span>
       <span>Split {{ workspaceState.mainSplitRatio }}% · {{ workspaceState.mainAreaMode }}</span>
     </div>
     <div class="layout-actions">

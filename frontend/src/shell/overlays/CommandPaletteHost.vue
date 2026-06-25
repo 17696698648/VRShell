@@ -1,5 +1,6 @@
 <template>
-  <div v-if="workspaceState.commandPaletteOpen" class="overlay" @click.self="closeCommandPalette">
+  <Transition name="overlay-fade">
+    <div v-if="workspaceState.commandPaletteOpen" class="overlay" @click.self="closeCommandPalette">
     <section class="command-palette" role="dialog" aria-label="Command palette" data-testid="command-palette">
       <label class="command-palette__input">
         <span aria-hidden="true">&gt;</span>
@@ -17,7 +18,12 @@
       </label>
       <div v-if="commandGroups.length > 0" ref="listRef" class="command-palette__list" role="listbox">
         <section v-for="group in commandGroups" :key="group.category" class="command-palette__group">
-          <h3>{{ group.category }}</h3>
+          <h3 class="command-palette__group-header" @click="toggleGroup(group.category)">
+            <span class="command-palette__group-chevron" :class="{collapsed: collapsedGroups.has(group.category)}" aria-hidden="true">&#x25BE;</span>
+            {{ group.category }}
+            <small>{{ group.entries.length }}</small>
+          </h3>
+          <template v-if="!collapsedGroups.has(group.category)">
           <button
             v-for="entry in group.entries"
             :key="entry.command.id"
@@ -42,11 +48,13 @@
             <small v-if="recentCommandIds.includes(entry.command.id)" class="command-palette__recent">Recent</small>
             <UiKbd v-if="entry.command.shortcut" :label="entry.command.shortcut" />
           </button>
+          </template>
         </section>
       </div>
       <EmptyState v-else compact icon="?" title="No commands found" description="Try searching for session, terminal, sftp, settings, or workspace." />
     </section>
   </div>
+  </Transition>
 </template>
 
 <script setup lang="ts">
@@ -62,10 +70,18 @@ const inputRef = ref<HTMLInputElement | null>(null)
 const listRef = ref<HTMLElement | null>(null)
 const selectedIndex = ref(0)
 const buttonRefs = new Map<string, HTMLElement>()
+const collapsedGroups = ref(new Set<string>())
 
 const recentCommandIds = computed(() => getRecentCommandIds())
 const filteredCommands = computed(() => searchCommands(query.value).map((command) => ({command, availability: getCommandAvailability(command)})))
-const flatList = computed(() => filteredCommands.value.filter((entry) => entry.availability.enabled))
+const flatList = computed(() => {
+  const collapsed = collapsedGroups.value
+  return filteredCommands.value.filter((entry) => {
+    if (!entry.availability.enabled) return false
+    const category = entry.command.category ?? entry.command.group
+    return !collapsed.has(category)
+  })
+})
 const commandGroups = computed(() => {
   const groups = new Map<string, typeof filteredCommands.value>()
   for (const entry of filteredCommands.value) {
@@ -137,5 +153,13 @@ function categoryIcon(category: string) {
 function commandTestId(commandId: string) {
   if (commandId === 'session.createQuick') return 'cmd-new-connection'
   return commandId
+}
+
+function toggleGroup(category: string) {
+  const groups = new Set(collapsedGroups.value)
+  if (groups.has(category)) groups.delete(category)
+  else groups.add(category)
+  collapsedGroups.value = groups
+  selectedIndex.value = 0
 }
 </script>

@@ -20,7 +20,7 @@
         v-if="getSessionStatus(session.id) !== 'none'"
         :class="['session-tabs__status-dot', `session-tabs__status-dot--${getSessionStatus(session.id)}`]"
         aria-hidden="true"
-      ></span>
+      />
       <span class="session-tabs__title">{{ session.name }}</span>
       <span class="session-tabs__close" role="button" tabindex="-1" aria-label="Close session" @click.stop="closeSessionTab(session.id)">
         <X :size="13" aria-hidden="true" />
@@ -31,6 +31,7 @@
 
 <script setup lang="ts">
 import {X} from '@lucide/vue'
+import {computed} from 'vue'
 import {openContextMenu} from '../../../shared/context-menu'
 import {useSessionWorkbench} from '../model/useSessionWorkbench'
 
@@ -39,6 +40,29 @@ import {terminalState} from '../../../entities/terminal'
 import {ref} from 'vue'
 
 const draggedId = ref<string | null>(null)
+
+type SessionStatus = 'connected' | 'connecting' | 'failed' | 'none'
+
+const sessionStatusMap = computed(() => {
+  const map = new Map<string, SessionStatus>()
+  for (const session of openSessions.value) {
+    map.set(session.id, computeSessionStatus(session.id))
+  }
+  return map
+})
+
+function computeSessionStatus(sessionId: string): SessionStatus {
+  const sessionTerminals = terminalState.tabs.filter((tab) => tab.sessionId === sessionId)
+  if (sessionTerminals.length === 0) return 'none'
+  if (sessionTerminals.some((tab) => tab.status === 'failed')) return 'failed'
+  if (sessionTerminals.some((tab) => tab.status === 'connecting')) return 'connecting'
+  if (sessionTerminals.every((tab) => tab.status === 'connected')) return 'connected'
+  return 'none'
+}
+
+function getSessionStatus(sessionId: string): SessionStatus {
+  return sessionStatusMap.value.get(sessionId) ?? 'none'
+}
 
 function handleDrop(targetId: string) {
   if (draggedId.value && draggedId.value !== targetId) {
@@ -59,18 +83,6 @@ function handleAuxClick(event: MouseEvent, sessionId: string) {
     event.preventDefault()
     closeSessionTab(sessionId)
   }
-}
-
-function getSessionStatus(sessionId: string): 'connected' | 'connecting' | 'failed' | 'none' {
-  const sessionTerminals = terminalState.tabs.filter((tab) => tab.sessionId === sessionId)
-  if (sessionTerminals.length === 0) return 'none'
-  
-  // Priority: failed > connecting > connected
-  if (sessionTerminals.some((tab) => tab.status === 'failed')) return 'failed'
-  if (sessionTerminals.some((tab) => tab.status === 'connecting')) return 'connecting'
-  if (sessionTerminals.every((tab) => tab.status === 'connected')) return 'connected'
-  
-  return 'none'
 }
 
 function openSessionTabMenu(sessionId: string, event: MouseEvent) {

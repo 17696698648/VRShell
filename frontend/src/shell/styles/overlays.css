@@ -46,6 +46,37 @@
   text-transform: uppercase;
 }
 
+.command-palette__group-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+  border-radius: var(--radius-sm);
+  padding: 2px 4px;
+  transition: background var(--duration-fast) var(--ease-standard);
+}
+
+.command-palette__group-header:hover {
+  background: var(--color-bg-hover);
+}
+
+.command-palette__group-header small {
+  margin-left: auto;
+  font-size: var(--font-size-xs);
+  opacity: 0.7;
+}
+
+.command-palette__group-chevron {
+  display: inline-block;
+  font-size: 10px;
+  transition: transform var(--duration-fast) var(--ease-standard);
+}
+
+.command-palette__group-chevron.collapsed {
+  transform: rotate(-90deg);
+}
+
 .command-palette__list button {
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr) auto auto auto auto;
@@ -129,6 +160,14 @@
   background: var(--color-surface-2);
 }
 
+/* Quick Open match highlight */
+mark.quick-open__match {
+  padding: 0 1px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--color-accent) 24%, transparent);
+  color: var(--color-accent-strong);
+}
+
 .context-menu {
   position: fixed;
   display: grid;
@@ -171,6 +210,35 @@
 
 .context-menu__danger {
   color: var(--color-danger-strong-text) !important;
+}
+
+/* Context menu enter/leave transitions */
+.ctx-menu-enter-active {
+  transition: opacity var(--duration-fast) var(--ease-standard);
+}
+
+.ctx-menu-enter-active .context-menu {
+  animation: ctx-menu-pop var(--duration-fast) var(--ease-emphasized);
+}
+
+.ctx-menu-leave-active {
+  transition: opacity var(--duration-fast) var(--ease-standard);
+}
+
+.ctx-menu-enter-from,
+.ctx-menu-leave-to {
+  opacity: 0;
+}
+
+@keyframes ctx-menu-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .dialog-backdrop {
@@ -247,6 +315,7 @@
 }
 
 .toast {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
@@ -259,6 +328,7 @@
   color: var(--color-text);
   box-shadow: var(--shadow-panel);
   font-size: 12px;
+  overflow: hidden;
 }
 
 .toast strong,
@@ -278,6 +348,28 @@
   background: var(--color-surface-2);
   color: var(--color-muted);
   cursor: pointer;
+}
+
+.toast__progress {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  border-radius: 0 0 12px 12px;
+  background: currentColor;
+  opacity: 0.3;
+  animation: toast-countdown linear forwards;
+  transform-origin: left;
+}
+
+@keyframes toast-countdown {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
 }
 
 .toast--success {
@@ -324,5 +416,36 @@
   to {
     opacity: 0;
     transform: translateX(100%) scale(0.9);
+  }
+}
+
+/* Overlay backdrop enter/leave transitions */
+.overlay-fade-enter-active {
+  transition: opacity var(--duration-normal) var(--ease-standard);
+}
+
+.overlay-fade-enter-active > .command-palette,
+.overlay-fade-enter-active > .dialog,
+.overlay-fade-enter-active > .settings-dialog-backdrop > .settings-dialog {
+  animation: overlay-pop-in var(--duration-normal) var(--ease-emphasized);
+}
+
+.overlay-fade-leave-active {
+  transition: opacity var(--duration-fast) var(--ease-standard);
+}
+
+.overlay-fade-enter-from,
+.overlay-fade-leave-to {
+  opacity: 0;
+}
+
+@keyframes overlay-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
   }
 }

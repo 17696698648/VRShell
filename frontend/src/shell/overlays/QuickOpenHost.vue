@@ -1,5 +1,6 @@
 <template>
-  <div v-if="workspaceState.quickOpenOpen" class="overlay" @click.self="closeQuickOpen">
+  <Transition name="overlay-fade">
+    <div v-if="workspaceState.quickOpenOpen" class="overlay" @click.self="closeQuickOpen">
     <section class="command-palette quick-open" role="dialog" aria-label="Quick switcher">
       <label class="command-palette__input">
         <span aria-hidden="true">⌕</span>
@@ -19,8 +20,8 @@
           >
             <span class="command-palette__icon" aria-hidden="true">{{ item.kind === 'terminal' ? 'T' : 'S' }}</span>
             <span>
-              <strong>{{ item.label }}</strong>
-              <small>{{ item.detail }}</small>
+              <strong v-html="highlightMatch(item.label)" />
+              <small v-html="highlightMatch(item.detail)" />
             </span>
             <small class="command-palette__category">{{ item.kind }}</small>
             <kbd>{{ item.status }}</kbd>
@@ -30,6 +31,7 @@
       <EmptyState v-else compact icon="⌕" title="No sessions or terminals found" description="Try searching by host, tag, terminal title, or current directory." />
     </section>
   </div>
+  </Transition>
 </template>
 
 <script setup lang="ts">
@@ -111,5 +113,18 @@ function scrollSelectedIntoView() {
 function openSelectedItem() {
   const selected = filteredItems.value[selectedIndex.value]
   if (selected) activateQuickOpenItem(selected)
+}
+
+function escapeHtml(text: string) {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+function highlightMatch(text: string) {
+  const keyword = query.value.trim()
+  if (!keyword) return escapeHtml(text)
+  const escaped = escapeHtml(text)
+  const escapedKeyword = escapeHtml(keyword)
+  const regex = new RegExp(`(${escapedKeyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi')
+  return escaped.replace(regex, '<mark class="quick-open__match">$1</mark>')
 }
 </script>

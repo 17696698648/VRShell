@@ -1,5 +1,6 @@
 <template>
-  <div v-if="contextMenuState.menu" class="context-menu-layer" @click="closeContextMenu" @contextmenu.prevent="closeContextMenu">
+  <Transition name="ctx-menu">
+    <div v-if="contextMenuState.menu" class="context-menu-layer" @click="closeContextMenu" @contextmenu.prevent="closeContextMenu">
     <div ref="menuRef" class="context-menu" :style="menuStyle" role="menu" @click.stop @keydown.up.prevent="navigateUp" @keydown.down.prevent="navigateDown" @keydown.enter.prevent="runSelected" @keydown.escape="closeContextMenu">
       <template v-for="(item, index) in contextMenuState.menu.items" :key="item.id">
         <div v-if="item.type === 'separator'" class="context-menu__separator" role="separator" />
@@ -17,7 +18,8 @@
         </button>
       </template>
     </div>
-  </div>
+    </div>
+  </Transition>
 </template>
 
 <script setup lang="ts">

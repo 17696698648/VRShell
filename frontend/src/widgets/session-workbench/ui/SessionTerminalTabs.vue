@@ -4,7 +4,17 @@
       <template #item="{item}">
         <span class="session-terminal-tabs__identity">
           <AlertTriangle v-if="item.status === 'error'" :size="13" class="session-terminal-tabs__warning" aria-hidden="true" />
-          <span class="session-terminal-tabs__title">{{ item.title }}</span>
+          <input
+            v-if="renamingId === item.id"
+            ref="renameInputRef"
+            v-model="renameValue"
+            class="session-terminal-tabs__rename-input"
+            type="text"
+            @blur="commitRename(item.id)"
+            @keydown.enter="commitRename(item.id)"
+            @keydown.escape="cancelRename"
+          />
+          <span v-else class="session-terminal-tabs__title" @dblclick.stop="startRename(item)">{{ item.title }}</span>
         </span>
       </template>
     </UiTabs>
@@ -15,7 +25,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed} from 'vue'
+import {computed, nextTick, ref} from 'vue'
 import {AlertTriangle, Plus} from '@lucide/vue'
 import {reorderTerminalTabs, terminalState} from '../../../entities/terminal'
 import {closeTerminalTab} from '../../../features/terminal/close-terminal/closeTerminalTab'
@@ -26,14 +36,42 @@ import {UiTabs, type UiTabItem} from '../../../shared/ui'
 import {useSessionWorkbench} from '../model/useSessionWorkbench'
 
 const {currentSessionTerminals, openAdditionalTerminal} = useSessionWorkbench()
+
+const customTitles = ref(new Map<string, string>())
+const renamingId = ref<string | null>(null)
+const renameValue = ref('')
+const renameInputRef = ref<HTMLInputElement | null>(null)
+
 const tabItems = computed<UiTabItem[]>(() =>
   currentSessionTerminals.value.map((tab, index) => ({
     closable: true,
     id: tab.id,
     status: tab.status === 'failed' ? 'error' : tab.status,
-    title: `terminal${index + 1}`,
+    title: customTitles.value.get(tab.id) ?? `terminal${index + 1}`,
+    tooltip: `${customTitles.value.get(tab.id) ?? `terminal${index + 1}`} \u00b7 ${tab.status}${tab.cwd ? ` \u00b7 ${tab.cwd}` : ''}`,
   })),
 )
+
+function startRename(item: UiTabItem) {
+  renamingId.value = item.id
+  renameValue.value = item.title
+  void nextTick(() => {
+    renameInputRef.value?.focus()
+    renameInputRef.value?.select()
+  })
+}
+
+function commitRename(tabId: string) {
+  const trimmed = renameValue.value.trim()
+  if (trimmed && trimmed !== tabItems.value.find((t) => t.id === tabId)?.title) {
+    customTitles.value.set(tabId, trimmed)
+  }
+  renamingId.value = null
+}
+
+function cancelRename() {
+  renamingId.value = null
+}
 
 function handleClose(id: string) {
   const tab = currentSessionTerminals.value.find((item) => item.id === id)
@@ -52,6 +90,7 @@ function openTabMenu(id: string, event: MouseEvent) {
       {id: 'search', label: 'Search\tCtrl+F', run: async () => { terminalState.activeTerminalId = id; await executeCommand('terminal.search') }},
       {id: 'close', label: 'Close', run: () => closeTerminalTab(tab, {skipConfirm: true})},
       {id: 'close-others', label: 'Close Others', run: () => currentSessionTerminals.value.filter((item) => item.id !== id).forEach((item) => closeTerminalTab(item, {skipConfirm: true}))},
+      {id: 'close-all', label: 'Close All', danger: true, run: () => { for (const item of [...currentSessionTerminals.value]) closeTerminalTab(item, {skipConfirm: true}) }},
     ],
   })
 }

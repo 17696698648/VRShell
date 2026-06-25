@@ -1,4 +1,4 @@
-﻿import type {SessionGroup, SessionHost} from '../../entities/session'
+import type {SessionGroup, SessionHost} from '../../entities/session'
 import {sessionState} from '../../entities/session'
 import {normalizeWorkspaceLayout, workspaceState, type WorkspaceLayoutState, type WorkspacePanel, type WorkspaceTheme} from '../../entities/workspace'
 import {isThemeName} from '../../shared/theme/theme.types'
@@ -178,7 +178,8 @@ function ensureRootGroup(groups: SessionGroup[]) {
 
 function snapshotWorkspaceLayout(): WorkspaceLayoutState {
   return normalizeWorkspaceLayout({
-    activeDockPanel: workspaceState.activeDockPanel,
+    activeBottomDockPanel: workspaceState.activeBottomDockPanel,
+    activeRightDockPanel: workspaceState.activeRightDockPanel,
     activeMainView: workspaceState.activeMainView,
     activePanel: workspaceState.activePanel,
     bottomPanelHeight: workspaceState.bottomPanelHeight,
@@ -190,15 +191,18 @@ function snapshotWorkspaceLayout(): WorkspaceLayoutState {
     mainAreaMode: workspaceState.mainAreaMode,
     mainSplitRatio: workspaceState.mainSplitRatio,
     panelPlacement: workspaceState.panelPlacement,
-    recentDockPanel: workspaceState.recentDockPanel,
+    recentBottomDockPanel: workspaceState.recentBottomDockPanel,
+    recentRightDockPanel: workspaceState.recentRightDockPanel,
     rightDockWidth: workspaceState.rightDockWidth,
+    rightPanelVisible: workspaceState.rightPanelVisible,
     sidebarVisible: workspaceState.sidebarVisible,
     sidebarWidth: workspaceState.sidebarWidth,
   })
 }
 
 function applyWorkspaceLayout(layout: WorkspaceLayoutState) {
-  workspaceState.activeDockPanel = layout.activeDockPanel
+  workspaceState.activeBottomDockPanel = layout.activeBottomDockPanel
+  workspaceState.activeRightDockPanel = layout.activeRightDockPanel
   workspaceState.activeMainView = layout.activeMainView
   workspaceState.activePanel = layout.activePanel
   workspaceState.bottomPanelHeight = layout.bottomPanelHeight
@@ -210,8 +214,10 @@ function applyWorkspaceLayout(layout: WorkspaceLayoutState) {
   workspaceState.mainAreaMode = layout.mainAreaMode
   workspaceState.mainSplitRatio = layout.mainSplitRatio
   workspaceState.panelPlacement = layout.panelPlacement
-  workspaceState.recentDockPanel = layout.recentDockPanel
+  workspaceState.recentBottomDockPanel = layout.recentBottomDockPanel
+  workspaceState.recentRightDockPanel = layout.recentRightDockPanel
   workspaceState.rightDockWidth = layout.rightDockWidth
+  workspaceState.rightPanelVisible = layout.rightPanelVisible
   workspaceState.sidebarVisible = layout.sidebarVisible
   workspaceState.sidebarWidth = layout.sidebarWidth
 }
@@ -231,9 +237,11 @@ function isPersistedState(input: unknown): input is PersistedState {
 function normalizeStartupWorkspaceLayout(layout: Partial<WorkspaceLayoutState>) {
   return normalizeWorkspaceLayout({
     ...layout,
-    activeDockPanel: 'none',
+    activeBottomDockPanel: 'none',
+    activeRightDockPanel: 'none',
     activeMainView: 'terminal',
     bottomPanelVisible: false,
+    rightPanelVisible: false,
     mainAreaMode: 'single',
   })
 }
