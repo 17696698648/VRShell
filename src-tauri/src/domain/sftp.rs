@@ -14,6 +14,32 @@ pub(crate) struct SftpConnectionRequest {
     pub credential_ref: Option<CredentialRef>,
 }
 
+impl SftpConnectionRequest {
+    pub(crate) fn cache_key(&self) -> SftpConnectionKey {
+        SftpConnectionKey {
+            host: self.host.clone(),
+            port: self.port,
+            username: self.username.clone(),
+            auth_method: self.auth_method.clone(),
+            private_key_path: self.private_key_path.clone(),
+            credential_ref: self
+                .credential_ref
+                .as_ref()
+                .map(|credential| format!("{}:{}", credential.service, credential.key)),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct SftpConnectionKey {
+    pub host: String,
+    pub port: u16,
+    pub username: String,
+    pub auth_method: Option<String>,
+    pub private_key_path: Option<String>,
+    pub credential_ref: Option<String>,
+}
+
 impl From<SftpConnectionDto> for SftpConnectionRequest {
     fn from(connection: SftpConnectionDto) -> Self {
         Self {

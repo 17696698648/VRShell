@@ -26,19 +26,19 @@ Quick start (Windows PowerShell):
 
 ```powershell
 cd VRShell/frontend
-npm install
+npm.cmd install
 # start frontend dev server only
-npm run dev
+npm.cmd run dev
 # or run the full desktop app
-npm run tauri
+npm.cmd run tauri
 ```
 
 Build for release:
 
 ```powershell
 # from frontend directory
-npm run build
-npm run tauri:build
+npm.cmd run build
+npm.cmd run tauri:build
 ```
 
 Files of interest:
@@ -48,17 +48,17 @@ Files of interest:
 - `src-tauri/src/main.rs` - Rust backend with SSH, SFTP, keyring, and session commands
 
 Useful root scripts:
-- `npm run dev` - start the Vite frontend
-- `npm run lint` - run Biome lint/style checks for the frontend
-- `npm run format:check` - check frontend formatting without writing changes
-- `npm run typecheck` - run Vue/TypeScript checking
-- `npm run test:frontend` - run frontend unit tests
-- `npm run test:e2e:smoke` - run Playwright smoke coverage for startup, command palette, session dialog, SFTP drawer, and theme switching
-- `npm run build` - build the frontend
-- `npm run rust:test` - run Rust unit tests
-- `npm run check` - run JSON/UTF-8 checks, frontend lint/typecheck/tests, Rust check/tests/clippy
-- `npm run tauri:dev` - run the Tauri desktop app in development
-- `npm run tauri:build` - build the desktop bundle
+- `npm.cmd run dev` - start the Vite frontend
+- `npm.cmd run lint` - run Biome lint/style checks for the frontend
+- `npm.cmd run format:check` - check frontend formatting without writing changes
+- `npm.cmd run typecheck` - run Vue/TypeScript checking
+- `npm.cmd run test:frontend` - run frontend unit tests
+- `npm.cmd run test:e2e:smoke` - run Playwright smoke coverage for startup, command palette, session dialog, SFTP drawer, and theme switching
+- `npm.cmd run build` - build the frontend
+- `npm.cmd run rust:test` - run Rust unit tests
+- `npm.cmd run check` - run JSON/UTF-8 checks, frontend lint/typecheck/tests, Rust check/tests/clippy
+- `npm.cmd run tauri:dev` - run the Tauri desktop app in development
+- `npm.cmd run tauri:build` - build the desktop bundle
 
 Project operations:
 - `docs/testing.md` - local lint, typecheck, unit, E2E smoke, build, and Rust check workflow

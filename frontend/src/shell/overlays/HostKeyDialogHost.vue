@@ -31,6 +31,17 @@
         <p class="host-key-prompt">
           Are you sure you want to continue connecting?
         </p>
+        <div class="host-key-actions" aria-label="Host key tools">
+          <button type="button" class="host-key-tool" @click="copyFingerprint">
+            Copy fingerprint
+          </button>
+          <button type="button" class="host-key-tool" @click="openKnownHosts">
+            Open known_hosts
+          </button>
+          <a class="host-key-help" href="https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/githubs-ssh-key-fingerprints" target="_blank" rel="noreferrer">
+            How to verify fingerprints
+          </a>
+        </div>
         <p v-if="hostKeyState.pendingRequest.error" class="host-key-error" role="alert">
           {{ hostKeyState.pendingRequest.error }}
         </p>
@@ -49,8 +60,9 @@
 </template>
 
 <script setup lang="ts">
-import {hostKeyState} from '../../entities/security/model/hostKeyState'
+import {hostKeyState, setHostKeyRequestError} from '../../entities/security/model/hostKeyState'
 import {acceptPendingHostKey, rejectPendingHostKey} from '../../features/session/connect-session/hostKeyActions'
+import {securityApi} from '../../shared/ipc/ipcFacade'
 
 function onAccept() {
   void acceptPendingHostKey()
@@ -58,6 +70,26 @@ function onAccept() {
 
 function onReject() {
   void rejectPendingHostKey()
+}
+
+async function copyFingerprint() {
+  const fingerprint = hostKeyState.pendingRequest?.fingerprint
+  if (!fingerprint) return
+  try {
+    await navigator.clipboard?.writeText(fingerprint)
+    setHostKeyRequestError(null)
+  } catch {
+    setHostKeyRequestError('Failed to copy fingerprint. Select and copy it manually.')
+  }
+}
+
+async function openKnownHosts() {
+  try {
+    const path = await securityApi.openKnownHosts()
+    setHostKeyRequestError(`Opened known_hosts: ${path}`)
+  } catch (error) {
+    setHostKeyRequestError(error instanceof Error ? error.message : 'Failed to open known_hosts')
+  }
 }
 </script>
 

@@ -13,6 +13,7 @@ jobs:
       frontend: ${{ steps.filter.outputs.frontend }}
       rust: ${{ steps.filter.outputs.rust }}
       tauri: ${{ steps.filter.outputs.tauri }}
+      docs: ${{ steps.filter.outputs.docs }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,21 +26,71 @@ jobs:
             frontend:
               - 'frontend/**'
               - 'package.json'
+              - 'package-lock.json'
+              - 'scripts/**'
               - '.github/workflows/check.yml'
             rust:
               - 'src-tauri/**'
+              - 'package.json'
               - '.github/workflows/check.yml'
             tauri:
               - 'frontend/**'
               - 'src-tauri/**'
               - 'package.json'
+              - 'package-lock.json'
+              - '.github/workflows/check.yml'
+            docs:
+              - 'README.md'
+              - 'docs/**'
               - '.github/workflows/check.yml'
 
-  frontend:
-    name: Frontend typecheck/test/build
+  fast-check:
+    name: Fast checks
     runs-on: windows-latest
     needs: changes
-    if: github.event_name == 'push' || needs.changes.outputs.frontend == 'true'
+    if: |
+      github.event_name == 'push' ||
+      needs.changes.outputs.frontend == 'true' ||
+      needs.changes.outputs.rust == 'true' ||
+      needs.changes.outputs.docs == 'true'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm --prefix frontend ci
+
+      - name: Check generated IPC contract
+        run: npm run check:ipc
+
+      - name: Check JSON files
+        run: npm run check:json
+
+      - name: Check UTF-8 files
+        run: npm run check:utf8
+
+      - name: UI quality guard
+        run: npm --prefix frontend run guard
+
+      - name: Lint frontend
+        run: npm run lint
+
+  frontend-test:
+    name: Frontend test/build
+    runs-on: windows-latest
+    needs: [changes, fast-check]
+    if: |
+      always() &&
+      (github.event_name == 'push' || needs.changes.outputs.frontend == 'true') &&
+      needs.fast-check.result == 'success'
 
     steps:
       - name: Checkout
@@ -58,9 +109,6 @@ jobs:
       - name: Audit frontend dependencies
         run: npm run audit:frontend
 
-      - name: Lint frontend
-        run: npm run lint
-
       - name: Typecheck frontend
         run: npm run typecheck
 
@@ -70,38 +118,14 @@ jobs:
       - name: Build frontend
         run: npm run build
 
-      - name: Get Playwright version
-        id: playwright-version
-        shell: bash
-        run: echo "version=$(node -p \"require('./frontend/node_modules/@playwright/test/package.json').version\")" >> "$GITHUB_OUTPUT"
-
-      - name: Cache Playwright browsers
-        id: playwright-cache
-        uses: actions/cache@v4
-        with:
-          path: ~\AppData\Local\ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
-
-      - name: Install Playwright browsers
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx --prefix frontend playwright install chromium
-
-      - name: E2E smoke
-        run: npm run test:e2e:smoke
-
-      - name: Upload Playwright report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report
-          path: frontend/playwright-report
-          if-no-files-found: ignore
-
-  rust:
+  rust-test:
     name: Rust check/test/clippy
     runs-on: windows-latest
-    needs: changes
-    if: github.event_name == 'push' || needs.changes.outputs.rust == 'true'
+    needs: [changes, fast-check]
+    if: |
+      always() &&
+      (github.event_name == 'push' || needs.changes.outputs.rust == 'true') &&
+      needs.fast-check.result == 'success'
 
     steps:
       - name: Checkout
@@ -143,15 +167,66 @@ jobs:
       - name: Audit Rust dependencies
         run: npm run rust:audit
 
+  e2e-smoke:
+    name: E2E smoke
+    runs-on: windows-latest
+    needs: [changes, fast-check, frontend-test]
+    if: |
+      always() &&
+      (github.event_name == 'push' || needs.changes.outputs.frontend == 'true') &&
+      needs.fast-check.result == 'success' &&
+      needs.frontend-test.result == 'success'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm --prefix frontend ci
+
+      - name: Get Playwright version
+        id: playwright-version
+        shell: bash
+        run: echo "version=$(node -p \"require('./frontend/node_modules/@playwright/test/package.json').version\")" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~\AppData\Local\ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx --prefix frontend playwright install chromium
+
+      - name: Run E2E smoke
+        run: npm run test:e2e:smoke
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report
+          if-no-files-found: ignore
+
   tauri-build-smoke:
     name: Tauri build smoke
     runs-on: windows-latest
-    needs: [changes, frontend, rust]
+    needs: [changes, frontend-test, rust-test]
     if: |
       always() &&
       (github.event_name == 'push' || needs.changes.outputs.tauri == 'true') &&
-      !contains(needs.*.result, 'failure') &&
-      !contains(needs.*.result, 'cancelled')
+      needs.frontend-test.result == 'success' &&
+      needs.rust-test.result == 'success'
 
     steps:
       - name: Checkout

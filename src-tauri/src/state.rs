@@ -1,5 +1,5 @@
 use crate::{
-    domain::sftp::SftpTaskSnapshot,
+    domain::sftp::{SftpConnectionKey, SftpTaskSnapshot},
     domain::terminal::{TerminalOutputEvent, TerminalSession},
     infrastructure::file_store::FileStore,
     services::terminal_service::TerminalRuntime,
@@ -17,6 +17,7 @@ pub(crate) struct BackendState {
     pub terminal_events: Mutex<HashMap<String, Vec<TerminalOutputEvent>>>,
     pub cancelled_sftp_tasks: Mutex<HashSet<String>>,
     pub sftp_tasks: Mutex<HashMap<String, SftpTaskSnapshot>>,
+    pub sftp_sessions: Mutex<HashMap<SftpConnectionKey, ssh2::Session>>,
     /// Pending SSH sessions waiting for host key acceptance
     /// Key: pending_id, Value: (host, port, username, ssh_session)
     pub pending_host_key_sessions: Mutex<HashMap<String, PendingHostKeySession>>,
@@ -49,6 +50,7 @@ impl BackendState {
             terminal_events: Mutex::new(HashMap::new()),
             cancelled_sftp_tasks: Mutex::new(HashSet::new()),
             sftp_tasks: Mutex::new(sftp_tasks),
+            sftp_sessions: Mutex::new(HashMap::new()),
             pending_host_key_sessions: Mutex::new(HashMap::new()),
         }
     }

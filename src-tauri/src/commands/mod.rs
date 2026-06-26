@@ -36,5 +36,7 @@ pub(crate) fn handler() -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Sen
         credential::keyring_delete,
         security::accept_host_key,
         security::reject_host_key,
+        security::known_hosts_path,
+        security::open_known_hosts,
     ]
 }

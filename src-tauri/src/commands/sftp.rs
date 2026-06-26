@@ -11,24 +11,34 @@ use tauri::{Manager, State};
 
 #[tauri::command]
 pub fn sftp_list(
+    state: State<'_, BackendState>,
     connection: SftpConnectionDto,
     path: String,
 ) -> IpcResult<Vec<crate::domain::sftp::SftpEntry>> {
-    sftp_service::list(connection.into(), path).map_err(Into::into)
+    sftp_service::list(Some(&state), connection.into(), path).map_err(Into::into)
 }
 
 #[tauri::command]
-pub fn sftp_mkdir(connection: SftpConnectionDto, remote_path: String) -> IpcResult<()> {
-    sftp_service::mkdir(connection.into(), remote_path).map_err(Into::into)
+pub fn sftp_mkdir(
+    state: State<'_, BackendState>,
+    connection: SftpConnectionDto,
+    remote_path: String,
+) -> IpcResult<()> {
+    sftp_service::mkdir(Some(&state), connection.into(), remote_path).map_err(Into::into)
 }
 
 #[tauri::command]
-pub fn sftp_create_file(connection: SftpConnectionDto, remote_path: String) -> IpcResult<()> {
-    sftp_service::create_file(connection.into(), remote_path).map_err(Into::into)
+pub fn sftp_create_file(
+    state: State<'_, BackendState>,
+    connection: SftpConnectionDto,
+    remote_path: String,
+) -> IpcResult<()> {
+    sftp_service::create_file(Some(&state), connection.into(), remote_path).map_err(Into::into)
 }
 
 #[tauri::command]
 pub fn sftp_rename(
+    state: State<'_, BackendState>,
     connection: SftpConnectionDto,
     old_path: String,
     new_path: String,
@@ -39,6 +49,7 @@ pub fn sftp_rename(
         new_path,
     };
     sftp_service::rename(
+        Some(&state),
         request.connection.into(),
         request.old_path,
         request.new_path,
@@ -48,6 +59,7 @@ pub fn sftp_rename(
 
 #[tauri::command]
 pub fn sftp_delete(
+    state: State<'_, BackendState>,
     connection: SftpConnectionDto,
     remote_path: String,
     is_directory: Option<bool>,
@@ -58,6 +70,7 @@ pub fn sftp_delete(
         is_directory,
     };
     sftp_service::delete(
+        Some(&state),
         request.connection.into(),
         request.remote_path,
         request.is_directory,
@@ -178,8 +191,12 @@ pub fn sftp_download(
 }
 
 #[tauri::command]
-pub fn sftp_read_file(connection: SftpConnectionDto, remote_path: String) -> IpcResult<String> {
-    sftp_service::read_file(connection.into(), remote_path).map_err(Into::into)
+pub fn sftp_read_file(
+    state: State<'_, BackendState>,
+    connection: SftpConnectionDto,
+    remote_path: String,
+) -> IpcResult<String> {
+    sftp_service::read_file(Some(&state), connection.into(), remote_path).map_err(Into::into)
 }
 
 #[tauri::command]

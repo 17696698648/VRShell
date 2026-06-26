@@ -1,5 +1,5 @@
 use crate::{
-    domain::sftp::{SftpTaskSnapshot, SftpTaskStatus},
+    domain::sftp::SftpTaskSnapshot,
     error::{BackendError, BackendResult},
     infrastructure::event_bus::EventSink,
     state::BackendState,
@@ -11,7 +11,9 @@ use std::{
     path::PathBuf,
 };
 
-use super::tasks::{current_time_ms, find_sftp_task, record_sftp_task};
+use super::tasks::{
+    apply_sftp_task_transition, current_time_ms, find_sftp_task, SftpTaskTransition,
+};
 use super::TRANSFER_BUFFER_SIZE;
 
 #[derive(Debug, Clone, Serialize)]
@@ -117,7 +119,7 @@ fn write_local_file_with_progress<W: Write>(
 pub(super) fn write_remote_chunk<W: Write>(writer: &mut W, chunk: &[u8]) -> BackendResult<()> {
     writer
         .write_all(chunk)
-        .map_err(|error| BackendError::validation(format!("failed to write remote file: {error}")))
+        .map_err(|error| BackendError::sftp(format!("failed to write remote file: {error}")))
 }
 
 pub(super) fn read_to_end_with_progress<R: Read>(
@@ -134,9 +136,9 @@ pub(super) fn read_to_end_with_progress<R: Read>(
 
     loop {
         ensure_task_not_cancelled(state, task_id)?;
-        let count = reader.read(&mut buffer).map_err(|error| {
-            BackendError::validation(format!("failed to read remote file: {error}"))
-        })?;
+        let count = reader
+            .read(&mut buffer)
+            .map_err(|error| BackendError::sftp(format!("failed to read remote file: {error}")))?;
         if count == 0 {
             break;
         }
@@ -171,9 +173,9 @@ pub(super) fn write_download_to_local_file_with_progress<R: Read>(
 
     loop {
         ensure_task_not_cancelled(state, task_id)?;
-        let count = reader.read(&mut buffer).map_err(|error| {
-            BackendError::validation(format!("failed to read remote file: {error}"))
-        })?;
+        let count = reader
+            .read(&mut buffer)
+            .map_err(|error| BackendError::sftp(format!("failed to read remote file: {error}")))?;
         if count == 0 {
             break;
         }
@@ -197,7 +199,7 @@ pub(super) fn ensure_task_not_cancelled(
     };
     let cancelled = state.cancelled_sftp_tasks.lock().contains(task_id);
     if cancelled {
-        Err(BackendError::validation("sftp task was cancelled"))
+        Err(BackendError::cancelled("sftp task was cancelled"))
     } else {
         Ok(())
     }
@@ -214,14 +216,15 @@ pub(super) fn emit_sftp_progress(
         return;
     };
     let snapshot = if let Some(state) = state {
-        let _ = record_sftp_task(
+        let _ = apply_sftp_task_transition(
             state,
             task_id,
-            SftpTaskStatus::Running,
-            transferred_bytes,
-            total_bytes,
-            None,
+            SftpTaskTransition::Progress {
+                transferred_bytes,
+                total_bytes,
+            },
         );
+        state.cancelled_sftp_tasks.lock().remove(task_id);
         find_sftp_task(state, task_id).ok().flatten()
     } else {
         None
@@ -246,13 +249,13 @@ pub(super) fn emit_sftp_completed(
         return;
     };
     let snapshot = if let Some(state) = state {
-        let _ = record_sftp_task(
+        let _ = apply_sftp_task_transition(
             state,
             task_id,
-            SftpTaskStatus::Done,
-            transferred_bytes,
-            total_bytes,
-            None,
+            SftpTaskTransition::Complete {
+                transferred_bytes,
+                total_bytes,
+            },
         );
         find_sftp_task(state, task_id).ok().flatten()
     } else {
@@ -302,14 +305,14 @@ pub(crate) fn emit_sftp_failed(
 ) {
     let error = error.into();
     let snapshot = if let Some(state) = state {
-        let _ = record_sftp_task(
+        let _ = apply_sftp_task_transition(
             state,
             task_id,
-            SftpTaskStatus::Failed,
-            0,
-            None,
-            Some(error.clone()),
+            SftpTaskTransition::Fail {
+                error: error.clone(),
+            },
         );
+        state.cancelled_sftp_tasks.lock().remove(task_id);
         find_sftp_task(state, task_id).ok().flatten()
     } else {
         None

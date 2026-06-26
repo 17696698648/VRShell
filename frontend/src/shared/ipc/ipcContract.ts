@@ -28,6 +28,8 @@ export type IpcCommandMap = {
   keyring_delete: {args: {service: string; key: string}; result: void}
   accept_host_key: {args: AcceptHostKeyArgs; result: string}
   reject_host_key: {args: {pendingId: string}; result: void}
+  known_hosts_path: {args: undefined; result: string}
+  open_known_hosts: {args: undefined; result: string}
 }
 
 export interface TerminalOutputEvent {
@@ -65,6 +67,8 @@ export const ipcCommandNames = [
   'keyring_delete',
   'accept_host_key',
   'reject_host_key',
+  'known_hosts_path',
+  'open_known_hosts',
 ] as const satisfies readonly (keyof IpcCommandMap)[]
 
 export interface SftpConnection {

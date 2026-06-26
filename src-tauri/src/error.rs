@@ -20,6 +20,38 @@ impl BackendError {
         }
     }
 
+    pub(crate) fn network(message: impl Into<String>) -> Self {
+        Self {
+            code: "networkError".to_string(),
+            message: scrub_sensitive_message(message.into()),
+            recoverable: true,
+        }
+    }
+
+    pub(crate) fn authentication(message: impl Into<String>) -> Self {
+        Self {
+            code: "authenticationError".to_string(),
+            message: scrub_sensitive_message(message.into()),
+            recoverable: true,
+        }
+    }
+
+    pub(crate) fn sftp(message: impl Into<String>) -> Self {
+        Self {
+            code: "sftpError".to_string(),
+            message: scrub_sensitive_message(message.into()),
+            recoverable: true,
+        }
+    }
+
+    pub(crate) fn cancelled(message: impl Into<String>) -> Self {
+        Self {
+            code: "cancelled".to_string(),
+            message: scrub_sensitive_message(message.into()),
+            recoverable: true,
+        }
+    }
+
     pub(crate) fn storage(message: impl Into<String>) -> Self {
         Self {
             code: "storageError".to_string(),

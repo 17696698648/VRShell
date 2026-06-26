@@ -217,6 +217,14 @@ export const securityApi = {
   rejectHostKey(pendingId: string): Promise<void> {
     return typedInvoke('reject_host_key', {pendingId})
   },
+
+  knownHostsPath(): Promise<string> {
+    return typedInvoke('known_hosts_path')
+  },
+
+  openKnownHosts(): Promise<string> {
+    return typedInvoke('open_known_hosts')
+  },
 }
 
 // ==================== Task API ====================

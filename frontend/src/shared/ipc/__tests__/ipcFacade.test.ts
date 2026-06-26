@@ -1,5 +1,5 @@
 import {describe, expect, it, vi, beforeEach} from 'vitest'
-import {sessionApi, terminalApi, sftpFileApi, sftpTaskApi, taskApi, credentialApi} from '../ipcFacade'
+import {sessionApi, terminalApi, sftpFileApi, sftpTaskApi, taskApi, credentialApi, securityApi} from '../ipcFacade'
 import {setIpcMock} from '../ipcClient'
 
 const invokeLog: Array<{command: string; args: unknown}> = []
@@ -128,6 +128,19 @@ describe('taskApi', () => {
   it('retry reports unsupported backend capability', async () => {
     await expect(taskApi.retry('task-1')).rejects.toThrow('task retry is not supported yet')
     expect(invokeLog).toHaveLength(0)
+  })
+})
+
+
+describe('securityApi', () => {
+  it('knownHostsPath maps to known_hosts_path', async () => {
+    await securityApi.knownHostsPath()
+    expect(invokeLog[0].command).toBe('known_hosts_path')
+  })
+
+  it('openKnownHosts maps to open_known_hosts', async () => {
+    await securityApi.openKnownHosts()
+    expect(invokeLog[0].command).toBe('open_known_hosts')
   })
 })
 

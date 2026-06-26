@@ -5,3 +5,4 @@ pub(crate) mod known_hosts_store;
 pub(crate) mod ssh_auth;
 pub(crate) mod ssh_client;
 pub(crate) mod ssh_config_store;
+pub(crate) mod ssh_connection;

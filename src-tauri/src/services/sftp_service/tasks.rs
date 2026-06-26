@@ -9,6 +9,26 @@ use std::time::{SystemTime, UNIX_EPOCH};
 const MAX_PERSISTED_SFTP_TASKS: usize = 100;
 const COMPLETED_SFTP_TASK_RETENTION_MS: u128 = 7 * 24 * 60 * 60 * 1000;
 
+pub(super) enum SftpTaskTransition {
+    Start {
+        kind: String,
+        title: String,
+        detail: String,
+    },
+    Progress {
+        transferred_bytes: u64,
+        total_bytes: Option<u64>,
+    },
+    Complete {
+        transferred_bytes: u64,
+        total_bytes: Option<u64>,
+    },
+    Fail {
+        error: String,
+    },
+    Cancel,
+}
+
 pub(crate) fn list_sftp_tasks(state: &BackendState) -> BackendResult<Vec<SftpTaskSnapshot>> {
     let tasks = pruned_sftp_tasks(state, current_time_ms())?;
     replace_sftp_tasks(state, &tasks)?;
@@ -23,34 +43,19 @@ pub(crate) fn register_sftp_task(
     title: &str,
     detail: &str,
 ) -> BackendResult<()> {
-    state.sftp_tasks.lock().insert(
-        task_id.to_string(),
-        SftpTaskSnapshot {
-            task_id: task_id.to_string(),
+    apply_sftp_task_transition(
+        state,
+        task_id,
+        SftpTaskTransition::Start {
             kind: kind.to_string(),
             title: title.to_string(),
             detail: detail.to_string(),
-            status: SftpTaskStatus::Running,
-            transferred_bytes: 0,
-            total_bytes: None,
-            error: None,
-            updated_at_ms: current_time_ms(),
-            started_at_ms: Some(current_time_ms()),
         },
-    );
-    persist_sftp_tasks(state)
+    )
 }
 
 pub(crate) fn mark_sftp_task_cancelled(state: &BackendState, task_id: &str) -> BackendResult<()> {
-    let existing = state.sftp_tasks.lock().get(task_id).cloned();
-    record_sftp_task(
-        state,
-        task_id,
-        SftpTaskStatus::Cancelled,
-        existing.as_ref().map_or(0, |task| task.transferred_bytes),
-        existing.and_then(|task| task.total_bytes),
-        Some("sftp task was cancelled".to_string()),
-    )
+    apply_sftp_task_transition(state, task_id, SftpTaskTransition::Cancel)
 }
 
 fn persist_sftp_tasks(state: &BackendState) -> BackendResult<()> {
@@ -118,7 +123,118 @@ pub(super) fn current_time_ms() -> u128 {
         .unwrap_or_default()
 }
 
-pub(super) fn record_sftp_task(
+pub(super) fn apply_sftp_task_transition(
+    state: &BackendState,
+    task_id: &str,
+    transition: SftpTaskTransition,
+) -> BackendResult<()> {
+    let mut tasks = state.sftp_tasks.lock();
+    let existing = tasks.get(task_id).cloned();
+    let now_ms = current_time_ms();
+    let next = match transition {
+        SftpTaskTransition::Start {
+            kind,
+            title,
+            detail,
+        } => SftpTaskSnapshot {
+            task_id: task_id.to_string(),
+            kind,
+            title,
+            detail,
+            status: SftpTaskStatus::Running,
+            transferred_bytes: 0,
+            total_bytes: None,
+            error: None,
+            updated_at_ms: now_ms,
+            started_at_ms: Some(now_ms),
+        },
+        SftpTaskTransition::Progress {
+            transferred_bytes,
+            total_bytes,
+        } => transition_existing_task(
+            task_id,
+            existing,
+            SftpTaskStatus::Running,
+            transferred_bytes,
+            total_bytes,
+            None,
+            now_ms,
+        ),
+        SftpTaskTransition::Complete {
+            transferred_bytes,
+            total_bytes,
+        } => transition_existing_task(
+            task_id,
+            existing,
+            SftpTaskStatus::Done,
+            transferred_bytes,
+            total_bytes,
+            None,
+            now_ms,
+        ),
+        SftpTaskTransition::Fail { error } => {
+            let transferred_bytes = existing.as_ref().map_or(0, |task| task.transferred_bytes);
+            let total_bytes = existing.as_ref().and_then(|task| task.total_bytes);
+            transition_existing_task(
+                task_id,
+                existing,
+                SftpTaskStatus::Failed,
+                transferred_bytes,
+                total_bytes,
+                Some(error),
+                now_ms,
+            )
+        }
+        SftpTaskTransition::Cancel => {
+            let transferred_bytes = existing.as_ref().map_or(0, |task| task.transferred_bytes);
+            let total_bytes = existing.as_ref().and_then(|task| task.total_bytes);
+            transition_existing_task(
+                task_id,
+                existing,
+                SftpTaskStatus::Cancelled,
+                transferred_bytes,
+                total_bytes,
+                Some("sftp task was cancelled".to_string()),
+                now_ms,
+            )
+        }
+    };
+    tasks.insert(task_id.to_string(), next);
+    drop(tasks);
+    persist_sftp_tasks(state)
+}
+
+fn transition_existing_task(
+    task_id: &str,
+    existing: Option<SftpTaskSnapshot>,
+    status: SftpTaskStatus,
+    transferred_bytes: u64,
+    total_bytes: Option<u64>,
+    error: Option<String>,
+    updated_at_ms: u128,
+) -> SftpTaskSnapshot {
+    SftpTaskSnapshot {
+        task_id: task_id.to_string(),
+        kind: existing
+            .as_ref()
+            .map_or_else(|| "sftp".to_string(), |task| task.kind.clone()),
+        title: existing
+            .as_ref()
+            .map_or_else(|| "SFTP transfer".to_string(), |task| task.title.clone()),
+        detail: existing
+            .as_ref()
+            .map_or_else(|| task_id.to_string(), |task| task.detail.clone()),
+        status,
+        transferred_bytes,
+        total_bytes,
+        error,
+        updated_at_ms,
+        started_at_ms: existing.and_then(|task| task.started_at_ms),
+    }
+}
+
+#[cfg(test)]
+fn record_sftp_task(
     state: &BackendState,
     task_id: &str,
     status: SftpTaskStatus,
@@ -126,31 +242,21 @@ pub(super) fn record_sftp_task(
     total_bytes: Option<u64>,
     error: Option<String>,
 ) -> BackendResult<()> {
-    let mut tasks = state.sftp_tasks.lock();
-    let existing = tasks.get(task_id).cloned();
-    tasks.insert(
-        task_id.to_string(),
-        SftpTaskSnapshot {
-            task_id: task_id.to_string(),
-            kind: existing
-                .as_ref()
-                .map_or_else(|| "sftp".to_string(), |task| task.kind.clone()),
-            title: existing
-                .as_ref()
-                .map_or_else(|| "SFTP transfer".to_string(), |task| task.title.clone()),
-            detail: existing
-                .as_ref()
-                .map_or_else(|| task_id.to_string(), |task| task.detail.clone()),
-            status,
+    let transition = match status {
+        SftpTaskStatus::Running => SftpTaskTransition::Progress {
             transferred_bytes,
             total_bytes,
-            error,
-            updated_at_ms: current_time_ms(),
-            started_at_ms: existing.and_then(|task| task.started_at_ms),
         },
-    );
-    drop(tasks);
-    persist_sftp_tasks(state)
+        SftpTaskStatus::Done => SftpTaskTransition::Complete {
+            transferred_bytes,
+            total_bytes,
+        },
+        SftpTaskStatus::Failed => SftpTaskTransition::Fail {
+            error: error.unwrap_or_else(|| "sftp task failed".to_string()),
+        },
+        SftpTaskStatus::Cancelled => SftpTaskTransition::Cancel,
+    };
+    apply_sftp_task_transition(state, task_id, transition)
 }
 
 #[cfg(test)]

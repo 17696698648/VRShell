@@ -15,26 +15,26 @@ The root `.npmrc` disables automatic install-time audit/funding noise; explicit 
 Run audit checks from a clean dependency tree:
 
 ```powershell
-npm --prefix frontend ci
-npm run audit:frontend
+npm.cmd --prefix frontend ci
+npm.cmd run audit:frontend
 ```
 
-`npm run audit:frontend` wraps `npm --prefix frontend audit --json` and prints a compact severity/package summary for triage. The current Vite/Vitest/vue-tsc dependency set audits cleanly with npm after the Vite 8 / Vitest 4 / vue-tsc 3 upgrade.
+`npm.cmd run audit:frontend` wraps `npm.cmd --prefix frontend audit --json` and prints a compact severity/package summary for triage. The current Vite/Vitest/vue-tsc dependency set audits cleanly with npm after the Vite 8 / Vitest 4 / vue-tsc 3 upgrade.
 
 Before running `npm audit fix`, evaluate the proposed changes:
 
 ```powershell
-npm --prefix frontend audit fix --dry-run
+npm.cmd --prefix frontend audit fix --dry-run
 ```
 
 Apply fixes only in a dedicated PR when the dry run is understood. After applying fixes, run:
 
 ```powershell
-npm run lint
-npm run typecheck
-npm run test:frontend
-npm run build
-npm run test:e2e:smoke
+npm.cmd run lint
+npm.cmd run typecheck
+npm.cmd run test:frontend
+npm.cmd run build
+npm.cmd run test:e2e:smoke
 ```
 
 Use `npm audit fix --force` only when the breaking upgrade impact is reviewed and covered by a migration note.
@@ -50,7 +50,7 @@ cargo install cargo-audit --locked
 Then run:
 
 ```powershell
-npm run rust:audit
+npm.cmd run rust:audit
 ```
 
-Use `npm run security:audit` to run both frontend npm audit summary and Rust advisory checks.
+Use `npm.cmd run security:audit` to run both frontend npm audit summary and Rust advisory checks.

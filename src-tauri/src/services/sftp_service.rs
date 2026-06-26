@@ -31,7 +31,46 @@ const TRANSFER_BUFFER_SIZE: usize = 64 * 1024;
 pub(crate) use tasks::{list_sftp_tasks, mark_sftp_task_cancelled, register_sftp_task};
 pub(crate) use transfer::emit_sftp_failed;
 
+fn with_sftp<T>(
+    state: Option<&BackendState>,
+    connection: &SftpConnectionRequest,
+    operation: impl FnOnce(&ssh2::Sftp) -> BackendResult<T>,
+) -> BackendResult<T> {
+    let Some(state) = state else {
+        let session = open_ssh_session(connection)?;
+        let sftp = open_sftp(&session)?;
+        return operation(&sftp);
+    };
+
+    let key = connection.cache_key();
+    {
+        let mut sessions = state.sftp_sessions.lock();
+        if let Some(session) = sessions.get_mut(&key) {
+            if let Ok(sftp) = open_sftp(session) {
+                match operation(&sftp) {
+                    Ok(value) => return Ok(value),
+                    Err(error) => {
+                        sessions.remove(&key);
+                        tracing::debug!(host = %connection.host, port = connection.port, "dropping cached SFTP session after operation error");
+                        return Err(error);
+                    }
+                }
+            }
+            sessions.remove(&key);
+        }
+    }
+
+    let session = open_ssh_session(connection)?;
+    let sftp = open_sftp(&session)?;
+    let result = operation(&sftp);
+    if result.is_ok() {
+        state.sftp_sessions.lock().insert(key, session);
+    }
+    result
+}
+
 pub(crate) fn list(
+    state: Option<&BackendState>,
     connection: SftpConnectionRequest,
     path: String,
 ) -> BackendResult<Vec<SftpEntry>> {
@@ -41,27 +80,26 @@ pub(crate) fn list(
         return Err(BackendError::validation("path is required"));
     }
 
-    let session = open_ssh_session(&connection)?;
-    let sftp = session
-        .sftp()
-        .map_err(|error| BackendError::validation(format!("failed to open sftp: {error}")))?;
-    let mut entries = sftp
-        .readdir(Path::new(path))
-        .map_err(|error| BackendError::validation(format!("failed to list sftp path: {error}")))?
-        .into_iter()
-        .filter_map(|(entry_path, stat)| to_entry(path, entry_path.as_path(), stat))
-        .collect::<Vec<_>>();
+    with_sftp(state, &connection, |sftp| {
+        let mut entries = sftp
+            .readdir(Path::new(path))
+            .map_err(|error| BackendError::sftp(format!("failed to list sftp path: {error}")))?
+            .into_iter()
+            .filter_map(|(entry_path, stat)| to_entry(path, entry_path.as_path(), stat))
+            .collect::<Vec<_>>();
 
-    entries.sort_by(|left, right| {
-        right
-            .is_directory
-            .cmp(&left.is_directory)
-            .then_with(|| left.name.to_lowercase().cmp(&right.name.to_lowercase()))
-    });
-    Ok(entries)
+        entries.sort_by(|left, right| {
+            right
+                .is_directory
+                .cmp(&left.is_directory)
+                .then_with(|| left.name.to_lowercase().cmp(&right.name.to_lowercase()))
+        });
+        Ok(entries)
+    })
 }
 
 pub(crate) fn read_file(
+    state: Option<&BackendState>,
     connection: SftpConnectionRequest,
     remote_path: String,
 ) -> BackendResult<String> {
@@ -71,89 +109,93 @@ pub(crate) fn read_file(
         return Err(BackendError::validation("remote path is required"));
     }
 
-    let session = open_ssh_session(&connection)?;
-    let sftp = session
-        .sftp()
-        .map_err(|error| BackendError::validation(format!("failed to open sftp: {error}")))?;
-    let mut file = sftp.open(Path::new(remote_path)).map_err(|error| {
-        BackendError::validation(format!("failed to open remote file: {error}"))
-    })?;
-    let mut content = Vec::new();
-    file.read_to_end(&mut content).map_err(|error| {
-        BackendError::validation(format!("failed to read remote file: {error}"))
-    })?;
-    Ok(base64::engine::general_purpose::STANDARD.encode(content))
-}
-
-pub(crate) fn mkdir(connection: SftpConnectionRequest, remote_path: String) -> BackendResult<()> {
-    let remote_path = validate_remote_path(&connection, remote_path)?;
-    let session = open_ssh_session(&connection)?;
-    let sftp = open_sftp(&session)?;
-    sftp.mkdir(Path::new(&remote_path), 0o755).map_err(|error| {
-        BackendError::validation(format!("failed to create remote directory: {error}"))
+    with_sftp(state, &connection, |sftp| {
+        let mut file = sftp
+            .open(Path::new(remote_path))
+            .map_err(|error| BackendError::sftp(format!("failed to open remote file: {error}")))?;
+        let mut content = Vec::new();
+        file.read_to_end(&mut content)
+            .map_err(|error| BackendError::sftp(format!("failed to read remote file: {error}")))?;
+        Ok(base64::engine::general_purpose::STANDARD.encode(content))
     })
 }
 
-pub(crate) fn create_file(
+pub(crate) fn mkdir(
+    state: Option<&BackendState>,
     connection: SftpConnectionRequest,
     remote_path: String,
 ) -> BackendResult<()> {
     let remote_path = validate_remote_path(&connection, remote_path)?;
-    let session = open_ssh_session(&connection)?;
-    let sftp = open_sftp(&session)?;
-    let _file = sftp
-        .open_mode(
-            Path::new(&remote_path),
-            OpenFlags::CREATE | OpenFlags::EXCLUSIVE | OpenFlags::WRITE,
-            0o644,
-            OpenType::File,
-        )
-        .map_err(|error| {
-            BackendError::validation(format!("failed to create remote file: {error}"))
-        })?;
-    Ok(())
+    with_sftp(state, &connection, |sftp| {
+        sftp.mkdir(Path::new(&remote_path), 0o755).map_err(|error| {
+            BackendError::sftp(format!("failed to create remote directory: {error}"))
+        })
+    })
+}
+
+pub(crate) fn create_file(
+    state: Option<&BackendState>,
+    connection: SftpConnectionRequest,
+    remote_path: String,
+) -> BackendResult<()> {
+    let remote_path = validate_remote_path(&connection, remote_path)?;
+    with_sftp(state, &connection, |sftp| {
+        let _file = sftp
+            .open_mode(
+                Path::new(&remote_path),
+                OpenFlags::CREATE | OpenFlags::EXCLUSIVE | OpenFlags::WRITE,
+                0o644,
+                OpenType::File,
+            )
+            .map_err(|error| {
+                BackendError::sftp(format!("failed to create remote file: {error}"))
+            })?;
+        Ok(())
+    })
 }
 
 pub(crate) fn rename(
+    state: Option<&BackendState>,
     connection: SftpConnectionRequest,
     old_path: String,
     new_path: String,
 ) -> BackendResult<()> {
     let old_path = validate_remote_path(&connection, old_path)?;
     let new_path = validate_remote_path(&connection, new_path)?;
-    let session = open_ssh_session(&connection)?;
-    let sftp = open_sftp(&session)?;
-    sftp.rename(Path::new(&old_path), Path::new(&new_path), None)
-        .map_err(|error| BackendError::validation(format!("failed to rename remote path: {error}")))
+    with_sftp(state, &connection, |sftp| {
+        sftp.rename(Path::new(&old_path), Path::new(&new_path), None)
+            .map_err(|error| BackendError::sftp(format!("failed to rename remote path: {error}")))
+    })
 }
 
 pub(crate) fn delete(
+    state: Option<&BackendState>,
     connection: SftpConnectionRequest,
     remote_path: String,
     is_directory: Option<bool>,
 ) -> BackendResult<()> {
     let remote_path = validate_remote_path(&connection, remote_path)?;
-    let session = open_ssh_session(&connection)?;
-    let sftp = open_sftp(&session)?;
-    let is_directory = match is_directory {
-        Some(value) => value,
-        None => sftp
-            .stat(Path::new(&remote_path))
-            .map_err(|error| {
-                BackendError::validation(format!("failed to stat remote path: {error}"))
-            })?
-            .is_dir(),
-    };
+    with_sftp(state, &connection, |sftp| {
+        let is_directory = match is_directory {
+            Some(value) => value,
+            None => sftp
+                .stat(Path::new(&remote_path))
+                .map_err(|error| {
+                    BackendError::sftp(format!("failed to stat remote path: {error}"))
+                })?
+                .is_dir(),
+        };
 
-    if is_directory {
-        sftp.rmdir(Path::new(&remote_path)).map_err(|error| {
-            BackendError::validation(format!("failed to delete remote directory: {error}"))
-        })
-    } else {
-        sftp.unlink(Path::new(&remote_path)).map_err(|error| {
-            BackendError::validation(format!("failed to delete remote file: {error}"))
-        })
-    }
+        if is_directory {
+            sftp.rmdir(Path::new(&remote_path)).map_err(|error| {
+                BackendError::sftp(format!("failed to delete remote directory: {error}"))
+            })
+        } else {
+            sftp.unlink(Path::new(&remote_path)).map_err(|error| {
+                BackendError::sftp(format!("failed to delete remote file: {error}"))
+            })
+        }
+    })
 }
 
 pub(crate) fn upload_file_with_progress(
@@ -183,19 +225,19 @@ pub(crate) fn upload_file_with_progress(
         }
     };
 
-    let session = open_ssh_session(&connection)?;
-    let sftp = open_sftp(&session)?;
-    let mut file = sftp
-        .open_mode(
-            Path::new(&remote_path),
-            OpenFlags::CREATE | OpenFlags::TRUNCATE | OpenFlags::WRITE,
-            0o644,
-            OpenType::File,
-        )
-        .map_err(|error| {
-            BackendError::validation(format!("failed to open remote file for upload: {error}"))
-        })?;
-    write_upload_source_with_progress(window, state, task_id, &mut file, upload_source)
+    with_sftp(state, &connection, |sftp| {
+        let mut file = sftp
+            .open_mode(
+                Path::new(&remote_path),
+                OpenFlags::CREATE | OpenFlags::TRUNCATE | OpenFlags::WRITE,
+                0o644,
+                OpenType::File,
+            )
+            .map_err(|error| {
+                BackendError::sftp(format!("failed to open remote file for upload: {error}"))
+            })?;
+        write_upload_source_with_progress(window, state, task_id, &mut file, upload_source)
+    })
 }
 
 pub(crate) fn download_file_with_progress(
@@ -208,37 +250,37 @@ pub(crate) fn download_file_with_progress(
 ) -> BackendResult<String> {
     tracing::info!(task_id = ?task_id, remote_path = %remote_path, "starting SFTP download");
     let remote_path = validate_remote_path(&connection, remote_path)?;
-    let session = open_ssh_session(&connection)?;
-    let sftp = open_sftp(&session)?;
-    let total_bytes = sftp
-        .stat(Path::new(&remote_path))
-        .ok()
-        .and_then(|stat| stat.size);
-    let mut remote_file = sftp.open(Path::new(&remote_path)).map_err(|error| {
-        BackendError::validation(format!("failed to open remote file: {error}"))
-    })?;
-    if let Some(local_path) = local_path {
-        write_download_to_local_file_with_progress(
-            window,
-            state,
-            task_id,
-            &mut remote_file,
-            PathBuf::from(&local_path),
-            total_bytes,
-        )?;
-        Ok(local_path)
-    } else {
-        let mut content = Vec::new();
-        read_to_end_with_progress(
-            window,
-            state,
-            task_id,
-            &mut remote_file,
-            &mut content,
-            total_bytes,
-        )?;
-        Ok(base64::engine::general_purpose::STANDARD.encode(content))
-    }
+    with_sftp(state, &connection, |sftp| {
+        let total_bytes = sftp
+            .stat(Path::new(&remote_path))
+            .ok()
+            .and_then(|stat| stat.size);
+        let mut remote_file = sftp
+            .open(Path::new(&remote_path))
+            .map_err(|error| BackendError::sftp(format!("failed to open remote file: {error}")))?;
+        if let Some(local_path) = local_path {
+            write_download_to_local_file_with_progress(
+                window,
+                state,
+                task_id,
+                &mut remote_file,
+                PathBuf::from(&local_path),
+                total_bytes,
+            )?;
+            Ok(local_path)
+        } else {
+            let mut content = Vec::new();
+            read_to_end_with_progress(
+                window,
+                state,
+                task_id,
+                &mut remote_file,
+                &mut content,
+                total_bytes,
+            )?;
+            Ok(base64::engine::general_purpose::STANDARD.encode(content))
+        }
+    })
 }
 
 pub(crate) fn upload_directory_with_progress(
@@ -256,23 +298,23 @@ pub(crate) fn upload_directory_with_progress(
     }
     let total_bytes = calculate_directory_size(&local_path)?;
 
-    let session = open_ssh_session(&connection)?;
-    let sftp = open_sftp(&session)?;
-    ensure_remote_directory(&sftp, Path::new(&remote_path))?;
-    let mut transferred = 0_u64;
-    emit_sftp_progress(state, window, task_id, transferred, Some(total_bytes));
-    upload_directory_entries(
-        window,
-        state,
-        task_id,
-        &sftp,
-        &local_path,
-        &remote_path,
-        total_bytes,
-        &mut transferred,
-    )?;
-    emit_sftp_completed(state, window, task_id, transferred, Some(total_bytes));
-    Ok(())
+    with_sftp(state, &connection, |sftp| {
+        ensure_remote_directory(sftp, Path::new(&remote_path))?;
+        let mut transferred = 0_u64;
+        emit_sftp_progress(state, window, task_id, transferred, Some(total_bytes));
+        upload_directory_entries(
+            window,
+            state,
+            task_id,
+            sftp,
+            &local_path,
+            &remote_path,
+            total_bytes,
+            &mut transferred,
+        )?;
+        emit_sftp_completed(state, window, task_id, transferred, Some(total_bytes));
+        Ok(())
+    })
 }
 
 fn ensure_remote_directory(sftp: &ssh2::Sftp, remote_path: &Path) -> BackendResult<()> {
@@ -285,9 +327,8 @@ fn ensure_remote_directory(sftp: &ssh2::Sftp, remote_path: &Path) -> BackendResu
     {
         ensure_remote_directory(sftp, parent)?;
     }
-    sftp.mkdir(remote_path, 0o755).map_err(|error| {
-        BackendError::validation(format!("failed to create remote directory: {error}"))
-    })
+    sftp.mkdir(remote_path, 0o755)
+        .map_err(|error| BackendError::sftp(format!("failed to create remote directory: {error}")))
 }
 
 fn calculate_directory_size(local_directory: &Path) -> BackendResult<u64> {
@@ -385,7 +426,7 @@ fn upload_directory_file(
             OpenType::File,
         )
         .map_err(|error| {
-            BackendError::validation(format!("failed to open remote file for upload: {error}"))
+            BackendError::sftp(format!("failed to open remote file for upload: {error}"))
         })?;
     let mut buffer = [0_u8; TRANSFER_BUFFER_SIZE];
 
