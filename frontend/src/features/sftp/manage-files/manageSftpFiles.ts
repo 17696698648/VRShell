@@ -1,6 +1,6 @@
 import {open, save} from '@tauri-apps/plugin-dialog'
 import {openSessionEditorFile} from '../../../entities/editor'
-import {getActiveSession} from '../../../entities/session'
+import {getActiveSession, sessionState} from '../../../entities/session'
 import {createRemoteFilePath, deleteRemotePath, downloadRemoteFile, mkdirRemoteDirectory, readRemoteFile, renameRemotePath, uploadRemoteDirectory, uploadRemoteFile} from '../../../entities/sftp/api/sftpRepository'
 import {addTask, patchTask} from '../../../entities/task'
 import {sftpState, type SftpItem} from '../../../entities/sftp'
@@ -126,7 +126,7 @@ async function runTransferTask(kind: 'upload' | 'download', detail: string, run:
 }
 
 function requireActiveSession() {
-  const session = getActiveSession()
+  const session = sessionState.sessions.find((item) => item.id === sftpState.connectedSessionId) ?? getActiveSession()
   if (!session) throw new Error('No active session')
   return session
 }

@@ -1,10 +1,12 @@
-﻿import {computed} from 'vue'
+import {computed} from 'vue'
 import {getActiveSession, sessionState, setActiveSession} from '../../../entities/session'
+import {clearSessionEditorState} from '../../../entities/editor'
+import {removeSftpSessionState} from '../../../entities/sftp'
 import {connectTerminal} from '../../../entities/terminal/api/terminalRepository'
 import {openTerminal, patchTerminal, terminalState} from '../../../entities/terminal'
 import {getErrorMessage} from '../../../shared/error/getErrorMessage'
 import {messages} from '../../../shared/copy'
-import {notifyTerminalFailure, notifyWarning} from '../../../shared/feedback'
+import {notifyTerminalFailure} from '../../../shared/feedback'
 import {resolveSessionAuth} from '../../../features/session/manage-credentials/sessionCredentials'
 import {closeTerminalTab} from '../../../features/terminal/close-terminal/closeTerminalTab'
 
@@ -17,8 +19,16 @@ export function useSessionWorkbench() {
   })
   const activeTerminal = computed(() => currentSessionTerminals.value.find((tab) => tab.id === terminalState.activeTerminalId) ?? currentSessionTerminals.value[0] ?? null)
   const openSessions = computed(() => {
-    const sessionIds = new Set(terminalState.tabs.map((tab) => tab.sessionId))
-    return sessionState.sessions.filter((session) => sessionIds.has(session.id))
+    const seen = new Set<string>()
+    const orderedSessionIds: string[] = []
+    for (const tab of terminalState.tabs) {
+      if (!seen.has(tab.sessionId)) {
+        seen.add(tab.sessionId)
+        orderedSessionIds.push(tab.sessionId)
+      }
+    }
+    const sessionMap = new Map(sessionState.sessions.map((s) => [s.id, s]))
+    return orderedSessionIds.map((id) => sessionMap.get(id)).filter((s): s is NonNullable<typeof s> => s != null)
   })
 
   function activateSession(sessionId: string) {
@@ -30,6 +40,8 @@ export function useSessionWorkbench() {
   async function closeSessionTab(sessionId: string) {
     const terminals = terminalState.tabs.filter((tab) => tab.sessionId === sessionId)
     for (const terminal of terminals) await closeTerminalTab(terminal, {skipConfirm: true})
+    clearSessionEditorState(sessionId)
+    removeSftpSessionState(sessionId)
     if (activeSession.value?.id === sessionId) {
       const nextTerminal = terminalState.tabs.find((tab) => tab.sessionId !== sessionId)
       if (nextTerminal) activateSession(nextTerminal.sessionId)
@@ -66,6 +78,3 @@ export function useSessionWorkbench() {
 
   return {terminalState, activeTerminal, activeSession, currentSessionTerminals, openSessions, activateSession, closeSessionTab, openAdditionalTerminal}
 }
-
-
-

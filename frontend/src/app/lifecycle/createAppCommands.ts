@@ -130,9 +130,9 @@ export function createAppCommands(): AppCommand[] {
       id: 'sftp.openPanel',
       title: 'Open SFTP panel',
       category: 'SFTP',
-      description: 'Show remote file browsing and transfer controls.',
+      description: 'Show remote file browsing and transfer controls in the right sidebar.',
       group: 'sftp',
-      run: () => switchPanel('sftp'),
+      run: () => switchRightPanel('sftp'),
     },
     {
       id: 'workspace.openTasksPanel',

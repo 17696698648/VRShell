@@ -13,7 +13,9 @@ describe('workspace layout store', () => {
     applyLayoutPreset('file-transfer')
 
     expect(workspaceState.layoutPreset).toBe('file-transfer')
-    expect(workspaceState.activePanel).toBe('sftp')
+    expect(workspaceState.activePanel).toBe('sessions')
+    expect(workspaceState.activeRightPanel).toBe('sftp')
+    expect(workspaceState.rightPanelVisible).toBe(true)
   })
 
   it('reorders dock panels and resets layout', () => {

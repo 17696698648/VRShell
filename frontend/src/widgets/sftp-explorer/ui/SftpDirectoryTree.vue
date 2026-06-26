@@ -1,7 +1,11 @@
 <template>
   <div class="sftp-directory-tree-shell">
     <div v-if="treeError" class="sftp-directory-tree__error" role="alert">
-      <span>{{ treeError }}</span>
+      <span class="sftp-directory-tree__error-icon" aria-hidden="true">!</span>
+      <div class="sftp-directory-tree__error-copy">
+        <strong>{{ messages.sftp.directoryTree.errorTitle }}</strong>
+        <span>{{ treeError }}</span>
+      </div>
       <div class="sftp-directory-tree__error-actions">
         <button v-if="treeErrorPath" type="button" @click="retryTreeError">{{ messages.sftp.directoryTree.retry }}</button>
         <button type="button" @click="clearTreeError">{{ messages.sftp.directoryTree.dismiss }}</button>
@@ -38,7 +42,7 @@
 import {ChevronDown, ChevronRight, File, Folder} from '@lucide/vue'
 import {computed, reactive, ref, watch} from 'vue'
 import type {SessionHost} from '../../../entities/session'
-import type {SftpItem} from '../../../entities/sftp'
+import {getSftpSessionState, sftpState, type SftpItem} from '../../../entities/sftp'
 import {listRemoteDirectory} from '../../../entities/sftp/api/sftpRepository'
 import {createRemoteDirectory, createRemoteFile, deleteRemoteItem, downloadRemoteItem, openRemoteFileInSessionEditor, renameRemoteItem, uploadFileToRemoteDirectory, uploadFolderToRemoteDirectory} from '../../../features/sftp/manage-files/manageSftpFiles'
 import {openContextMenu} from '../../../shared/context-menu'
@@ -49,6 +53,7 @@ import {UiTree} from '../../../shared/ui'
 type SftpTreeNode = SftpItem & {level: number; parentPath: string | null}
 
 const props = defineProps<{items: SftpItem[]; rootPath: string; session: SessionHost | null}>()
+const emit = defineEmits<{selectDirectory: [path: string]}>()
 const expandedPaths = reactive(new Set<string>())
 const loadingPaths = reactive(new Set<string>())
 const childrenByPath = reactive(new Map<string, SftpItem[]>())
@@ -60,22 +65,37 @@ const expandedKeys = computed(() => [...expandedPaths])
 const visibleNodes = computed(() => buildNodes(props.rootPath, props.items, 1, null))
 
 watch(
-  () => [props.rootPath, props.items] as const,
-  ([rootPath, items]) => {
-    childrenByPath.set(rootPath, items)
+  () => props.session?.id ?? '',
+  () => {
+    restoreTreeState()
+  },
+  {immediate: true},
+)
+
+watch(
+  () => [props.rootPath, props.items, props.session?.id] as const,
+  ([rootPath, items, sessionId]) => {
+    childrenByPath.set(rootPath, [...items])
     expandedPaths.add(rootPath)
+    persistTreeStateForSession(sessionId ?? null)
   },
   {immediate: true},
 )
 
 async function selectNode(node: SftpTreeNode) {
   selectedPath.value = node.path
-  if (node.type === 'directory') await toggleNode(node)
+  persistTreeState()
+  if (node.type === 'directory') {
+    emit('selectDirectory', node.path)
+    await toggleNode(node)
+  }
 }
 
 async function openNode(node: SftpTreeNode) {
   selectedPath.value = node.path
+  persistTreeState()
   if (node.type === 'directory') {
+    emit('selectDirectory', node.path)
     await toggleNode(node)
     return
   }
@@ -86,23 +106,31 @@ async function toggleNode(node: SftpTreeNode) {
   if (node.type !== 'directory') return
   if (expandedPaths.has(node.path)) {
     expandedPaths.delete(node.path)
+    persistTreeState()
     return
   }
 
   expandedPaths.add(node.path)
+  persistTreeState()
   if (!childrenByPath.has(node.path)) await loadChildren(node.path)
 }
 
 async function loadChildren(path: string, options: {force?: boolean; silent?: boolean} = {}) {
   if (!props.session || loadingPaths.has(path)) return
+  const session = props.session
   if (!options.force && childrenByPath.has(path)) return
   loadingPaths.add(path)
   if (!options.silent) clearTreeError()
   try {
-    childrenByPath.set(path, await listRemoteDirectory(props.session, path))
+    const children = await listRemoteDirectory(session, path)
+    if (props.session?.id !== session.id) return
+    childrenByPath.set(path, children)
+    persistTreeStateForSession(session.id)
   } catch (error) {
+    if (props.session?.id !== session.id) return
     if (!options.silent) {
       expandedPaths.delete(path)
+      persistTreeStateForSession(session.id)
       treeErrorPath.value = path
       treeError.value = messages.sftp.directoryTree.expandFailed(path, getErrorMessage(error))
     }
@@ -121,6 +149,7 @@ async function retryTreeError() {
   if (!path) return
   clearTreeError()
   expandedPaths.add(path)
+  persistTreeState()
   await loadChildren(path, {force: true})
 }
 
@@ -134,6 +163,8 @@ function buildNodes(parentPath: string, items: SftpItem[], level: number, parent
 
 function openNodeMenu(node: SftpTreeNode, event: MouseEvent) {
   selectedPath.value = node.path
+  persistTreeState()
+  if (node.type === 'directory') emit('selectDirectory', node.path)
   openContextMenu({
     x: event.clientX,
     y: event.clientY,
@@ -224,18 +255,21 @@ function upsertChild(parentPath: string, item: SftpItem) {
   const children = childrenByPath.get(parentPath) ?? []
   childrenByPath.set(parentPath, sortItems([item, ...children.filter((child) => child.id !== item.id)]))
   expandedPaths.add(parentPath)
+  persistTreeState()
 }
 
 function removeChild(parentPath: string, itemId: string) {
   const children = childrenByPath.get(parentPath)
   if (!children) return
   childrenByPath.set(parentPath, children.filter((child) => child.id !== itemId))
+  persistTreeState()
 }
 
 function replaceChild(parentPath: string, oldId: string, item: SftpItem) {
   const children = childrenByPath.get(parentPath)
   if (!children) return
   childrenByPath.set(parentPath, sortItems(children.map((child) => child.id === oldId ? item : child)))
+  persistTreeState()
 }
 
 function moveDirectoryCache(oldPath: string, newPath: string) {
@@ -244,6 +278,28 @@ function moveDirectoryCache(oldPath: string, newPath: string) {
   childrenByPath.delete(oldPath)
   childrenByPath.set(newPath, children.map((child) => ({...child, path: child.path.replace(`${oldPath}/`, `${newPath}/`), id: child.id.replace(`${oldPath}/`, `${newPath}/`)})))
   if (expandedPaths.delete(oldPath)) expandedPaths.add(newPath)
+  persistTreeState()
+}
+
+function restoreTreeState() {
+  expandedPaths.clear()
+  childrenByPath.clear()
+  const treeState = props.session ? getSftpSessionState(props.session.id).tree : sftpState.tree
+  selectedPath.value = treeState.selectedPath
+  for (const path of treeState.expandedPaths) expandedPaths.add(path)
+  for (const [path, children] of Object.entries(treeState.childrenByPath)) childrenByPath.set(path, [...children])
+}
+
+function persistTreeState() {
+  persistTreeStateForSession(props.session?.id ?? null)
+}
+
+function persistTreeStateForSession(sessionId: string | null) {
+  const treeState = sessionId ? getSftpSessionState(sessionId).tree : sftpState.tree
+  treeState.selectedPath = selectedPath.value
+  treeState.expandedPaths = [...expandedPaths]
+  treeState.childrenByPath = Object.fromEntries([...childrenByPath].map(([path, children]) => [path, [...children]]))
+  if (sftpState.connectedSessionId === sessionId) sftpState.tree = treeState
 }
 
 function scheduleSilentRefresh(path: string) {

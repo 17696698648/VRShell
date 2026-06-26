@@ -14,4 +14,11 @@ describe('SftpDirectoryTree inline error contract', () => {
     expect(source).toContain('treeError.value = messages.sftp.directoryTree.expandFailed(path, getErrorMessage(error))')
     expect(source).toContain('await loadChildren(path, {force: true})')
   })
+
+  it('persists expanded children into the originating session cache', () => {
+    expect(source).toContain('const session = props.session')
+    expect(source).toContain('if (props.session?.id !== session.id) return')
+    expect(source).toContain('persistTreeStateForSession(session.id)')
+    expect(source).toContain('getSftpSessionState(sessionId).tree')
+  })
 })

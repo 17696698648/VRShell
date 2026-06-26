@@ -1,6 +1,5 @@
 import {computed} from 'vue'
 import {sessionState} from '../../../entities/session'
-import {sftpState} from '../../../entities/sftp'
 import {taskItems} from '../../../entities/task'
 import type {WorkspacePanel} from '../../../entities/workspace'
 
@@ -18,7 +17,6 @@ export function useActivityBarBadges() {
 
     return {
       sessions: failedSessions > 0 ? {count: failedSessions, intent: 'danger', title: `${failedSessions} sessions failed`} : undefined,
-      sftp: sftpState.error ? {count: 1, intent: 'danger', title: sftpState.error} : undefined,
       tasks: getTaskBadge(runningTasks, failedTasks),
     }
   })

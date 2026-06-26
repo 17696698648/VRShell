@@ -53,3 +53,9 @@ export function setSessionEditorSplitRatio(sessionId: string, ratio: number) {
 export function getSessionEditorSplitRatio(sessionId: string) {
   return sessionEditorState.splitRatioBySession[sessionId] ?? 42
 }
+
+export function clearSessionEditorState(sessionId: string) {
+  sessionEditorState.files = sessionEditorState.files.filter((file) => file.sessionId !== sessionId)
+  delete sessionEditorState.activeFileIdBySession[sessionId]
+  delete sessionEditorState.splitRatioBySession[sessionId]
+}

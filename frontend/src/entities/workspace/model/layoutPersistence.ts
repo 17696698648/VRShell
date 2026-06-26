@@ -40,11 +40,12 @@ export function getDefaultWorkspaceLayout(): WorkspaceLayoutState {
 
 export function normalizeWorkspaceLayout(input: Partial<WorkspaceLayoutState> | null | undefined): WorkspaceLayoutState {
   const {activeBottom, recentBottom} = normalizeDockPanels(input)
+  const legacySftpPanel = (input as Record<string, unknown> | null | undefined)?.activePanel === 'sftp'
   return {
     activeBottomDockPanel: activeBottom,
     activeMainView: isOneOf(input?.activeMainView, workspaceMainViews) ? input.activeMainView : defaultLayout.activeMainView,
-    activePanel: isOneOf(input?.activePanel, workspacePanels) ? input.activePanel : defaultLayout.activePanel,
-    activeRightPanel: isOneOf(input?.activeRightPanel, workspaceRightPanels) ? input.activeRightPanel : defaultLayout.activeRightPanel,
+    activePanel: legacySftpPanel ? 'sessions' : isOneOf(input?.activePanel, workspacePanels) ? input.activePanel : defaultLayout.activePanel,
+    activeRightPanel: legacySftpPanel ? 'sftp' : isOneOf(input?.activeRightPanel, workspaceRightPanels) ? input.activeRightPanel : defaultLayout.activeRightPanel,
     bottomPanelHeight: clampNumber(input?.bottomPanelHeight, 160, 520, defaultLayout.bottomPanelHeight),
     bottomPanelVisible: normalizeBottomVisibility(input?.bottomPanelVisible, activeBottom),
     compactMode: typeof input?.compactMode === 'boolean' ? input.compactMode : defaultLayout.compactMode,
@@ -55,8 +56,8 @@ export function normalizeWorkspaceLayout(input: Partial<WorkspaceLayoutState> | 
     mainSplitRatio: clampNumber(input?.mainSplitRatio, 30, 75, defaultLayout.mainSplitRatio),
     panelPlacement: normalizePanelPlacement(input?.panelPlacement),
     recentBottomDockPanel: recentBottom,
-    recentRightPanel: isOneOf(input?.recentRightPanel, workspaceRightPanels) ? input.recentRightPanel : defaultLayout.recentRightPanel,
-    rightPanelVisible: typeof input?.rightPanelVisible === 'boolean' ? input.rightPanelVisible : defaultLayout.rightPanelVisible,
+    recentRightPanel: legacySftpPanel ? 'sftp' : isOneOf(input?.recentRightPanel, workspaceRightPanels) ? input.recentRightPanel : defaultLayout.recentRightPanel,
+    rightPanelVisible: legacySftpPanel ? true : typeof input?.rightPanelVisible === 'boolean' ? input.rightPanelVisible : defaultLayout.rightPanelVisible,
     rightPanelWidth: clampNumber(input?.rightPanelWidth, 220, 420, defaultLayout.rightPanelWidth),
     sidebarVisible: typeof input?.sidebarVisible === 'boolean' ? input.sidebarVisible : defaultLayout.sidebarVisible,
     sidebarWidth: clampNumber(input?.sidebarWidth, 220, 420, defaultLayout.sidebarWidth),

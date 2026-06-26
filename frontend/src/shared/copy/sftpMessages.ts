@@ -12,6 +12,7 @@ export const sftpMessages = {
     refreshDirectory: 'Refresh directory',
     createRemoteDirectoryTitle: 'Create remote directory',
     directoryName: 'Directory name',
+    cachedState: 'Restored tree state for this session',
   },
   toolbar: {
     actions: 'SFTP actions',
@@ -55,6 +56,7 @@ export const sftpMessages = {
     loading: 'Loading...',
     retry: 'Retry',
     dismiss: 'Dismiss',
+    errorTitle: 'Directory expansion failed',
     expandFailed: (path: string, detail: string) => `Failed to expand ${path}: ${detail}`,
   },
   contextMenu: {

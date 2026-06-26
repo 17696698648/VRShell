@@ -327,11 +327,39 @@
 }
 
 .ui-path-breadcrumb {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  position: relative;
+  width: 100%;
   min-width: 0;
+  padding-right: 50px;
   gap: var(--space-1);
   align-items: center;
   overflow: hidden;
+}
+
+.ui-path-breadcrumb--single-action {
+  padding-right: 26px;
+}
+
+.ui-path-breadcrumb__trail {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.ui-path-breadcrumb__actions {
+  display: inline-flex;
+  position: absolute;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  align-items: center;
+  justify-self: end;
+  justify-content: flex-end;
+  gap: 2px;
+  flex: 0 0 auto;
 }
 
 .ui-path-breadcrumb button,
@@ -348,8 +376,8 @@
 .ui-path-breadcrumb__action {
   display: inline-grid;
   place-items: center;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   flex: 0 0 auto;
   border-radius: var(--radius-sm);
 }
@@ -361,7 +389,7 @@
 }
 
 .ui-path-breadcrumb__input {
-  min-width: 160px;
+  min-width: 0;
 }
 
 .ui-path-breadcrumb__input input {

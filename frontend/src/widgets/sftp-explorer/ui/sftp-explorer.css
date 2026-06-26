@@ -57,13 +57,18 @@
 .sftp-explorer__utility {
   display: grid;
   gap: 6px;
+  margin-top: 2px;
+  padding-top: 8px;
   padding-inline: var(--sftp-explorer-edge);
+  border-top: 1px solid var(--color-border-subtle);
 }
 
 .sftp-explorer .breadcrumbs {
+  width: 100%;
   min-width: 0;
   margin-inline: 0;
-  padding: 6px 8px;
+  min-height: 30px;
+  padding: 3px 5px 3px 8px;
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--color-bg-elevated) 72%, var(--color-bg-panel));
@@ -98,6 +103,31 @@
   white-space: nowrap;
 }
 
+.sftp-path-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 0 2px;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.sftp-path-status__dot {
+  width: 5px;
+  height: 5px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--color-accent-strong);
+}
+
+.sftp-path-status span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .sftp-explorer .ui-error-state {
   margin-inline: var(--explorer-edge);
 }
@@ -117,16 +147,45 @@
 }
 
 .sftp-directory-tree__error {
-  display: flex;
-  gap: var(--space-2);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px;
   align-items: center;
-  justify-content: space-between;
   margin: 0 var(--sftp-explorer-edge) var(--space-2);
   padding: var(--space-2);
-  border: 1px solid var(--color-danger);
+  border: 1px solid color-mix(in srgb, var(--color-danger) 62%, var(--color-border-subtle));
   border-radius: var(--radius-md);
-  color: var(--color-danger);
+  background: color-mix(in srgb, var(--color-danger) 8%, var(--color-bg-panel));
+  color: var(--color-text-secondary);
   font-size: var(--font-size-xs);
+}
+
+.sftp-directory-tree__error-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-danger) 18%, transparent);
+  color: var(--color-danger);
+  font-weight: 800;
+}
+
+.sftp-directory-tree__error-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.sftp-directory-tree__error-copy strong {
+  color: var(--color-text-primary);
+}
+
+.sftp-directory-tree__error-copy span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sftp-directory-tree__error button {
@@ -146,6 +205,7 @@
 
 .sftp-directory-tree__item {
   display: inline-flex;
+  position: relative;
   align-items: center;
   gap: 8px;
   width: 100%;
@@ -158,6 +218,20 @@
   color: var(--color-text-secondary);
   text-align: left;
   cursor: pointer;
+  transition:
+    background var(--duration-normal) var(--ease-standard),
+    border-color var(--duration-normal) var(--ease-standard),
+    color var(--duration-normal) var(--ease-standard);
+}
+
+.sftp-directory-tree__item::before {
+  content: '';
+  position: absolute;
+  inset-block: 7px;
+  left: 3px;
+  width: 2px;
+  border-radius: 999px;
+  background: transparent;
 }
 
 .sftp-directory-tree__item:hover,
@@ -165,6 +239,16 @@
   border-color: var(--color-border-subtle);
   background: color-mix(in srgb, var(--list-row-hover-bg) 82%, var(--color-bg-panel));
   color: var(--color-text-primary);
+}
+
+.sftp-directory-tree__item[aria-selected='true'] {
+  border-color: color-mix(in srgb, var(--color-accent) 28%, var(--color-border-subtle));
+  background: color-mix(in srgb, var(--list-row-selected-bg) 86%, var(--color-bg-panel));
+  color: var(--color-text-primary);
+}
+
+.sftp-directory-tree__item[aria-selected='true']::before {
+  background: var(--color-accent);
 }
 
 .sftp-directory-tree__item svg {
@@ -364,6 +448,11 @@
   overflow: hidden;
 }
 
+.sidebar-right .sftp-split-view {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(96px, 0.42fr) minmax(0, 1fr);
+}
+
 .sftp-split-view .sftp-tree {
   padding-inline: 0;
 }
@@ -420,28 +509,6 @@
   min-height: 120px;
   padding: 18px 10px;
   border-radius: var(--radius-lg);
-}
-
-.sftp-explorer .task-mini-panel {
-  margin-inline: 0;
-  padding: 9px;
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--color-bg-panel) 94%, var(--color-bg-shell));
-  box-shadow: none;
-}
-
-.sftp-explorer .task-mini-panel header button {
-  border: 1px solid var(--color-border-subtle);
-  background: var(--color-bg-hover);
-  color: var(--color-text-secondary);
-}
-
-.sftp-explorer .task-mini-panel__item {
-  padding: 7px 8px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--color-bg-elevated) 58%, transparent);
 }
 
 @keyframes sftp-skeleton {

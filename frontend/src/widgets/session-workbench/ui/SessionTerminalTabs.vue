@@ -1,6 +1,6 @@
 <template>
   <div class="session-terminal-tabs-bar">
-    <UiTabs class="session-terminal-tabs" :active-id="terminalState.activeTerminalId" :items="tabItems" label="Terminal tabs" @activate="terminalState.activeTerminalId = $event" @close="handleClose" @contextmenu="openTabMenu" @reorder="reorderTerminalTabs">
+    <UiTabs class="session-terminal-tabs" :active-id="terminalState.activeTerminalId" :items="tabItems" label="Terminal tabs" @activate="activateTerminalTab" @close="handleClose" @contextmenu="openTabMenu" @reorder="reorderTerminalTabs">
       <template #item="{item}">
         <span class="session-terminal-tabs__identity">
           <AlertTriangle v-if="item.status === 'error'" :size="13" class="session-terminal-tabs__warning" aria-hidden="true" />
@@ -27,6 +27,7 @@
 <script setup lang="ts">
 import {computed, nextTick, ref} from 'vue'
 import {AlertTriangle, Plus} from '@lucide/vue'
+import {setActiveSession} from '../../../entities/session'
 import {reorderTerminalTabs, terminalState} from '../../../entities/terminal'
 import {closeTerminalTab} from '../../../features/terminal/close-terminal/closeTerminalTab'
 import {reconnectTerminalTab} from '../../../features/terminal/manage-connection/manageTerminalConnection'
@@ -76,6 +77,12 @@ function cancelRename() {
 function handleClose(id: string) {
   const tab = currentSessionTerminals.value.find((item) => item.id === id)
   if (tab) closeTerminalTab(tab, {skipConfirm: true})
+}
+
+function activateTerminalTab(id: string) {
+  terminalState.activeTerminalId = id
+  const tab = terminalState.tabs.find((item) => item.id === id)
+  if (tab) setActiveSession(tab.sessionId)
 }
 
 function openTabMenu(id: string, event: MouseEvent) {

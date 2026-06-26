@@ -1,5 +1,5 @@
 <template>
-  <UiPathBreadcrumb class="breadcrumbs" :label="messages.sftp.directoryTree.breadcrumbs" :path="path" @open="emit('open', $event)" />
+  <UiPathBreadcrumb class="breadcrumbs" :editable="false" :label="messages.sftp.directoryTree.breadcrumbs" :path="path" @open="emit('open', $event)" />
 </template>
 
 <script setup lang="ts">

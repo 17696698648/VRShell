@@ -1,22 +1,62 @@
-﻿import {computed} from 'vue'
-import {getActiveSession} from '../../../entities/session'
-import {sftpState, setSftpItems} from '../../../entities/sftp'
+import {computed, watch} from 'vue'
+import {sessionState, setActiveSession} from '../../../entities/session'
+import {activateSftpSessionState, getSftpSessionState, persistActiveSftpState, sftpState, type SftpItem} from '../../../entities/sftp'
 import {listRemoteDirectory} from '../../../entities/sftp/api/sftpRepository'
+import {terminalState} from '../../../entities/terminal'
+
+const refreshVersions = new Map<string, number>()
 
 export function useSftpExplorer() {
-  const activeSession = computed(() => getActiveSession())
+  const activeSession = computed(() => sessionState.sessions.find((session) => session.id === sessionState.activeSessionId) ?? null)
+  const hasConnectedTerminal = computed(() => {
+    const session = activeSession.value
+    if (!session) return false
+    return terminalState.tabs.some((tab) => tab.sessionId === session.id && tab.status === 'connected')
+  })
 
-  async function refresh(path = sftpState.path) {
+  watch(
+    () => terminalState.activeTerminalId,
+    (terminalId) => {
+      const tab = terminalState.tabs.find((item) => item.id === terminalId)
+      if (tab && tab.sessionId !== sessionState.activeSessionId) setActiveSession(tab.sessionId)
+    },
+    {immediate: true},
+  )
+
+  watch([activeSession, hasConnectedTerminal], ([session, connected]) => {
+    if (!session || !connected) return
+    if (sftpState.connectedSessionId !== session.id) {
+      persistActiveSftpState()
+      activateSftpSessionState(session.id)
+    }
+    if (!sftpState.initialized) void refresh(sftpState.path, {automatic: true})
+  }, {immediate: true})
+
+  async function refresh(path = sftpState.path, options: {automatic?: boolean} = {}) {
     const session = activeSession.value
     if (!session) return
+    const sessionState = getSftpSessionState(session.id)
+    if (options.automatic && sessionState.loading) return
+    const version = (refreshVersions.get(session.id) ?? 0) + 1
+    refreshVersions.set(session.id, version)
+    if (sftpState.connectedSessionId !== session.id) activateSftpSessionState(session.id)
+    sessionState.loading = true
     sftpState.loading = true
     sftpState.error = ''
+    persistActiveSftpState()
     try {
-      setSftpItems(path, await listRemoteDirectory(session, path))
+      const items = await listRemoteDirectory(session, path)
+      if (refreshVersions.get(session.id) !== version) return
+      applyDirectoryState(session.id, path, items)
+      if (activeSession.value?.id === session.id) syncActiveDirectoryState(session.id)
     } catch (error) {
-      sftpState.error = getErrorMessage(error)
+      if (refreshVersions.get(session.id) !== version) return
+      applyDirectoryError(session.id, getErrorMessage(error))
     } finally {
+      if (refreshVersions.get(session.id) !== version) return
+      sessionState.loading = false
       sftpState.loading = false
+      persistActiveSftpState()
     }
   }
 
@@ -31,4 +71,31 @@ export function useSftpExplorer() {
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error)
+}
+
+function applyDirectoryState(sessionId: string, path: string, items: SftpItem[]) {
+  Object.assign(getSftpSessionState(sessionId), {
+    connectedSessionId: sessionId,
+    error: '',
+    initialized: true,
+    items,
+    loading: false,
+    path,
+  })
+}
+
+function applyDirectoryError(sessionId: string, error: string) {
+  Object.assign(getSftpSessionState(sessionId), {error, initialized: true, loading: false})
+  if (sftpState.connectedSessionId === sessionId) Object.assign(sftpState, {error, initialized: true})
+}
+
+function syncActiveDirectoryState(sessionId: string) {
+  const sessionState = getSftpSessionState(sessionId)
+  Object.assign(sftpState, {
+    connectedSessionId: sessionState.connectedSessionId,
+    error: sessionState.error,
+    initialized: sessionState.initialized,
+    items: sessionState.items,
+    path: sessionState.path,
+  })
 }

@@ -31,13 +31,12 @@
 
 <script setup lang="ts">
 import {X} from '@lucide/vue'
-import {computed} from 'vue'
+import {computed, ref} from 'vue'
+import {terminalState} from '../../../entities/terminal'
 import {openContextMenu} from '../../../shared/context-menu'
 import {useSessionWorkbench} from '../model/useSessionWorkbench'
 
 const {activeSession, openSessions, activateSession, closeSessionTab} = useSessionWorkbench()
-import {terminalState} from '../../../entities/terminal'
-import {ref} from 'vue'
 
 const draggedId = ref<string | null>(null)
 
@@ -66,19 +65,14 @@ function getSessionStatus(sessionId: string): SessionStatus {
 
 function handleDrop(targetId: string) {
   if (draggedId.value && draggedId.value !== targetId) {
-    // Reorder sessions by swapping positions
     const sourceIdx = openSessions.value.findIndex((s) => s.id === draggedId.value)
     const targetIdx = openSessions.value.findIndex((s) => s.id === targetId)
-    if (sourceIdx >= 0 && targetIdx >= 0) {
-      // For now, just activate the dropped session since session order is determined by terminal tabs
-      activateSession(draggedId.value)
-    }
+    if (sourceIdx >= 0 && targetIdx >= 0) activateSession(draggedId.value)
   }
   draggedId.value = null
 }
 
 function handleAuxClick(event: MouseEvent, sessionId: string) {
-  // Middle button (button === 1) closes the tab
   if (event.button === 1) {
     event.preventDefault()
     closeSessionTab(sessionId)
@@ -88,7 +82,7 @@ function handleAuxClick(event: MouseEvent, sessionId: string) {
 function openSessionTabMenu(sessionId: string, event: MouseEvent) {
   const currentIndex = openSessions.value.findIndex((s) => s.id === sessionId)
   const sessionsToRight = openSessions.value.slice(currentIndex + 1)
-  
+
   openContextMenu({
     x: event.clientX,
     y: event.clientY,

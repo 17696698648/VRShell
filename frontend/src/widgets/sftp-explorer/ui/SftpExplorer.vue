@@ -15,7 +15,11 @@
     </template>
     <div class="explorer-layout sftp-explorer__layout">
       <section class="explorer-utility sftp-explorer__utility">
-        <SftpBreadcrumbs :path="sftpState.path" @open="refresh" />
+        <SftpBreadcrumbs :path="breadcrumbPath" @open="openBreadcrumbPath" />
+        <div v-if="activeSession && hasRestoredTreeState" class="sftp-path-status" role="status">
+          <span class="sftp-path-status__dot" aria-hidden="true" />
+          <span>{{ messages.sftp.explorer.cachedState }}</span>
+        </div>
         <small v-if="!activeSession" class="sftp-explorer__hint">{{ messages.sftp.explorer.hint }}</small>
       </section>
       <section class="explorer-content sftp-explorer__body">
@@ -41,22 +45,20 @@
             <UiButton v-if="activeSession" size="sm" variant="primary" @click="refresh()">{{ messages.sftp.explorer.refreshDirectory }}</UiButton>
           </template>
         </EmptyState>
-        <SftpDirectoryTree v-else-if="viewMode === 'tree'" :items="sftpState.items" :root-path="sftpState.path" :session="activeSession" />
+        <SftpDirectoryTree v-else-if="viewMode === 'tree'" :key="activeSession?.id ?? 'no-session'" :items="sftpState.items" :root-path="sftpState.path" :session="activeSession" @select-directory="selectedTreePath = $event" />
         <div v-else-if="viewMode === 'split'" class="sftp-split-view">
           <SftpDirectoryPane :items="sftpState.items" @open-directory="refresh" />
           <SftpTree :items="sftpState.items" display-mode="split" @open-directory="refresh" />
         </div>
         <SftpTree v-else :items="sftpState.items" display-mode="list" @open-directory="refresh" />
       </section>
-      <SftpTaskMiniPanel />
     </div>
   </UiWorkbenchPanel>
 </template>
 
 <script setup lang="ts">
 import {FolderTree} from '@lucide/vue'
-import {computed} from 'vue'
-import {getActiveSession} from '../../../entities/session'
+import {computed, ref, watch} from 'vue'
 import {createRemoteDirectory, uploadFileToRemoteDirectory} from '../../../features/sftp/manage-files/manageSftpFiles'
 import {messages} from '../../../shared/copy'
 import {requestPrompt} from '../../../shared/dialog'
@@ -66,15 +68,26 @@ import {useSftpViewMode} from '../model/sftpViewMode'
 import SftpBreadcrumbs from './SftpBreadcrumbs.vue'
 import SftpDirectoryPane from './SftpDirectoryPane.vue'
 import SftpDirectoryTree from './SftpDirectoryTree.vue'
-import SftpTaskMiniPanel from './SftpTaskMiniPanel.vue'
 import SftpToolbar from './SftpToolbar.vue'
 import SftpTree from './SftpTree.vue'
 
 defineProps<{compact?: boolean}>()
-const {sftpState, refresh, openParentDirectory} = useSftpExplorer()
+const {sftpState, activeSession, refresh, openParentDirectory} = useSftpExplorer()
 const {viewMode} = useSftpViewMode()
-const activeSession = computed(() => getActiveSession())
+const selectedTreePath = ref<string | null>(null)
 const sftpSubtitle = computed(() => activeSession.value ? `${activeSession.value.name} · ${activeSession.value.username}@${activeSession.value.host}:${activeSession.value.port}` : messages.sftp.explorer.noSelectedSession)
+const hasRestoredTreeState = computed(() => activeSession.value && sftpState.tree.expandedPaths.length > 1)
+const breadcrumbPath = computed(() => viewMode.value === 'tree' ? selectedTreePath.value ?? sftpState.path : sftpState.path)
+
+watch(() => [activeSession.value?.id, sftpState.path] as const, () => {
+  selectedTreePath.value = null
+})
+
+function openBreadcrumbPath(path: string) {
+  selectedTreePath.value = null
+  return refresh(path)
+}
+
 async function handleMkdir() {
   const name = await requestPrompt({title: messages.sftp.explorer.createRemoteDirectoryTitle, label: messages.sftp.explorer.directoryName, confirmLabel: messages.sftp.dialogs.create})
   if (name) await createRemoteDirectory(name)

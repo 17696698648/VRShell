@@ -30,7 +30,7 @@
 <script setup lang="ts">
 import {File, Folder} from '@lucide/vue'
 import {computed, ref} from 'vue'
-import {sftpState, type SftpItem} from '../../../entities/sftp'
+import {persistActiveSftpState, sftpState, type SftpItem} from '../../../entities/sftp'
 import {createRemoteDirectory, createRemoteFile, deleteRemoteItem, downloadRemoteItem, openRemoteFileInSessionEditor, renameRemoteItem, uploadFileToRemoteDirectory, uploadFolderToRemoteDirectory} from '../../../features/sftp/manage-files/manageSftpFiles'
 import {openContextMenu} from '../../../shared/context-menu'
 import {messages} from '../../../shared/copy'
@@ -43,7 +43,7 @@ const emit = defineEmits<{openDirectory: [path: string]}>()
 type SortKey = 'type' | 'name' | 'size' | 'modifiedAt'
 type SortDirection = 'asc' | 'desc'
 
-const selectedItemId = ref<string | null>(null)
+const selectedItemId = computed(() => sftpState.selectedItemId || null)
 const sortKey = ref<SortKey>('name')
 const sortDirection = ref<SortDirection>('asc')
 const columns: UiDataGridColumn[] = [
@@ -62,8 +62,8 @@ const sortedItems = computed(() => {
 })
 
 function selectItem(item: SftpItem) {
-  selectedItemId.value = item.id
   sftpState.selectedItemId = item.id
+  persistActiveSftpState()
 }
 
 async function openItem(item: SftpItem) {
