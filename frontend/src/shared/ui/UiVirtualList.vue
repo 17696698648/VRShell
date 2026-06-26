@@ -1,6 +1,6 @@
 <template>
   <div ref="rootRef" class="ui-virtual-list" :style="{height}" @scroll="onScroll">
-    <div class="ui-virtual-list__spacer" :style="{height: `${totalHeight}px`}">
+    <div class="ui-virtual-list__spacer" :style="{height: `${totalHeight}px`}" :data-scroll-height="totalHeight">
       <div class="ui-virtual-list__window" :style="{transform: `translateY(${offsetY}px)`}">
         <div v-for="item in visibleItems" :key="getKey(item.item, item.index)" class="ui-virtual-list__item" :style="{height: `${itemHeight}px`}">
           <slot :item="item.item" :index="item.index" />

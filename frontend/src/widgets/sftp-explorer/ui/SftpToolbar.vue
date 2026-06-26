@@ -11,7 +11,7 @@
 </template>
 
 <script setup lang="ts">
-import {Columns3, FolderTree, List, ArrowUp, FolderPlus, RefreshCw, Upload} from '@lucide/vue'
+import {ArrowUp, FolderPlus, FolderTree, List, RefreshCw, Upload} from '@lucide/vue'
 import {messages} from '../../../shared/copy'
 import {UiIconButton, UiToolbar, UiToolbarButtonGroup, type UiToolbarButtonGroupItem} from '../../../shared/ui'
 import type {SftpViewMode} from '../model/sftpViewMode'
@@ -22,6 +22,5 @@ defineEmits<{mkdir: []; refresh: []; up: []; upload: []; 'update:viewMode': [mod
 const viewModeItems: UiToolbarButtonGroupItem[] = [
   {id: 'tree', icon: FolderTree, label: messages.sftp.toolbar.tree, tooltip: messages.sftp.toolbar.treeTooltip},
   {id: 'list', icon: List, label: messages.sftp.toolbar.list, tooltip: messages.sftp.toolbar.listTooltip},
-  {id: 'split', icon: Columns3, label: messages.sftp.toolbar.split, tooltip: messages.sftp.toolbar.splitTooltip},
 ]
 </script>

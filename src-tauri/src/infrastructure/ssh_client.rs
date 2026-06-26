@@ -1,12 +1,12 @@
 //! SSH Client Infrastructure
-//! 
+//!
 //! 职责：
 //! - 封装 SSH 连接建立、认证、Channel 操作
 //! - 提供非阻塞 I/O 读写能力
 //! - 与 terminal_service 分离，service 管生命周期，这里管 SSH 细节
 
 use crate::{
-    domain::terminal::{ConnectTerminalRequest},
+    domain::terminal::ConnectTerminalRequest,
     error::{BackendError, BackendResult},
     infrastructure::ssh_auth::{self, SshAuthParams},
 };
@@ -40,21 +40,21 @@ impl SshClient {
         tracing::info!(host, port, "initiating SSH phase 1: TCP + handshake");
         let stream = Self::open_tcp_stream(host, port)?;
         let session = Self::create_ssh_session(stream)?;
-        
+
         // 获取服务器 host key
-        let (raw_key, key_type) = session.host_key().ok_or_else(|| {
-            BackendError::validation("failed to retrieve server host key")
-        })?;
-        
+        let (raw_key, key_type) = session
+            .host_key()
+            .ok_or_else(|| BackendError::validation("failed to retrieve server host key"))?;
+
         let fingerprint = Self::compute_host_key_fingerprint(&raw_key);
         let key_type_str = Self::host_key_type_to_string(key_type);
-        
+
         let info = HostKeyInfo {
             key_type: key_type_str,
             fingerprint,
             raw_key: raw_key.to_vec(),
         };
-        
+
         tracing::info!(host, port, key_type = %info.key_type, fingerprint = %info.fingerprint, "SSH phase 1 complete: host key acquired");
         Ok((session, info))
     }
@@ -72,8 +72,8 @@ impl SshClient {
 
     /// 计算 host key 的 SHA256 fingerprint
     fn compute_host_key_fingerprint(raw_key: &[u8]) -> String {
-        use sha2::{Digest, Sha256};
         use base64::{engine::general_purpose::STANDARD, Engine as _};
+        use sha2::{Digest, Sha256};
         let hash = Sha256::digest(raw_key);
         format!("SHA256:{}", STANDARD.encode(hash))
     }
@@ -94,15 +94,19 @@ impl SshClient {
     pub fn read_output(runtime: &mut SshRuntime) -> BackendResult<String> {
         // 保持 session 活跃
         let _keep_alive = runtime.session.authenticated();
-        
+
         let mut output = Vec::new();
         Self::read_stream_to_buffer(&mut runtime.channel, &mut output, "terminal output")?;
-        Self::read_stream_to_buffer(&mut runtime.channel.stderr(), &mut output, "terminal stderr")?;
-        
+        Self::read_stream_to_buffer(
+            &mut runtime.channel.stderr(),
+            &mut output,
+            "terminal stderr",
+        )?;
+
         if runtime.channel.eof() {
             output.extend_from_slice(b"\r\n[remote shell closed]\r\n");
         }
-        
+
         Ok(String::from_utf8_lossy(&output).into_owned())
     }
 
@@ -169,14 +173,23 @@ impl SshClient {
     }
 
     /// 测量 TCP 连接延迟（毫秒），支持自定义超时
-    pub fn measure_tcp_latency(host: &str, port: u16, timeout_ms: Option<u64>) -> BackendResult<u64> {
+    pub fn measure_tcp_latency(
+        host: &str,
+        port: u16,
+        timeout_ms: Option<u64>,
+    ) -> BackendResult<u64> {
         use std::time::Instant;
         tracing::debug!(host, port, "measuring TCP latency");
         let timeout = timeout_ms.map(Duration::from_millis);
         let start = Instant::now();
         let _stream = Self::open_tcp_stream_with_timeout(host, port, timeout)?;
         let elapsed = start.elapsed();
-        tracing::debug!(host, port, latency_ms = elapsed.as_millis() as u64, "TCP latency measured");
+        tracing::debug!(
+            host,
+            port,
+            latency_ms = elapsed.as_millis() as u64,
+            "TCP latency measured"
+        );
         Ok(elapsed.as_millis() as u64)
     }
 
@@ -186,30 +199,36 @@ impl SshClient {
         Self::open_tcp_stream_with_timeout(host, port, Some(Duration::from_secs(12)))
     }
 
-    fn open_tcp_stream_with_timeout(host: &str, port: u16, timeout: Option<Duration>) -> BackendResult<TcpStream> {
+    fn open_tcp_stream_with_timeout(
+        host: &str,
+        port: u16,
+        timeout: Option<Duration>,
+    ) -> BackendResult<TcpStream> {
         let timeout = timeout.unwrap_or(Duration::from_secs(12));
         let address = (host, port)
             .to_socket_addrs()
             .map_err(|error| BackendError::validation(format!("failed to resolve host: {error}")))?
             .next()
             .ok_or_else(|| BackendError::validation("host did not resolve to an address"))?;
-        
-        let stream = TcpStream::connect_timeout(&address, timeout)
-            .map_err(|error| BackendError::validation(format!("failed to connect ssh socket: {error}")))?;
-        
-        stream
-            .set_read_timeout(Some(timeout))
-            .map_err(|error| BackendError::validation(format!("failed to configure ssh socket: {error}")))?;
-        stream
-            .set_write_timeout(Some(timeout))
-            .map_err(|error| BackendError::validation(format!("failed to configure ssh socket: {error}")))?;
-        
+
+        let stream = TcpStream::connect_timeout(&address, timeout).map_err(|error| {
+            BackendError::validation(format!("failed to connect ssh socket: {error}"))
+        })?;
+
+        stream.set_read_timeout(Some(timeout)).map_err(|error| {
+            BackendError::validation(format!("failed to configure ssh socket: {error}"))
+        })?;
+        stream.set_write_timeout(Some(timeout)).map_err(|error| {
+            BackendError::validation(format!("failed to configure ssh socket: {error}"))
+        })?;
+
         Ok(stream)
     }
 
     fn create_ssh_session(stream: TcpStream) -> BackendResult<SshSession> {
-        let mut session = SshSession::new()
-            .map_err(|error| BackendError::validation(format!("failed to create ssh session: {error}")))?;
+        let mut session = SshSession::new().map_err(|error| {
+            BackendError::validation(format!("failed to create ssh session: {error}"))
+        })?;
         session.set_tcp_stream(stream);
         session
             .handshake()
@@ -230,18 +249,18 @@ impl SshClient {
     }
 
     fn open_shell_channel(session: &SshSession) -> BackendResult<Channel> {
-        let mut channel = session
-            .channel_session()
-            .map_err(|error| BackendError::validation(format!("failed to open ssh channel: {error}")))?;
-        
+        let mut channel = session.channel_session().map_err(|error| {
+            BackendError::validation(format!("failed to open ssh channel: {error}"))
+        })?;
+
         channel
             .request_pty("xterm-256color", None, Some((80, 24, 0, 0)))
             .map_err(|error| BackendError::validation(format!("failed to request pty: {error}")))?;
-        
-        channel
-            .shell()
-            .map_err(|error| BackendError::validation(format!("failed to start remote shell: {error}")))?;
-        
+
+        channel.shell().map_err(|error| {
+            BackendError::validation(format!("failed to start remote shell: {error}"))
+        })?;
+
         Ok(channel)
     }
 

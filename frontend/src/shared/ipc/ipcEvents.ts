@@ -44,6 +44,8 @@ export interface HostKeyRequestedEvent {
   port: number
   fingerprint: string
   keyType: string
+  reason?: 'unknown' | 'changed'
+  knownFingerprint?: string | null
 }
 
 export async function listenTypedEvent<K extends keyof IpcEventMap>(eventName: K, handler: (payload: IpcEventMap[K]) => void) {

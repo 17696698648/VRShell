@@ -11,30 +11,32 @@
         <button type="button" @click="clearTreeError">{{ messages.sftp.directoryTree.dismiss }}</button>
       </div>
     </div>
-    <UiTree
-      class="sftp-directory-tree"
-      :expanded-keys="expandedKeys"
-      :get-key="(node) => node.path"
-      :get-level="(node) => node.level"
-      :get-parent-key="(node) => node.parentPath"
-      :items="visibleNodes"
-      :selected-key="selectedPath"
-      label="Remote directory tree"
-      @select="selectNode"
-      @toggle="toggleNode"
-    >
-      <template #default="{item, treeItemProps}">
-        <button v-bind="treeItemProps" class="sftp-directory-tree__item" type="button" :title="item.path" @contextmenu.prevent="openNodeMenu(item, $event)" @dblclick="openNode(item)" @keydown.enter.prevent="openNode(item)">
-          <ChevronDown v-if="item.type === 'directory' && expandedPaths.has(item.path)" class="sftp-directory-tree__chevron" :size="14" aria-hidden="true" />
-          <ChevronRight v-else-if="item.type === 'directory'" class="sftp-directory-tree__chevron" :size="14" aria-hidden="true" />
-          <span v-else class="sftp-directory-tree__chevron" aria-hidden="true" />
-          <Folder v-if="item.type === 'directory'" :size="16" aria-hidden="true" />
-          <File v-else :size="16" aria-hidden="true" />
-          <span>{{ item.name }}</span>
-          <small v-if="loadingPaths.has(item.path)">{{ messages.sftp.directoryTree.loading }}</small>
-        </button>
-      </template>
-    </UiTree>
+    <UiScrollArea axis="y">
+      <UiTree
+        class="sftp-directory-tree"
+        :expanded-keys="expandedKeys"
+        :get-key="(node) => node.path"
+        :get-level="(node) => node.level"
+        :get-parent-key="(node) => node.parentPath"
+        :items="visibleNodes"
+        :selected-key="selectedPath"
+        label="Remote directory tree"
+        @select="selectNode"
+        @toggle="toggleNode"
+      >
+        <template #default="{item, treeItemProps}">
+          <button v-bind="treeItemProps" class="sftp-directory-tree__item" type="button" :title="item.path" @contextmenu.prevent="openNodeMenu(item, $event)" @dblclick="openNode(item)" @keydown.enter.prevent="openNode(item)">
+            <ChevronDown v-if="item.type === 'directory' && expandedPaths.has(item.path)" class="sftp-directory-tree__chevron" :size="14" aria-hidden="true" />
+            <ChevronRight v-else-if="item.type === 'directory'" class="sftp-directory-tree__chevron" :size="14" aria-hidden="true" />
+            <span v-else class="sftp-directory-tree__chevron" aria-hidden="true" />
+            <Folder v-if="item.type === 'directory'" :size="16" aria-hidden="true" />
+            <File v-else :size="16" aria-hidden="true" />
+            <span>{{ item.name }}</span>
+            <small v-if="loadingPaths.has(item.path)">{{ messages.sftp.directoryTree.loading }}</small>
+          </button>
+        </template>
+      </UiTree>
+    </UiScrollArea>
   </div>
 </template>
 
@@ -48,7 +50,7 @@ import {createRemoteDirectory, createRemoteFile, deleteRemoteItem, downloadRemot
 import {openContextMenu} from '../../../shared/context-menu'
 import {messages} from '../../../shared/copy'
 import {requestConfirm, requestPrompt} from '../../../shared/dialog'
-import {UiTree} from '../../../shared/ui'
+import {UiScrollArea, UiTree} from '../../../shared/ui'
 
 type SftpTreeNode = SftpItem & {level: number; parentPath: string | null}
 

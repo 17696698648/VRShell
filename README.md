@@ -25,7 +25,7 @@ Prerequisites
 Quick start (Windows PowerShell):
 
 ```powershell
-cd F:/git-project/VRShell/frontend
+cd VRShell/frontend
 npm install
 # start frontend dev server only
 npm run dev

@@ -2,6 +2,10 @@ import {reactive} from 'vue'
 import type {HostKeyRequestedEvent} from '../../../shared/ipc/ipcContract'
 
 export interface HostKeyPendingRequest extends HostKeyRequestedEvent {
+  /** Whether the request is currently being accepted or rejected. */
+  submitting?: boolean
+  /** Error from the last accept/reject attempt. */
+  error?: string | null
   /** Auth parameters needed for completing the connection */
   authArgs?: {
     password?: string | null
@@ -23,6 +27,7 @@ export const hostKeyState = reactive<{
 export function requestHostKeyConfirmation(event: HostKeyRequestedEvent, authArgs?: HostKeyPendingRequest['authArgs']): Promise<boolean> {
   return new Promise<boolean>((resolve) => {
     hostKeyState.pendingRequest = {
+      reason: 'unknown',
       ...event,
       authArgs,
       resolve: (accepted: boolean) => {
@@ -31,6 +36,14 @@ export function requestHostKeyConfirmation(event: HostKeyRequestedEvent, authArg
       },
     }
   })
+}
+
+export function setHostKeyRequestSubmitting(submitting: boolean) {
+  if (hostKeyState.pendingRequest) hostKeyState.pendingRequest.submitting = submitting
+}
+
+export function setHostKeyRequestError(error: string | null) {
+  if (hostKeyState.pendingRequest) hostKeyState.pendingRequest.error = error
 }
 
 export function acceptHostKeyRequest() {

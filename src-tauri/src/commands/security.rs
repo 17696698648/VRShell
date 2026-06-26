@@ -19,12 +19,10 @@ pub fn accept_host_key(
 ) -> IpcResult<String> {
     // Retrieve pending session info to build the request
     let (host, port, username) = {
-        let pending = state
-            .pending_host_key_sessions
-            .lock();
-        let session = pending
-            .get(&pending_id)
-            .ok_or_else(|| crate::error::BackendError::validation("pending host key session not found"))?;
+        let pending = state.pending_host_key_sessions.lock();
+        let session = pending.get(&pending_id).ok_or_else(|| {
+            crate::error::BackendError::validation("pending host key session not found")
+        })?;
         (session.host.clone(), session.port, session.username.clone())
     };
 

@@ -16,10 +16,6 @@
     <div class="explorer-layout sftp-explorer__layout">
       <section class="explorer-utility sftp-explorer__utility">
         <SftpBreadcrumbs :path="breadcrumbPath" @open="openBreadcrumbPath" />
-        <div v-if="activeSession && hasRestoredTreeState" class="sftp-path-status" role="status">
-          <span class="sftp-path-status__dot" aria-hidden="true" />
-          <span>{{ messages.sftp.explorer.cachedState }}</span>
-        </div>
         <small v-if="!activeSession" class="sftp-explorer__hint">{{ messages.sftp.explorer.hint }}</small>
       </section>
       <section class="explorer-content sftp-explorer__body">
@@ -46,10 +42,6 @@
           </template>
         </EmptyState>
         <SftpDirectoryTree v-else-if="viewMode === 'tree'" :key="activeSession?.id ?? 'no-session'" :items="sftpState.items" :root-path="sftpState.path" :session="activeSession" @select-directory="selectedTreePath = $event" />
-        <div v-else-if="viewMode === 'split'" class="sftp-split-view">
-          <SftpDirectoryPane :items="sftpState.items" @open-directory="refresh" />
-          <SftpTree :items="sftpState.items" display-mode="split" @open-directory="refresh" />
-        </div>
         <SftpTree v-else :items="sftpState.items" display-mode="list" @open-directory="refresh" />
       </section>
     </div>
@@ -66,7 +58,6 @@ import {EmptyState, UiButton, UiErrorState, UiWorkbenchPanel} from '../../../sha
 import {useSftpExplorer} from '../model/useSftpExplorer'
 import {useSftpViewMode} from '../model/sftpViewMode'
 import SftpBreadcrumbs from './SftpBreadcrumbs.vue'
-import SftpDirectoryPane from './SftpDirectoryPane.vue'
 import SftpDirectoryTree from './SftpDirectoryTree.vue'
 import SftpToolbar from './SftpToolbar.vue'
 import SftpTree from './SftpTree.vue'
@@ -76,7 +67,6 @@ const {sftpState, activeSession, refresh, openParentDirectory} = useSftpExplorer
 const {viewMode} = useSftpViewMode()
 const selectedTreePath = ref<string | null>(null)
 const sftpSubtitle = computed(() => activeSession.value ? `${activeSession.value.name} · ${activeSession.value.username}@${activeSession.value.host}:${activeSession.value.port}` : messages.sftp.explorer.noSelectedSession)
-const hasRestoredTreeState = computed(() => activeSession.value && sftpState.tree.expandedPaths.length > 1)
 const breadcrumbPath = computed(() => viewMode.value === 'tree' ? selectedTreePath.value ?? sftpState.path : sftpState.path)
 
 watch(() => [activeSession.value?.id, sftpState.path] as const, () => {

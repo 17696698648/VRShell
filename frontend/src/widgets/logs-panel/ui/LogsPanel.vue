@@ -146,7 +146,7 @@ function clearAll() {
 .logs-panel__view-switch {
   display: flex;
   gap: 2px;
-  background: var(--color-bg-inset, rgba(128, 128, 128, 0.1));
+  background: var(--color-bg-elevated);
   border-radius: 6px;
   padding: 2px;
 }
@@ -156,7 +156,7 @@ function clearAll() {
   border: 0;
   border-radius: 4px;
   background: transparent;
-  color: var(--color-text-secondary, #888);
+  color: var(--color-text-secondary);
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
@@ -166,9 +166,9 @@ function clearAll() {
 }
 
 .logs-panel__view-btn.active {
-  background: var(--color-bg-card, #222);
-  color: var(--color-text-primary, #eee);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  background: var(--color-bg-card);
+  color: var(--color-text-primary);
+  box-shadow: 0 1px 2px var(--color-shadow-soft);
 }
 
 .logs-panel__count {
@@ -180,7 +180,7 @@ function clearAll() {
 .logs-panel__channel-filter {
   display: flex;
   gap: 2px;
-  background: var(--color-bg-inset, rgba(128, 128, 128, 0.1));
+  background: var(--color-bg-elevated);
   border-radius: 6px;
   padding: 2px;
 }
@@ -191,15 +191,15 @@ function clearAll() {
   border: 0;
   border-radius: 4px;
   background: transparent;
-  color: var(--color-text-secondary, #888);
+  color: var(--color-text-secondary);
   font-size: 11px;
   cursor: pointer;
 }
 
 .logs-panel__level-btn.active,
 .logs-panel__channel-btn.active {
-  background: var(--color-bg-card, #222);
-  color: var(--color-text-primary, #eee);
+  background: var(--color-bg-card);
+  color: var(--color-text-primary);
 }
 
 .logs-panel__output {
@@ -217,8 +217,8 @@ function clearAll() {
   word-break: break-all;
 }
 
-.logs-panel__output--terminal { color: var(--color-info, #4fc3f7); }
-.logs-panel__output--ssh { color: var(--color-success, #81c784); }
-.logs-panel__output--sftp { color: var(--color-warning, #ffb74d); }
-.logs-panel__output--task { color: var(--color-accent, #ce93d8); }
+.logs-panel__output--terminal { color: var(--color-info); }
+.logs-panel__output--ssh { color: var(--color-success); }
+.logs-panel__output--sftp { color: var(--color-warning); }
+.logs-panel__output--task { color: var(--color-accent); }
 </style>

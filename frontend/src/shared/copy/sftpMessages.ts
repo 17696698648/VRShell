@@ -12,7 +12,6 @@ export const sftpMessages = {
     refreshDirectory: 'Refresh directory',
     createRemoteDirectoryTitle: 'Create remote directory',
     directoryName: 'Directory name',
-    cachedState: 'Restored tree state for this session',
   },
   toolbar: {
     actions: 'SFTP actions',
@@ -25,8 +24,6 @@ export const sftpMessages = {
     treeTooltip: 'Show directories as a tree',
     list: 'List',
     listTooltip: 'Show files in a detailed list',
-    split: 'Split',
-    splitTooltip: 'Show directory and detail panes',
   },
   directoryPane: {
     label: 'Remote directories',

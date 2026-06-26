@@ -20,7 +20,10 @@ pub(crate) enum HostKeyVerification {
     /// 已知但不匹配（可能被中间人攻击）
     Changed { expected_fingerprint: String },
     /// 未知 host key，需要用户确认
-    Unknown { #[allow(dead_code)] fingerprint: String },
+    Unknown {
+        #[allow(dead_code)]
+        fingerprint: String,
+    },
 }
 
 /// Known hosts 存储路径
@@ -43,7 +46,13 @@ impl KnownHostsStore {
     }
 
     /// 校验 host key fingerprint
-    pub fn verify(&self, host: &str, port: u16, fingerprint: &str, key_type: &str) -> BackendResult<HostKeyVerification> {
+    pub fn verify(
+        &self,
+        host: &str,
+        port: u16,
+        fingerprint: &str,
+        key_type: &str,
+    ) -> BackendResult<HostKeyVerification> {
         let entries = self.load_entries()?;
         let host_keys = self.host_key_patterns(host, port);
 
@@ -77,7 +86,13 @@ impl KnownHostsStore {
     }
 
     /// 添加已接受的 host key
-    pub fn accept(&self, host: &str, port: u16, key_type: &str, fingerprint: &str) -> BackendResult<()> {
+    pub fn accept(
+        &self,
+        host: &str,
+        port: u16,
+        key_type: &str,
+        fingerprint: &str,
+    ) -> BackendResult<()> {
         // 使用 [host]:port 格式
         let host_pattern = format!("[{}]:{}", host, port);
         let line = format!("{} {} {}\n", host_pattern, key_type, fingerprint);
@@ -92,10 +107,13 @@ impl KnownHostsStore {
             .create(true)
             .append(true)
             .open(&self.file_path)
-            .map_err(|error| BackendError::storage(format!("failed to open known_hosts: {error}")))?;
+            .map_err(|error| {
+                BackendError::storage(format!("failed to open known_hosts: {error}"))
+            })?;
 
-        file.write_all(line.as_bytes())
-            .map_err(|error| BackendError::storage(format!("failed to write known_hosts: {error}")))?;
+        file.write_all(line.as_bytes()).map_err(|error| {
+            BackendError::storage(format!("failed to write known_hosts: {error}"))
+        })?;
 
         Ok(())
     }
@@ -113,8 +131,9 @@ impl KnownHostsStore {
             return Ok(Vec::new());
         }
 
-        let file = fs::File::open(&self.file_path)
-            .map_err(|error| BackendError::storage(format!("failed to read known_hosts: {error}")))?;
+        let file = fs::File::open(&self.file_path).map_err(|error| {
+            BackendError::storage(format!("failed to read known_hosts: {error}"))
+        })?;
 
         let reader = BufReader::new(file);
         let mut entries = Vec::new();
@@ -137,10 +156,7 @@ impl KnownHostsStore {
     }
 
     fn host_key_patterns(&self, host: &str, port: u16) -> Vec<String> {
-        vec![
-            format!("[{}]:{}", host, port),
-            host.to_string(),
-        ]
+        vec![format!("[{}]:{}", host, port), host.to_string()]
     }
 }
 
@@ -180,7 +196,9 @@ mod tests {
         let dir = temp_dir();
         let store = KnownHostsStore::new(dir.join("known_hosts"));
 
-        let result = store.verify("example.com", 22, "SHA256:abc123", "ssh-ed25519").unwrap();
+        let result = store
+            .verify("example.com", 22, "SHA256:abc123", "ssh-ed25519")
+            .unwrap();
         assert!(matches!(result, HostKeyVerification::Unknown { .. }));
 
         let _ = fs::remove_dir_all(dir);
@@ -194,7 +212,9 @@ mod tests {
         fs::write(&path, "[example.com]:22 ssh-ed25519 SHA256:abc123\n").unwrap();
         let store = KnownHostsStore::new(path);
 
-        let result = store.verify("example.com", 22, "SHA256:abc123", "ssh-ed25519").unwrap();
+        let result = store
+            .verify("example.com", 22, "SHA256:abc123", "ssh-ed25519")
+            .unwrap();
         assert!(matches!(result, HostKeyVerification::Accepted));
 
         let _ = fs::remove_dir_all(dir);
@@ -208,7 +228,62 @@ mod tests {
         fs::write(&path, "[example.com]:22 ssh-ed25519 SHA256:old_key\n").unwrap();
         let store = KnownHostsStore::new(path);
 
-        let result = store.verify("example.com", 22, "SHA256:new_key", "ssh-ed25519").unwrap();
+        let result = store
+            .verify("example.com", 22, "SHA256:new_key", "ssh-ed25519")
+            .unwrap();
+        assert!(matches!(
+            result,
+            HostKeyVerification::Changed {
+                expected_fingerprint
+            } if expected_fingerprint == "SHA256:old_key"
+        ));
+
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn verify_accepts_plain_host_entry_for_default_port() {
+        let dir = temp_dir();
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("known_hosts");
+        fs::write(&path, "example.com ssh-ed25519 SHA256:abc123\n").unwrap();
+        let store = KnownHostsStore::new(path);
+
+        let result = store
+            .verify("example.com", 22, "SHA256:abc123", "ssh-ed25519")
+            .unwrap();
+        assert!(matches!(result, HostKeyVerification::Accepted));
+
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn verify_does_not_accept_different_port_entry() {
+        let dir = temp_dir();
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("known_hosts");
+        fs::write(&path, "[example.com]:2222 ssh-ed25519 SHA256:abc123\n").unwrap();
+        let store = KnownHostsStore::new(path);
+
+        let result = store
+            .verify("example.com", 22, "SHA256:abc123", "ssh-ed25519")
+            .unwrap();
+        assert!(matches!(result, HostKeyVerification::Unknown { .. }));
+
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn verify_treats_same_fingerprint_with_different_key_type_as_changed() {
+        let dir = temp_dir();
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("known_hosts");
+        fs::write(&path, "[example.com]:22 ssh-rsa SHA256:abc123\n").unwrap();
+        let store = KnownHostsStore::new(path);
+
+        let result = store
+            .verify("example.com", 22, "SHA256:abc123", "ssh-ed25519")
+            .unwrap();
         assert!(matches!(result, HostKeyVerification::Changed { .. }));
 
         let _ = fs::remove_dir_all(dir);
@@ -220,7 +295,9 @@ mod tests {
         let path = dir.join("known_hosts");
         let store = KnownHostsStore::new(path.clone());
 
-        store.accept("example.com", 22, "ssh-ed25519", "SHA256:abc123").unwrap();
+        store
+            .accept("example.com", 22, "ssh-ed25519", "SHA256:abc123")
+            .unwrap();
 
         let content = fs::read_to_string(&path).unwrap();
         assert!(content.contains("[example.com]:22 ssh-ed25519 SHA256:abc123"));

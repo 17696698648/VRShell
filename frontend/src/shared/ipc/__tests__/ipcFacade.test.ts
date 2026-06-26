@@ -1,5 +1,5 @@
 import {describe, expect, it, vi, beforeEach} from 'vitest'
-import {sessionApi, terminalApi, sftpFileApi, sftpTaskApi, credentialApi} from '../ipcFacade'
+import {sessionApi, terminalApi, sftpFileApi, sftpTaskApi, taskApi, credentialApi} from '../ipcFacade'
 import {setIpcMock} from '../ipcClient'
 
 const invokeLog: Array<{command: string; args: unknown}> = []
@@ -110,6 +110,24 @@ describe('sftpTaskApi', () => {
     await sftpTaskApi.cancel('task-1')
     expect(invokeLog[0].command).toBe('cancel_sftp_task')
     expect(invokeLog[0].args).toEqual({taskId: 'task-1'})
+  })
+})
+
+describe('taskApi', () => {
+  it('list aggregates SFTP tasks', async () => {
+    await taskApi.list()
+    expect(invokeLog[0].command).toBe('list_sftp_tasks')
+  })
+
+  it('cancel delegates to SFTP task cancellation', async () => {
+    await taskApi.cancel('task-1')
+    expect(invokeLog[0].command).toBe('cancel_sftp_task')
+    expect(invokeLog[0].args).toEqual({taskId: 'task-1'})
+  })
+
+  it('retry reports unsupported backend capability', async () => {
+    await expect(taskApi.retry('task-1')).rejects.toThrow('task retry is not supported yet')
+    expect(invokeLog).toHaveLength(0)
   })
 })
 

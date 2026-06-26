@@ -51,7 +51,11 @@ pub fn send_input(
 }
 
 #[tauri::command]
-pub fn disconnect_session(window: tauri::WebviewWindow, state: State<'_, BackendState>, session_id: String) -> IpcResult<()> {
+pub fn disconnect_session(
+    window: tauri::WebviewWindow,
+    state: State<'_, BackendState>,
+    session_id: String,
+) -> IpcResult<()> {
     terminal_service::disconnect(&window, &state, &session_id).map_err(Into::into)
 }
 
@@ -92,5 +96,6 @@ pub fn test_ssh_connection(host: String, port: u16, username: String) -> IpcResu
 
 #[tauri::command]
 pub fn tcp_latency(host: String, port: u16, timeout_ms: Option<u64>) -> IpcResult<u64> {
-    crate::infrastructure::ssh_client::SshClient::measure_tcp_latency(&host, port, timeout_ms).map_err(Into::into)
+    crate::infrastructure::ssh_client::SshClient::measure_tcp_latency(&host, port, timeout_ms)
+        .map_err(Into::into)
 }

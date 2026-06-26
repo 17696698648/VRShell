@@ -519,30 +519,10 @@ body.is-resizing::after {
   height: var(--size-icon-activity);
 }
 
-.activity-bar-left__item::before {
-  position: absolute;
-  width: 2px;
-  height: 18px;
-  border-radius: 999px;
-  background: transparent;
-  content: '';
-  left: -4px;
-  transition:
-    height var(--duration-normal) var(--ease-emphasized),
-    background var(--duration-normal) var(--ease-standard),
-    box-shadow var(--duration-normal) var(--ease-standard);
-}
-
 .activity-bar-left__item.active {
   border-color: color-mix(in srgb, var(--color-accent) 24%, var(--color-border-subtle));
   background: color-mix(in srgb, var(--color-bg-selected) 72%, var(--color-bg-panel));
   color: var(--color-text-primary);
-  box-shadow: none;
-}
-
-.activity-bar-left__item.active::before {
-  height: 24px;
-  background: var(--color-accent);
   box-shadow: none;
 }
 
@@ -636,30 +616,10 @@ body.is-resizing::after {
   height: var(--size-icon-activity);
 }
 
-.activity-bar-right__item::before {
-  position: absolute;
-  width: 2px;
-  height: 18px;
-  border-radius: 999px;
-  background: transparent;
-  content: '';
-  right: -4px;
-  transition:
-    height var(--duration-normal) var(--ease-emphasized),
-    background var(--duration-normal) var(--ease-standard),
-    box-shadow var(--duration-normal) var(--ease-standard);
-}
-
 .activity-bar-right__item.active {
   border-color: color-mix(in srgb, var(--color-accent) 24%, var(--color-border-subtle));
   background: color-mix(in srgb, var(--color-bg-selected) 72%, var(--color-bg-panel));
   color: var(--color-text-primary);
-  box-shadow: none;
-}
-
-.activity-bar-right__item.active::before {
-  height: 24px;
-  background: var(--color-accent);
   box-shadow: none;
 }
 

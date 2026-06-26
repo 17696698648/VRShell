@@ -22,10 +22,7 @@ pub(crate) struct SshAuthParams {
 
 /// 执行 SSH 认证，根据 auth_method 选择认证方式
 pub(crate) fn authenticate(session: &SshSession, params: &SshAuthParams) -> BackendResult<()> {
-    let method = params
-        .auth_method
-        .as_deref()
-        .unwrap_or("agent");
+    let method = params.auth_method.as_deref().unwrap_or("agent");
 
     match method {
         "password" => authenticate_with_password(session, params)?,
@@ -93,10 +90,7 @@ fn infer_auth_method(params: &SshAuthParams) -> &'static str {
     }
 }
 
-fn authenticate_with_password(
-    session: &SshSession,
-    params: &SshAuthParams,
-) -> BackendResult<()> {
+fn authenticate_with_password(session: &SshSession, params: &SshAuthParams) -> BackendResult<()> {
     let stored_password = match &params.credential_ref {
         Some(credential_ref) => credential_service::get(credential_ref.clone())?,
         None => None,
@@ -140,15 +134,10 @@ fn authenticate_with_private_key(
         })
 }
 
-fn authenticate_with_agent(
-    session: &SshSession,
-    params: &SshAuthParams,
-) -> BackendResult<()> {
-    session
-        .userauth_agent(&params.username)
-        .map_err(|error| {
-            BackendError::credential(format!("ssh agent authentication failed: {error}"))
-        })
+fn authenticate_with_agent(session: &SshSession, params: &SshAuthParams) -> BackendResult<()> {
+    session.userauth_agent(&params.username).map_err(|error| {
+        BackendError::credential(format!("ssh agent authentication failed: {error}"))
+    })
 }
 
 fn expand_private_key_path(path: &str) -> std::path::PathBuf {

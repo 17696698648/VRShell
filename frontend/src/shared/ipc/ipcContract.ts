@@ -138,6 +138,8 @@ export interface HostKeyRequestedEvent {
   port: number
   fingerprint: string
   keyType: string
+  reason?: 'unknown' | 'changed'
+  knownFingerprint?: string | null
 }
 
 export interface BackendSessionHost {
@@ -176,15 +178,6 @@ export interface SessionTreeActionResult {
   targetType: string
   targetId: string
   message: string
-}
-
-export interface SftpConnection {
-  host: string
-  port: number
-  username: string
-  password?: string | null
-  privateKeyPath?: string | null
-  passphrase?: string | null
 }
 
 export interface SftpEntry {

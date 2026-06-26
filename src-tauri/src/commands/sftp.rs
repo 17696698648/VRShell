@@ -1,9 +1,7 @@
 use crate::{
     domain::sftp::SftpTaskSnapshot,
     ipc::{
-        dto::{
-            SftpConnectionDto, SftpDeleteRequest, SftpRenameRequest, SftpTransferRequest,
-        },
+        dto::{SftpConnectionDto, SftpDeleteRequest, SftpRenameRequest, SftpTransferRequest},
         IpcResult,
     },
     services::sftp_service,
@@ -30,7 +28,11 @@ pub fn sftp_create_file(connection: SftpConnectionDto, remote_path: String) -> I
 }
 
 #[tauri::command]
-pub fn sftp_rename(connection: SftpConnectionDto, old_path: String, new_path: String) -> IpcResult<()> {
+pub fn sftp_rename(
+    connection: SftpConnectionDto,
+    old_path: String,
+    new_path: String,
+) -> IpcResult<()> {
     let request = SftpRenameRequest {
         connection,
         old_path,
@@ -187,17 +189,11 @@ pub fn list_sftp_tasks(state: State<'_, BackendState>) -> IpcResult<Vec<SftpTask
 
 #[tauri::command]
 pub fn cancel_sftp_task(state: State<'_, BackendState>, task_id: String) -> IpcResult<()> {
-    state
-        .cancelled_sftp_tasks
-        .lock()
-        .insert(task_id.clone());
+    state.cancelled_sftp_tasks.lock().insert(task_id.clone());
     sftp_service::mark_sftp_task_cancelled(&state, &task_id).map_err(Into::into)
 }
 
 fn clear_cancelled_sftp_task(state: &BackendState, task_id: &str) -> IpcResult<()> {
-    state
-        .cancelled_sftp_tasks
-        .lock()
-        .remove(task_id);
+    state.cancelled_sftp_tasks.lock().remove(task_id);
     Ok(())
 }

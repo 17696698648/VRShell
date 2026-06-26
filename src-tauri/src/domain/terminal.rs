@@ -1,5 +1,5 @@
-use crate::ipc::dto::ConnectSshRequest;
 use crate::domain::credential::CredentialRef;
+use crate::ipc::dto::ConnectSshRequest;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Deserialize)]

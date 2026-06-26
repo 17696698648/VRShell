@@ -221,11 +221,24 @@ export const securityApi = {
 
 // ==================== Task API ====================
 
+export type TaskSnapshot = SftpTaskSnapshot
+
 export const taskApi = {
-  // TODO: 实现通用任务 API
-  // list(): Promise<TaskSnapshot[]>
-  // cancel(taskId: string): Promise<void>
-  // retry(taskId: string): Promise<void>
+  /** 列出所有后台任务（当前聚合 SFTP 任务） */
+  list(): Promise<TaskSnapshot[]> {
+    return sftpTaskApi.list()
+  },
+
+  /** 取消后台任务 */
+  cancel(taskId: string): Promise<void> {
+    return sftpTaskApi.cancel(taskId)
+  },
+
+  /** 任务重试尚未由后端提供 */
+  retry(taskId: string): Promise<never> {
+    void taskId
+    return Promise.reject(new Error('task retry is not supported yet'))
+  },
 }
 
 // ==================== Diagnostic API ====================

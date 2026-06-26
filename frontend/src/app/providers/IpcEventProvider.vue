@@ -2,7 +2,7 @@
 
 <script setup lang="ts">
 import {onBeforeUnmount, onMounted} from 'vue'
-import {requestHostKeyConfirmation} from '../../entities/security/model/hostKeyState'
+import {handleHostKeyRequested} from '../../features/session/connect-session/hostKeyEvents'
 import {registerSftpProgressEvents} from '../../features/sftp/progress-events/sftpProgressEvents'
 import {restoreSftpTasks} from '../../features/task/manage-task/manageTask'
 import {createTerminalEventProvider} from '../../features/terminal/events/terminalEventProvider'
@@ -19,7 +19,7 @@ onMounted(() => {
     disposeSftpProgressEvents = dispose
   })
   void listenTypedEvent('security-hostKeyRequested', (event) => {
-    void requestHostKeyConfirmation(event)
+    void handleHostKeyRequested(event)
   }).then((dispose) => {
     disposeHostKeyListener = dispose
   })

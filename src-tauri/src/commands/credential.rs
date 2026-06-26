@@ -1,8 +1,4 @@
-use crate::{
-    domain::credential::CredentialRef,
-    ipc::IpcResult,
-    services::credential_service,
-};
+use crate::{domain::credential::CredentialRef, ipc::IpcResult, services::credential_service};
 
 #[tauri::command]
 pub fn keyring_store(service: String, key: String, value: String) -> IpcResult<()> {

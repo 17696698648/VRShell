@@ -1,29 +1,31 @@
 ﻿<template>
   <div :class="['sftp-tree', `sftp-tree--${displayMode}`]">
-    <UiDataGrid :columns="columns" :items="sortedItems" :item-height="36" :get-key="(item) => item.id" :label="messages.sftp.treeGrid.label" :empty-text="messages.sftp.treeGrid.emptyText" :selected-key="selectedItemId" :sort-key="sortKey" :sort-direction="sortDirection" @activate="openItem" @contextmenu="openGridMenu" @select="selectItem" @sort="toggleSort($event as SortKey)">
-      <template #default="{item, cellProps, gridStyle, rowProps}">
-        <article
-          v-bind="rowProps"
-          :class="['sftp-row', {clickable: item.type === 'directory', selected: selectedItemId === item.id}]"
-          :style="gridStyle"
-          :title="item.path"
-          @click="selectItem(item)"
-          @dblclick="openItem(item)"
-          @keydown.enter.prevent="openItem(item)"
-          @keydown.f2.prevent="renameItem(item)"
-          @keydown.delete.prevent="confirmDeleteItem(item)"
-        >
-          <strong v-bind="cellProps(columns[0])" class="sftp-row__name">
-            <Folder v-if="item.type === 'directory'" :size="16" aria-hidden="true" />
-            <File v-else :size="16" aria-hidden="true" />
-            <span>{{ item.name }}</span>
-          </strong>
-          <small v-bind="cellProps(columns[1])">{{ item.size }}</small>
-          <span v-bind="cellProps(columns[2])" class="sftp-row__type">{{ item.type === 'directory' ? messages.sftp.treeGrid.directoryType : messages.sftp.treeGrid.fileType }}</span>
-          <small v-bind="cellProps(columns[3])">{{ item.modifiedAt }}</small>
-        </article>
-      </template>
-    </UiDataGrid>
+    <UiScrollArea>
+      <UiDataGrid :columns="columns" :items="sortedItems" :item-height="36" :get-key="(item) => item.id" :label="messages.sftp.treeGrid.label" :empty-text="messages.sftp.treeGrid.emptyText" :selected-key="selectedItemId" :sort-key="sortKey" :sort-direction="sortDirection" @activate="openItem" @contextmenu="openGridMenu" @select="selectItem" @sort="toggleSort($event as SortKey)">
+        <template #default="{item, cellProps, gridStyle, rowProps}">
+          <article
+            v-bind="rowProps"
+            :class="['sftp-row', {clickable: item.type === 'directory', selected: selectedItemId === item.id}]"
+            :style="gridStyle"
+            :title="item.path"
+            @click="selectItem(item)"
+            @dblclick="openItem(item)"
+            @keydown.enter.prevent="openItem(item)"
+            @keydown.f2.prevent="renameItem(item)"
+            @keydown.delete.prevent="confirmDeleteItem(item)"
+          >
+            <strong v-bind="cellProps(columns[0])" class="sftp-row__name">
+              <Folder v-if="item.type === 'directory'" :size="16" aria-hidden="true" />
+              <File v-else :size="16" aria-hidden="true" />
+              <span>{{ item.name }}</span>
+            </strong>
+            <small v-bind="cellProps(columns[1])">{{ item.size }}</small>
+            <span v-bind="cellProps(columns[2])" class="sftp-row__type">{{ item.type === 'directory' ? messages.sftp.treeGrid.directoryType : messages.sftp.treeGrid.fileType }}</span>
+            <small v-bind="cellProps(columns[3])">{{ item.modifiedAt }}</small>
+          </article>
+        </template>
+      </UiDataGrid>
+    </UiScrollArea>
   </div>
 </template>
 
@@ -35,9 +37,9 @@ import {createRemoteDirectory, createRemoteFile, deleteRemoteItem, downloadRemot
 import {openContextMenu} from '../../../shared/context-menu'
 import {messages} from '../../../shared/copy'
 import {requestConfirm, requestPrompt} from '../../../shared/dialog'
-import {UiDataGrid, type UiDataGridColumn} from '../../../shared/ui'
+import {UiDataGrid, UiScrollArea, type UiDataGridColumn} from '../../../shared/ui'
 
-const props = withDefaults(defineProps<{items: SftpItem[]; displayMode?: 'tree' | 'list' | 'split'}>(), {displayMode: 'list'})
+const props = withDefaults(defineProps<{items: SftpItem[]; displayMode?: 'tree' | 'list'}>(), {displayMode: 'list'})
 const emit = defineEmits<{openDirectory: [path: string]}>()
 
 type SortKey = 'type' | 'name' | 'size' | 'modifiedAt'
@@ -84,6 +86,7 @@ function toggleSort(key: SortKey) {
   sortDirection.value = 'asc'
 }
 
+
 function openItemMenu(event: MouseEvent, item: SftpItem) {
   selectItem(item)
   openContextMenu({
@@ -121,6 +124,7 @@ function openGridMenu(item: SftpItem | null, _index: number, event: MouseEvent) 
   }
   openDirectoryMenu(event)
 }
+
 
 function openDirectoryMenu(event: MouseEvent) {
   openContextMenu({

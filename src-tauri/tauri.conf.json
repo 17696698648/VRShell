@@ -18,8 +18,7 @@
         "minimizable": true,
         "closable": true,
         "decorations": false,
-        "theme": "Dark",
-        "devtools": true
+        "theme": "Dark"
       }
     ],
     "security": {
