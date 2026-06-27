@@ -133,6 +133,27 @@ describe('taskApi', () => {
 
 
 describe('securityApi', () => {
+  it('acceptHostKey maps to accept_host_key with auth payload', async () => {
+    const payload = {
+      pendingId: 'pending-1',
+      password: 'secret',
+      authMethod: 'password' as const,
+      credentialRef: {service: 'vrshell', key: 'session:prod:password'},
+    }
+
+    await securityApi.acceptHostKey(payload)
+
+    expect(invokeLog[0].command).toBe('accept_host_key')
+    expect(invokeLog[0].args).toEqual(payload)
+  })
+
+  it('rejectHostKey maps to reject_host_key', async () => {
+    await securityApi.rejectHostKey('pending-1')
+
+    expect(invokeLog[0].command).toBe('reject_host_key')
+    expect(invokeLog[0].args).toEqual({pendingId: 'pending-1'})
+  })
+
   it('knownHostsPath maps to known_hosts_path', async () => {
     await securityApi.knownHostsPath()
     expect(invokeLog[0].command).toBe('known_hosts_path')

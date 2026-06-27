@@ -13,7 +13,7 @@ export async function disconnectTerminalTab(tab: TerminalTab) {
     patchSession(tab.sessionId, {status: 'idle', backendSessionId: undefined})
   } catch (error) {
     patchTerminal(tab.id, {status: 'failed'})
-    notifyTerminalFailure({action: 'disconnect-failed', terminalId: tab.id, title: messages.terminal.failures.disconnect(tab.title), detail: getErrorMessage(error)})
+    notifyTerminalFailure({action: 'disconnect-failed', terminalId: tab.id, title: messages.terminal.failures.disconnect(tab.title), error})
     throw error
   }
 }
@@ -25,10 +25,3 @@ export async function reconnectTerminalTab(tab: TerminalTab) {
   await connectSession(session)
   await flushTerminalInputQueue(tab)
 }
-
-function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error)
-}
-
-
-

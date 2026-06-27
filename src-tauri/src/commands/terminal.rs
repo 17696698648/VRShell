@@ -7,6 +7,7 @@ use crate::{
 use tauri::State;
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub fn connect_ssh(
     window: tauri::WebviewWindow,
     state: State<'_, BackendState>,

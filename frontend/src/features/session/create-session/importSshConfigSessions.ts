@@ -2,6 +2,7 @@
 import {importSshConfig} from '../../../entities/session/api/sessionRepository'
 import {notifyError, notifyWarning} from '../../../shared/feedback'
 import {messages} from '../../../shared/copy'
+import {getErrorMessage} from '../../../shared/error/getErrorMessage'
 
 export interface ImportSshConfigSummary {
   imported: number
@@ -19,10 +20,3 @@ export async function importSshConfigSessions(): Promise<ImportSshConfigSummary>
     throw error
   }
 }
-
-function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error)
-}
-
-
-

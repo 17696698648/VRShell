@@ -1,23 +1,25 @@
 use crate::{
     domain::sftp::{SftpConnectionKey, SftpTaskSnapshot},
     domain::terminal::{TerminalOutputEvent, TerminalSession},
-    infrastructure::file_store::FileStore,
-    services::terminal_service::TerminalRuntime,
+    infrastructure::{app_paths::AppPaths, file_store::FileStore},
+    services::{sftp_service::SftpSessionRuntime, terminal_service::TerminalRuntime},
 };
 use parking_lot::Mutex;
+#[cfg(test)]
+use std::path::PathBuf;
 use std::{
     collections::{HashMap, HashSet},
-    path::PathBuf,
+    sync::Arc,
 };
 
 pub(crate) struct BackendState {
-    pub app_data_dir: PathBuf,
+    pub paths: AppPaths,
     pub terminals: Mutex<HashMap<String, TerminalSession>>,
     pub terminal_runtimes: Mutex<HashMap<String, TerminalRuntime>>,
     pub terminal_events: Mutex<HashMap<String, Vec<TerminalOutputEvent>>>,
     pub cancelled_sftp_tasks: Mutex<HashSet<String>>,
     pub sftp_tasks: Mutex<HashMap<String, SftpTaskSnapshot>>,
-    pub sftp_sessions: Mutex<HashMap<SftpConnectionKey, ssh2::Session>>,
+    pub sftp_sessions: Mutex<HashMap<SftpConnectionKey, Arc<SftpSessionRuntime>>>,
     /// Pending SSH sessions waiting for host key acceptance
     /// Key: pending_id, Value: (host, port, username, ssh_session)
     pub pending_host_key_sessions: Mutex<HashMap<String, PendingHostKeySession>>,
@@ -36,15 +38,20 @@ pub(crate) struct PendingHostKeySession {
 }
 
 impl BackendState {
+    #[cfg(test)]
     pub(crate) fn new(app_data_dir: PathBuf) -> Self {
-        let sftp_tasks = FileStore::new(app_data_dir.clone())
+        Self::with_paths(AppPaths::new(app_data_dir))
+    }
+
+    pub(crate) fn with_paths(paths: AppPaths) -> Self {
+        let sftp_tasks = FileStore::from_paths(&paths)
             .load_sftp_tasks()
             .unwrap_or_default()
             .into_iter()
             .map(|task| (task.task_id.clone(), task))
             .collect();
         Self {
-            app_data_dir,
+            paths,
             terminals: Mutex::new(HashMap::new()),
             terminal_runtimes: Mutex::new(HashMap::new()),
             terminal_events: Mutex::new(HashMap::new()),

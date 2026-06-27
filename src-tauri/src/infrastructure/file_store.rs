@@ -1,6 +1,7 @@
 use crate::{
     domain::{session::SessionGroup, sftp::SftpTaskSnapshot},
     error::{BackendError, BackendResult},
+    infrastructure::app_paths::AppPaths,
 };
 use serde::{Deserialize, Serialize};
 use std::{fs, path::PathBuf};
@@ -31,6 +32,10 @@ pub(crate) struct FileStore {
 impl FileStore {
     pub(crate) fn new(app_data_dir: PathBuf) -> Self {
         Self { app_data_dir }
+    }
+
+    pub(crate) fn from_paths(paths: &AppPaths) -> Self {
+        Self::new(paths.app_data_dir())
     }
 
     pub(crate) fn load_session_tree(&self) -> BackendResult<Vec<SessionGroup>> {

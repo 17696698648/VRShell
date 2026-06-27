@@ -23,12 +23,13 @@ import {workspaceState} from '../../entities/workspace'
 import {UiBadge} from '../../shared/ui'
 import {useRightSidebarPanels, type RightSidebarPanelRegistration} from '../../features/workspace/right-sidebar-panel-registry'
 import {switchRightPanel} from '../../entities/workspace'
+import {executeCommand} from '../../shared/command'
 
 const items = useRightSidebarPanels()
 
 function runItem(item: RightSidebarPanelRegistration) {
   if (item.commandId) {
-    import('../../shared/command').then(({executeCommand}) => executeCommand(item.commandId!))
+    executeCommand(item.commandId)
   } else {
     switchRightPanel(item.id)
   }

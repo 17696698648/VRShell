@@ -14,14 +14,14 @@ test.describe('smoke', () => {
   })
 
   test('opens command palette from welcome action @smoke', async ({page}) => {
-    await page.getByRole('button', {name: /Command Palette/}).click()
+    await page.keyboard.press('Control+K')
 
     await expect(page.getByRole('dialog')).toBeVisible()
     await expect(page.getByPlaceholder(/Type a command/i)).toBeVisible()
   })
 
   test('opens session creation form with password auth @smoke', async ({page}) => {
-    await page.getByRole('button', {name: /New SSH Session/}).click()
+    await page.getByRole('button', {name: 'New session', exact: true}).click()
 
     await expect(page.getByRole('heading', {name: 'New session'})).toBeVisible()
     await page.getByLabel('Authentication').selectOption('password')
@@ -29,8 +29,10 @@ test.describe('smoke', () => {
   })
 
   test('opens SFTP explorer panel @smoke', async ({page}) => {
-    await page.getByRole('button', {name: 'SFTP Explorer'}).click()
+    await page.keyboard.press('Control+K')
+    await page.getByTestId('command-palette-search').fill('Open SFTP panel')
+    await page.keyboard.press('Enter')
 
-    await expect(page.getByText('SFTP Explorer').first()).toBeVisible()
+    await expect(page.getByText('Remote files').first()).toBeVisible()
   })
 })

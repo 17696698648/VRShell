@@ -1,56 +1,39 @@
 ﻿# Dependency Security
 
-VRShell uses Dependabot for dependency update PRs and keeps security remediation separate from normal feature work.
+VRShell uses npm dependencies for the Vue/Tauri frontend and Cargo dependencies for the Rust backend.
 
-## Automation
+## Automated Updates
 
-- `/.github/dependabot.yml` checks npm packages in `frontend/`, Cargo crates in `src-tauri/`, and GitHub Actions weekly.
-- Minor and patch updates are grouped per ecosystem to reduce PR noise.
-- Major updates should stay as separate PRs and include manual smoke testing notes.
+Dependabot is configured in `.github/dependabot.yml` for:
 
-## npm audit workflow
+- npm dependencies in `frontend/`
+- Cargo dependencies in `src-tauri/`
+- GitHub Actions in `.github/workflows/`
 
-The root `.npmrc` disables automatic install-time audit/funding noise; explicit audit scripts are used for CI and triage.
+Minor and patch updates are grouped by ecosystem to reduce review noise.
 
-Run audit checks from a clean dependency tree:
+## Audit Commands
 
 ```powershell
-npm.cmd --prefix frontend ci
 npm.cmd run audit:frontend
-```
-
-`npm.cmd run audit:frontend` wraps `npm.cmd --prefix frontend audit --json` and prints a compact severity/package summary for triage. The current Vite/Vitest/vue-tsc dependency set audits cleanly with npm after the Vite 8 / Vitest 4 / vue-tsc 3 upgrade.
-
-Before running `npm audit fix`, evaluate the proposed changes:
-
-```powershell
-npm.cmd --prefix frontend audit fix --dry-run
-```
-
-Apply fixes only in a dedicated PR when the dry run is understood. After applying fixes, run:
-
-```powershell
-npm.cmd run lint
-npm.cmd run typecheck
-npm.cmd run test:frontend
-npm.cmd run build
-npm.cmd run test:e2e:smoke
-```
-
-Use `npm audit fix --force` only when the breaking upgrade impact is reviewed and covered by a migration note.
-
-## Cargo audit
-
-Rust dependency advisories are checked with `cargo-audit` in CI. For local runs, install it once:
-
-```powershell
-cargo install cargo-audit --locked
-```
-
-Then run:
-
-```powershell
 npm.cmd run rust:audit
+npm.cmd run security:audit
 ```
 
-Use `npm.cmd run security:audit` to run both frontend npm audit summary and Rust advisory checks.
+Use `security:audit` before a release or after dependency updates. `rust:audit` requires `cargo-audit` to be installed locally.
+
+## Review Policy
+
+- Treat Tauri, SSH, keyring, terminal, and filesystem dependencies as high-risk updates.
+- Prefer small dependency PRs for major updates, especially `@tauri-apps/*`, `tauri`, `ssh2`, `keyring`, `vite`, `@xterm/*`, and CodeMirror packages.
+- Require `npm.cmd run check` for dependency PRs that affect runtime code.
+- Require `npm.cmd run test:e2e:smoke` when frontend framework, Tauri API, terminal UI, or Playwright dependencies change.
+
+## Remediation Steps
+
+1. Reproduce the advisory with `npm.cmd run security:audit`.
+2. Check whether the vulnerable package is used in production code, build tooling, or tests only.
+3. Prefer a direct patch/minor update when available.
+4. For transitive npm issues, update the parent package or use `npm audit fix` only after reviewing lockfile changes.
+5. For Cargo issues, update `Cargo.toml` and `Cargo.lock`, then run Rust check/test/clippy.
+6. Document any accepted risk in the release notes until it is remediated.

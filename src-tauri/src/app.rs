@@ -1,4 +1,4 @@
-use crate::{commands, state::BackendState};
+use crate::{commands, infrastructure::app_paths::AppPaths, state::BackendState};
 use tauri::Manager;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
@@ -17,7 +17,7 @@ pub(crate) fn run() {
                 .path()
                 .app_data_dir()
                 .map_err(|error| format!("failed to resolve app data dir: {error}"))?;
-            app.manage(BackendState::new(app_data_dir));
+            app.manage(BackendState::with_paths(AppPaths::new(app_data_dir)));
 
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.show();

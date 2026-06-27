@@ -129,7 +129,7 @@ fn create_target(
 }
 
 fn edit_target(
-    groups: &mut Vec<SessionGroup>,
+    groups: &mut [SessionGroup],
     target_type: SessionTreeTarget,
     payload: SessionTreeActionPayload,
 ) -> BackendResult<String> {
@@ -213,7 +213,7 @@ fn append_group(
 }
 
 fn append_host(
-    groups: &mut Vec<SessionGroup>,
+    groups: &mut [SessionGroup],
     destination_group_id: Option<&str>,
     host: SessionHost,
 ) -> BackendResult<()> {
@@ -234,7 +234,7 @@ fn append_host(
 }
 
 fn replace_group(
-    groups: &mut Vec<SessionGroup>,
+    groups: &mut [SessionGroup],
     group_id: &str,
     replacement: SessionGroup,
 ) -> BackendResult<()> {

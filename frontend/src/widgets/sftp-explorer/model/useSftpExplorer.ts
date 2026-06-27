@@ -3,6 +3,7 @@ import {sessionState, setActiveSession} from '../../../entities/session'
 import {activateSftpSessionState, getSftpSessionState, persistActiveSftpState, sftpState, type SftpItem} from '../../../entities/sftp'
 import {listRemoteDirectory} from '../../../entities/sftp/api/sftpRepository'
 import {terminalState} from '../../../entities/terminal'
+import {getErrorMessage} from '../../../shared/error/getErrorMessage'
 
 const refreshVersions = new Map<string, number>()
 
@@ -67,10 +68,6 @@ export function useSftpExplorer() {
   }
 
   return {sftpState, activeSession, refresh, openParentDirectory}
-}
-
-function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error)
 }
 
 function applyDirectoryState(sessionId: string, path: string, items: SftpItem[]) {

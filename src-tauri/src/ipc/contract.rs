@@ -29,6 +29,8 @@ pub(crate) const COMMANDS: &[&str] = &[
     "keyring_delete",
     "accept_host_key",
     "reject_host_key",
+    "known_hosts_path",
+    "open_known_hosts",
 ];
 
 #[cfg(test)]
@@ -49,6 +51,10 @@ mod tests {
             "poll_events",
             "sftp_list",
             "load_session_tree",
+            "accept_host_key",
+            "reject_host_key",
+            "known_hosts_path",
+            "open_known_hosts",
         ] {
             assert!(COMMANDS.contains(&command));
         }
@@ -86,6 +92,8 @@ mod tests {
             "keyring_delete",
             "accept_host_key",
             "reject_host_key",
+            "known_hosts_path",
+            "open_known_hosts",
         ];
 
         assert_eq!(COMMANDS, frontend_commands);

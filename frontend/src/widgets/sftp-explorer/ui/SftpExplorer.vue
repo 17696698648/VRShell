@@ -19,8 +19,8 @@
         <small v-if="!activeSession" class="sftp-explorer__hint">{{ messages.sftp.explorer.hint }}</small>
       </section>
       <section class="explorer-content sftp-explorer__body">
-        <UiErrorState v-if="sftpState.error" copyable logs-command-id="workspace.openLogsPanel" :title="messages.sftp.explorer.unableToLoadDirectory" :message="sftpState.error" :retry-label="messages.sftp.explorer.retry" @retry="refresh()" />
-        <div v-else-if="sftpState.loading" class="sftp-tree sftp-tree--loading" :aria-label="messages.sftp.explorer.loadingDirectory">
+        <UiErrorState v-if="sftpBodyState.kind === 'error'" copyable logs-command-id="workspace.openLogsPanel" :title="sftpBodyState.title" :message="sftpBodyState.description" :retry-label="messages.sftp.explorer.retry" @retry="refresh()" />
+        <div v-else-if="sftpBodyState.kind === 'loading'" class="sftp-tree sftp-tree--loading" :aria-label="sftpBodyState.title">
           <article v-for="index in 4" :key="index" class="sftp-row skeleton-row">
             <span />
             <strong />
@@ -30,15 +30,15 @@
           </article>
         </div>
         <EmptyState
-          v-else-if="sftpState.items.length === 0"
+          v-else-if="sftpBodyState.kind === 'empty' || sftpBodyState.kind === 'disconnected'"
           compact
           class="explorer-empty-state sftp-empty-state"
-          icon="⇄"
-          :title="messages.sftp.explorer.emptyTitle"
-          :description="activeSession ? messages.sftp.explorer.emptyWithSession : messages.sftp.explorer.emptyWithoutSession"
+          :icon="sftpBodyState.icon"
+          :title="sftpBodyState.title"
+          :description="sftpBodyState.description"
         >
           <template #actions>
-            <UiButton v-if="activeSession" size="sm" variant="primary" @click="refresh()">{{ messages.sftp.explorer.refreshDirectory }}</UiButton>
+            <UiButton v-if="sftpBodyState.kind === 'empty'" size="sm" variant="primary" @click="refresh()">{{ messages.sftp.explorer.refreshDirectory }}</UiButton>
           </template>
         </EmptyState>
         <SftpDirectoryTree v-else-if="viewMode === 'tree'" :key="activeSession?.id ?? 'no-session'" :items="sftpState.items" :root-path="sftpState.path" :session="activeSession" @select-directory="selectedTreePath = $event" />
@@ -55,6 +55,7 @@ import {createRemoteDirectory, uploadFileToRemoteDirectory} from '../../../featu
 import {messages} from '../../../shared/copy'
 import {requestPrompt} from '../../../shared/dialog'
 import {EmptyState, UiButton, UiErrorState, UiWorkbenchPanel} from '../../../shared/ui'
+import {getSftpBodyState} from '../model/sftpBodyState'
 import {useSftpExplorer} from '../model/useSftpExplorer'
 import {useSftpViewMode} from '../model/sftpViewMode'
 import SftpBreadcrumbs from './SftpBreadcrumbs.vue'
@@ -68,6 +69,7 @@ const {viewMode} = useSftpViewMode()
 const selectedTreePath = ref<string | null>(null)
 const sftpSubtitle = computed(() => activeSession.value ? `${activeSession.value.name} · ${activeSession.value.username}@${activeSession.value.host}:${activeSession.value.port}` : messages.sftp.explorer.noSelectedSession)
 const breadcrumbPath = computed(() => viewMode.value === 'tree' ? selectedTreePath.value ?? sftpState.path : sftpState.path)
+const sftpBodyState = computed(() => getSftpBodyState({activeSession: Boolean(activeSession.value), copy: messages.sftp.explorer, error: sftpState.error, itemCount: sftpState.items.length, loading: sftpState.loading}))
 
 watch(() => [activeSession.value?.id, sftpState.path] as const, () => {
   selectedTreePath.value = null

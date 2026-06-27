@@ -65,7 +65,7 @@ describe('useSftpExplorer', () => {
     await refresh('/root')
 
     expect(sftpState.loading).toBe(false)
-    expect(sftpState.error).toBe('sftp_list failed: permission denied')
+    expect(sftpState.error).toBe('permission denied')
     expect(feedbackState.toasts).toHaveLength(0)
   })
 

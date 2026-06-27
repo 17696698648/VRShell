@@ -4,7 +4,6 @@ import {clearSessionEditorState} from '../../../entities/editor'
 import {removeSftpSessionState} from '../../../entities/sftp'
 import {connectTerminal} from '../../../entities/terminal/api/terminalRepository'
 import {openTerminal, patchTerminal, terminalState} from '../../../entities/terminal'
-import {getErrorMessage} from '../../../shared/error/getErrorMessage'
 import {messages} from '../../../shared/copy'
 import {notifyTerminalFailure} from '../../../shared/feedback'
 import {resolveSessionAuth} from '../../../features/session/manage-credentials/sessionCredentials'
@@ -72,7 +71,7 @@ export function useSessionWorkbench() {
       })
     } catch (error) {
       patchTerminal(terminalId, {status: 'failed'})
-      notifyTerminalFailure({action: 'open-failed', terminalId, title: messages.terminal.failures.open, detail: getErrorMessage(error)})
+      notifyTerminalFailure({action: 'open-failed', terminalId, title: messages.terminal.failures.open, error})
     }
   }
 

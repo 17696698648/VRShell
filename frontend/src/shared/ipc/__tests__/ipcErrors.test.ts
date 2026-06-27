@@ -26,4 +26,32 @@ describe('ipcErrors', () => {
 
     expect(error.message).toBe('sftp_download failed: 功能建设中，当前版本暂不可用')
   })
+
+  it('maps structured backend errors to app error fields', () => {
+    const error = normalizeIpcError('connect_ssh', {
+      code: 'hostKeyChanged',
+      kind: 'security',
+      message: 'Host key changed',
+      recoverable: false,
+    })
+
+    expect(error).toMatchObject({
+      code: 'hostKeyChanged',
+      displayMessage: 'Host key changed',
+      recoverable: false,
+      severity: 'fatal',
+      source: 'ssh',
+    })
+  })
+
+  it('infers sftp source from command when backend kind is missing', () => {
+    const error = normalizeIpcError('sftp_list', {code: 'storageError', message: 'disk unavailable'})
+
+    expect(error).toMatchObject({
+      code: 'storageError',
+      recoverable: true,
+      severity: 'error',
+      source: 'sftp',
+    })
+  })
 })

@@ -41,7 +41,7 @@ export async function resizeTerminal(tab: TerminalTab, size: TerminalViewportSiz
     await resizeTerminalPty(tab.backendSessionId, dimensions.cols, dimensions.rows)
     lastSentDimensions.set(tab.id, dimensions)
   } catch (error) {
-    notifyTerminalFailure({action: 'resize-failed', terminalId: tab.id, title: messages.terminal.failures.resize(tab.title), detail: getErrorMessage(error)})
+    notifyTerminalFailure({action: 'resize-failed', terminalId: tab.id, title: messages.terminal.failures.resize(tab.title), error})
   }
 }
 
@@ -68,10 +68,3 @@ export function clearTerminalResizeTimers() {
 function isSameDimensions(left: {cols: number; rows: number}, right?: {cols: number; rows: number}) {
   return left.cols === right?.cols && left.rows === right.rows
 }
-
-function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error)
-}
-
-
-

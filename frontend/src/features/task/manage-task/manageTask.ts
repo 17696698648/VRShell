@@ -1,6 +1,7 @@
 import {patchTask, upsertTask, type TaskItem} from '../../../entities/task'
 import {listSftpTasks} from '../../../entities/sftp/api/sftpRepository'
 import {messages} from '../../../shared/copy'
+import {getErrorMessage} from '../../../shared/error/getErrorMessage'
 import {notifyTaskFailure} from '../../../shared/feedback'
 import {sftpTaskApi, type SftpTaskSnapshot} from '../../../shared/ipc/ipcFacade'
 import {createTransferTask} from '../../sftp/manage-files/manageSftpFiles'
@@ -31,7 +32,7 @@ export async function cancelTask(task: TaskItem) {
   } catch (error) {
     const message = getErrorMessage(error)
     patchTask(task.id, {error: message})
-    notifyTaskFailure({action: 'cancel-failed', taskId: task.id, title: messages.task.failures.cancel(task.title), detail: message})
+    notifyTaskFailure({action: 'cancel-failed', taskId: task.id, title: messages.task.failures.cancel(task.title), error})
     throw error
   }
 }
@@ -56,8 +57,3 @@ function getTransferKind(task: TaskItem): 'upload' | 'download' | null {
   if (title.startsWith('download')) return 'download'
   return null
 }
-
-function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error)
-}
-

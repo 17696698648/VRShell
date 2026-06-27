@@ -1,16 +1,11 @@
 <template>
   <div class="sftp-directory-tree-shell">
-    <div v-if="treeError" class="sftp-directory-tree__error" role="alert">
-      <span class="sftp-directory-tree__error-icon" aria-hidden="true">!</span>
-      <div class="sftp-directory-tree__error-copy">
-        <strong>{{ messages.sftp.directoryTree.errorTitle }}</strong>
-        <span>{{ treeError }}</span>
-      </div>
-      <div class="sftp-directory-tree__error-actions">
-        <button v-if="treeErrorPath" type="button" @click="retryTreeError">{{ messages.sftp.directoryTree.retry }}</button>
-        <button type="button" @click="clearTreeError">{{ messages.sftp.directoryTree.dismiss }}</button>
-      </div>
-    </div>
+    <UiErrorState v-if="treeError" compact :title="messages.sftp.directoryTree.errorTitle" :message="treeError" :retry-label="treeErrorPath ? messages.sftp.directoryTree.retry : ''" @retry="retryTreeError">
+      <template #actions>
+        <UiButton v-if="treeErrorPath" size="sm" variant="danger" @click="retryTreeError">{{ messages.sftp.directoryTree.retry }}</UiButton>
+        <UiButton size="sm" variant="ghost" @click="clearTreeError">{{ messages.sftp.directoryTree.dismiss }}</UiButton>
+      </template>
+    </UiErrorState>
     <UiScrollArea axis="y">
       <UiTree
         class="sftp-directory-tree"
@@ -50,7 +45,8 @@ import {createRemoteDirectory, createRemoteFile, deleteRemoteItem, downloadRemot
 import {openContextMenu} from '../../../shared/context-menu'
 import {messages} from '../../../shared/copy'
 import {requestConfirm, requestPrompt} from '../../../shared/dialog'
-import {UiScrollArea, UiTree} from '../../../shared/ui'
+import {getErrorMessage} from '../../../shared/error/getErrorMessage'
+import {UiButton, UiErrorState, UiScrollArea, UiTree} from '../../../shared/ui'
 
 type SftpTreeNode = SftpItem & {level: number; parentPath: string | null}
 
@@ -315,8 +311,4 @@ function sortItems(items: SftpItem[]) {
   })
 }
 
-
-function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error)
-}
 </script>

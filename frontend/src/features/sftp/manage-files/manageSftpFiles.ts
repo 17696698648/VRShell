@@ -5,6 +5,7 @@ import {createRemoteFilePath, deleteRemotePath, downloadRemoteFile, mkdirRemoteD
 import {addTask, patchTask} from '../../../entities/task'
 import {sftpState, type SftpItem} from '../../../entities/sftp'
 import {messages} from '../../../shared/copy'
+import {getErrorMessage} from '../../../shared/error/getErrorMessage'
 import {notifyFeedback, notifySftpFailure} from '../../../shared/feedback'
 import {decodeTextBase64} from '../../../shared/lib/base64'
 import {createId} from '../../../shared/lib/createId'
@@ -60,7 +61,7 @@ export async function openRemoteFileInSessionEditor(item: SftpItem) {
       content: decodeTextBase64(contentBase64),
     })
   } catch (error) {
-    notifySftpFailure({action: 'open-failed', path: item.path, title: messages.sftp.failures.openFile(item.name), detail: getErrorMessage(error)})
+    notifySftpFailure({action: 'open-failed', path: item.path, title: messages.sftp.failures.openFile(item.name), error})
     throw error
   }
 }
@@ -117,7 +118,7 @@ async function runTransferTask(kind: 'upload' | 'download', detail: string, run:
   } catch (error) {
     const message = getErrorMessage(error)
     patchTask(taskId, {error: message, status: 'failed'})
-    notifySftpFailure({action: `${kind}-failed`, taskId, title: messages.sftp.failures.transfer(kind), detail: message})
+    notifySftpFailure({action: `${kind}-failed`, taskId, title: messages.sftp.failures.transfer(kind), error})
     throw error
   }
   patchTask(taskId, {error: undefined, progress: 100, status: 'done'})
@@ -159,8 +160,4 @@ function normalizeRemotePath(path: string) {
 
 function capitalize(value: string) {
   return value.slice(0, 1).toUpperCase() + value.slice(1)
-}
-
-function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error)
 }

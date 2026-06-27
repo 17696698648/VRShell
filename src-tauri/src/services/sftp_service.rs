@@ -5,11 +5,14 @@ use crate::{
     state::BackendState,
 };
 use base64::Engine;
+use parking_lot::Mutex;
 use ssh2::{FileStat, OpenFlags, OpenType};
 use std::{
     fs::{self, File},
     io::Read,
     path::{Path, PathBuf},
+    sync::Arc,
+    time::Instant,
 };
 
 #[path = "sftp_service/connection.rs"]
@@ -31,6 +34,37 @@ const TRANSFER_BUFFER_SIZE: usize = 64 * 1024;
 pub(crate) use tasks::{list_sftp_tasks, mark_sftp_task_cancelled, register_sftp_task};
 pub(crate) use transfer::emit_sftp_failed;
 
+pub(crate) struct SftpSessionRuntime {
+    session: Mutex<ssh2::Session>,
+}
+
+impl SftpSessionRuntime {
+    fn new(session: ssh2::Session) -> Self {
+        Self {
+            session: Mutex::new(session),
+        }
+    }
+
+    fn with_sftp<T>(
+        &self,
+        connection: &SftpConnectionRequest,
+        operation: impl FnOnce(&ssh2::Sftp) -> BackendResult<T>,
+    ) -> BackendResult<T> {
+        let started = Instant::now();
+        let session = self.session.lock();
+        let sftp = open_sftp(&session)?;
+        let result = operation(&sftp);
+        tracing::trace!(
+            host = %connection.host,
+            port = connection.port,
+            elapsed_ms = started.elapsed().as_millis() as u64,
+            success = result.is_ok(),
+            "SFTP session operation handled"
+        );
+        result
+    }
+}
+
 fn with_sftp<T>(
     state: Option<&BackendState>,
     connection: &SftpConnectionRequest,
@@ -43,28 +77,22 @@ fn with_sftp<T>(
     };
 
     let key = connection.cache_key();
-    {
-        let mut sessions = state.sftp_sessions.lock();
-        if let Some(session) = sessions.get_mut(&key) {
-            if let Ok(sftp) = open_sftp(session) {
-                match operation(&sftp) {
-                    Ok(value) => return Ok(value),
-                    Err(error) => {
-                        sessions.remove(&key);
-                        tracing::debug!(host = %connection.host, port = connection.port, "dropping cached SFTP session after operation error");
-                        return Err(error);
-                    }
-                }
+    if let Some(runtime) = state.sftp_sessions.lock().get(&key).cloned() {
+        match runtime.with_sftp(connection, operation) {
+            Ok(value) => return Ok(value),
+            Err(error) => {
+                state.sftp_sessions.lock().remove(&key);
+                tracing::debug!(host = %connection.host, port = connection.port, "dropping cached SFTP session after operation error");
+                return Err(error);
             }
-            sessions.remove(&key);
         }
     }
 
     let session = open_ssh_session(connection)?;
-    let sftp = open_sftp(&session)?;
-    let result = operation(&sftp);
+    let runtime = Arc::new(SftpSessionRuntime::new(session));
+    let result = runtime.with_sftp(connection, operation);
     if result.is_ok() {
-        state.sftp_sessions.lock().insert(key, session);
+        state.sftp_sessions.lock().insert(key, runtime);
     }
     result
 }
@@ -356,6 +384,7 @@ fn calculate_directory_size(local_directory: &Path) -> BackendResult<u64> {
     Ok(total_bytes)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn upload_directory_entries(
     window: Option<&impl EventSink>,
     state: Option<&BackendState>,
@@ -406,6 +435,7 @@ fn upload_directory_entries(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn upload_directory_file(
     window: Option<&impl EventSink>,
     state: Option<&BackendState>,

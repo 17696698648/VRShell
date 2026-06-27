@@ -1,3 +1,5 @@
+import {backendCommandNames, type BackendCommandName} from './generated/backendCommands'
+
 export type IpcCommandMap = {
   open_devtools: {args: undefined; result: void}
   load_session_tree: {args: undefined; result: BackendSessionGroup[]}
@@ -37,39 +39,11 @@ export interface TerminalOutputEvent {
   dataBase64: string
 }
 
-export const ipcCommandNames = [
-  'open_devtools',
-  'load_session_tree',
-  'save_session_tree',
-  'session_tree_action',
-  'apply_session_tree_action',
-  'parse_ssh_config',
-  'connect_ssh',
-  'send_input',
-  'disconnect_session',
-  'resize_pty',
-  'poll_events',
-  'test_ssh_connection',
-  'tcp_latency',
-  'sftp_list',
-  'sftp_mkdir',
-  'sftp_create_file',
-  'sftp_rename',
-  'sftp_delete',
-  'sftp_upload',
-  'sftp_upload_directory',
-  'sftp_download',
-  'sftp_read_file',
-  'list_sftp_tasks',
-  'cancel_sftp_task',
-  'keyring_store',
-  'keyring_get',
-  'keyring_delete',
-  'accept_host_key',
-  'reject_host_key',
-  'known_hosts_path',
-  'open_known_hosts',
-] as const satisfies readonly (keyof IpcCommandMap)[]
+type MissingFrontendCommandTypes = Exclude<BackendCommandName, keyof IpcCommandMap>
+type ExtraFrontendCommandTypes = Exclude<keyof IpcCommandMap, BackendCommandName>
+export const ipcCommandMapMatchesBackend: [MissingFrontendCommandTypes, ExtraFrontendCommandTypes] extends [never, never] ? true : never = true
+
+export const ipcCommandNames = backendCommandNames satisfies readonly (keyof IpcCommandMap)[]
 
 export interface SftpConnection {
   host: string

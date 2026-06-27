@@ -18,12 +18,135 @@ use events::{
     emit_host_key_requested, emit_terminal_closed, emit_terminal_error, emit_terminal_output,
     HostKeyRequestedPayload,
 };
-use std::{thread, time::Duration};
+use std::{
+    sync::mpsc,
+    thread,
+    time::{Duration, Instant},
+};
 use tauri::Manager;
 use uuid::Uuid;
 
+#[derive(Clone)]
 pub(crate) struct TerminalRuntime {
-    ssh_runtime: SshRuntime,
+    command_sender: mpsc::Sender<TerminalRuntimeCommand>,
+}
+
+enum TerminalRuntimeCommand {
+    Read(mpsc::Sender<BackendResult<(String, bool)>>),
+    Write(Vec<u8>, mpsc::Sender<BackendResult<String>>),
+    Resize(u16, u16, mpsc::Sender<BackendResult<()>>),
+    Keepalive(mpsc::Sender<BackendResult<()>>),
+    Close(mpsc::Sender<BackendResult<()>>),
+}
+
+impl TerminalRuntime {
+    fn spawn(session_id: String, ssh_runtime: SshRuntime) -> Self {
+        let (command_sender, command_receiver) = mpsc::channel();
+        thread::spawn(move || terminal_runtime_loop(session_id, ssh_runtime, command_receiver));
+        Self { command_sender }
+    }
+
+    fn read_output(&self) -> BackendResult<(String, bool)> {
+        let (sender, receiver) = mpsc::channel();
+        self.send_command(TerminalRuntimeCommand::Read(sender))?;
+        receive_runtime_response(receiver)
+    }
+
+    fn write_input(&self, input: Vec<u8>) -> BackendResult<String> {
+        let (sender, receiver) = mpsc::channel();
+        self.send_command(TerminalRuntimeCommand::Write(input, sender))?;
+        receive_runtime_response(receiver)
+    }
+
+    fn resize_pty(&self, cols: u16, rows: u16) -> BackendResult<()> {
+        let (sender, receiver) = mpsc::channel();
+        self.send_command(TerminalRuntimeCommand::Resize(cols, rows, sender))?;
+        receive_runtime_response(receiver)
+    }
+
+    fn keepalive(&self) -> BackendResult<()> {
+        let (sender, receiver) = mpsc::channel();
+        self.send_command(TerminalRuntimeCommand::Keepalive(sender))?;
+        receive_runtime_response(receiver)
+    }
+
+    fn close(&self) -> BackendResult<()> {
+        let (sender, receiver) = mpsc::channel();
+        self.send_command(TerminalRuntimeCommand::Close(sender))?;
+        receive_runtime_response(receiver)
+    }
+
+    fn send_command(&self, command: TerminalRuntimeCommand) -> BackendResult<()> {
+        self.command_sender
+            .send(command)
+            .map_err(|_| BackendError::validation("terminal runtime is not available"))
+    }
+}
+
+fn receive_runtime_response<T>(receiver: mpsc::Receiver<BackendResult<T>>) -> BackendResult<T> {
+    receiver
+        .recv()
+        .map_err(|_| BackendError::validation("terminal runtime stopped unexpectedly"))?
+}
+
+fn terminal_runtime_loop(
+    session_id: String,
+    mut ssh_runtime: SshRuntime,
+    command_receiver: mpsc::Receiver<TerminalRuntimeCommand>,
+) {
+    for command in command_receiver {
+        match command {
+            TerminalRuntimeCommand::Read(response) => {
+                let started = Instant::now();
+                let result = read_runtime_output(&mut ssh_runtime).map(|output| {
+                    let closed = SshClient::is_channel_eof(&ssh_runtime);
+                    (output, closed)
+                });
+                trace_terminal_command(&session_id, "read", started);
+                let _ = response.send(result);
+            }
+            TerminalRuntimeCommand::Write(input, response) => {
+                let started = Instant::now();
+                let result = read_runtime_output(&mut ssh_runtime).and_then(|pending_output| {
+                    write_all_nonblocking(&mut ssh_runtime, &input).map(|_| pending_output)
+                });
+                trace_terminal_command(&session_id, "write", started);
+                let _ = response.send(result);
+            }
+            TerminalRuntimeCommand::Resize(cols, rows, response) => {
+                let started = Instant::now();
+                let result = SshClient::resize_pty(&mut ssh_runtime, cols, rows);
+                trace_terminal_command(&session_id, "resize", started);
+                let _ = response.send(result);
+            }
+            TerminalRuntimeCommand::Keepalive(response) => {
+                let started = Instant::now();
+                let result = ssh_runtime
+                    .channel
+                    .request_pty_size(80, 24, None, None)
+                    .map_err(|error| BackendError::terminal(format!("keepalive failed: {error}")));
+                trace_terminal_command(&session_id, "keepalive", started);
+                let _ = response.send(result);
+            }
+            TerminalRuntimeCommand::Close(response) => {
+                let started = Instant::now();
+                SshClient::close_channel(&mut ssh_runtime);
+                trace_terminal_command(&session_id, "close", started);
+                let _ = response.send(Ok(()));
+                break;
+            }
+        }
+    }
+    tracing::debug!(session_id, "terminal runtime actor stopped");
+}
+
+fn trace_terminal_command(session_id: &str, command: &str, started: Instant) {
+    tracing::trace!(
+        session_id,
+        command,
+        elapsed_ms = started.elapsed().as_millis() as u64,
+        "terminal runtime command handled"
+    );
 }
 
 pub(crate) fn connect(
@@ -38,7 +161,7 @@ pub(crate) fn connect(
     let (session, host_key_info) = SshClient::connect_phase1(&request.host, request.port)?;
 
     // Check known_hosts
-    let known_hosts = KnownHostsStore::new(KnownHostsStore::default_path());
+    let known_hosts = KnownHostsStore::new(state.paths.known_hosts_path());
     match known_hosts.verify(
         &request.host,
         request.port,
@@ -128,7 +251,7 @@ pub(crate) fn accept_host_key(
         .ok_or_else(|| BackendError::validation("pending host key session not found"))?;
 
     // Save to known_hosts
-    let known_hosts = KnownHostsStore::new(KnownHostsStore::default_path());
+    let known_hosts = KnownHostsStore::new(state.paths.known_hosts_path());
     known_hosts.accept(
         &pending.host,
         pending.port,
@@ -156,7 +279,7 @@ fn create_terminal_session(
     let id = Uuid::new_v4().to_string();
     let host = request.host.clone();
     let username = request.username.clone();
-    let runtime = TerminalRuntime { ssh_runtime };
+    let runtime = TerminalRuntime::spawn(id.clone(), ssh_runtime);
 
     // Start keepalive thread for this session (every 30 seconds)
     start_keepalive(window, &id);
@@ -184,19 +307,16 @@ fn start_keepalive(window: &tauri::WebviewWindow, session_id: &str) {
             std::thread::sleep(Duration::from_secs(30));
 
             let state = window.state::<BackendState>();
-            let mut runtimes = state.terminal_runtimes.lock();
-            let Some(runtime) = runtimes.get_mut(&session_id) else {
+            let runtime = {
+                let runtimes = state.terminal_runtimes.lock();
+                runtimes.get(&session_id).cloned()
+            };
+            let Some(runtime) = runtime else {
                 // Session disconnected, exit keepalive
                 break;
             };
 
-            // Send channel request to keep connection alive (resize to same size)
-            if runtime
-                .ssh_runtime
-                .channel
-                .request_pty_size(80, 24, None, None)
-                .is_err()
-            {
+            if runtime.keepalive().is_err() {
                 tracing::warn!(session_id = %session_id, "keepalive failed, connection may be dead");
                 break;
             }
@@ -212,8 +332,8 @@ pub(crate) fn disconnect(
     session_id: &str,
 ) -> BackendResult<()> {
     tracing::info!(session_id, "disconnecting terminal");
-    if let Some(mut runtime) = state.terminal_runtimes.lock().remove(session_id) {
-        SshClient::close_channel(&mut runtime.ssh_runtime);
+    if let Some(runtime) = state.terminal_runtimes.lock().remove(session_id) {
+        let _ = runtime.close();
     }
     state.terminals.lock().remove(session_id);
     state.terminal_events.lock().remove(session_id);
@@ -230,23 +350,25 @@ pub(crate) fn start_output_reader(window: tauri::WebviewWindow, session_id: Stri
     });
 }
 
-/// 输出读取循环，返回退出原因
+/// Read terminal output until the runtime is removed, EOF is reached, or a read error occurs.
 fn output_reader_loop(window: &tauri::WebviewWindow, session_id: &str) -> String {
     loop {
         let read_result = {
             let state = window.state::<BackendState>();
-            let mut runtimes = state.terminal_runtimes.lock();
-            let Some(runtime) = runtimes.get_mut(session_id) else {
+            let runtime = {
+                let runtimes = state.terminal_runtimes.lock();
+                runtimes.get(session_id).cloned()
+            };
+            let Some(runtime) = runtime else {
                 break "runtime removed from registry".to_string();
             };
-            let eof = SshClient::is_channel_eof(&runtime.ssh_runtime);
-            read_runtime_output(runtime).map(|output| (output, eof))
+            runtime.read_output()
         };
 
         match read_result {
             Ok((output, closed)) => {
                 if !output.is_empty() {
-                    let _ = emit_terminal_output(window, session_id, output);
+                    emit_terminal_output(window, session_id, output);
                 }
                 if closed {
                     emit_terminal_closed(window, session_id);
@@ -254,7 +376,7 @@ fn output_reader_loop(window: &tauri::WebviewWindow, session_id: &str) -> String
                 }
             }
             Err(error) => {
-                let _ = emit_terminal_error(window, session_id, error.message);
+                emit_terminal_error(window, session_id, error.message);
                 break "output read error".to_string();
             }
         }
@@ -263,17 +385,14 @@ fn output_reader_loop(window: &tauri::WebviewWindow, session_id: &str) -> String
     }
 }
 
-/// output reader 退出后清理 runtime 并更新 terminal 状态
 fn cleanup_after_output_exit(window: &tauri::WebviewWindow, session_id: &str, reason: &str) {
     let state = window.state::<BackendState>();
+    tracing::info!(session_id, reason, "terminal output reader exited");
 
-    // 移除 runtime（channel 已不可用）
-    {
-        let mut runtimes = state.terminal_runtimes.lock();
-        runtimes.remove(session_id);
+    if let Some(runtime) = state.terminal_runtimes.lock().remove(session_id) {
+        let _ = runtime.close();
     }
 
-    // 更新 terminal session 状态为 Disconnected
     {
         let mut terminals = state.terminals.lock();
         if let Some(session) = terminals.get_mut(session_id) {
@@ -281,14 +400,7 @@ fn cleanup_after_output_exit(window: &tauri::WebviewWindow, session_id: &str, re
         }
     }
 
-    // 确保前端收到 closed 事件
     emit_terminal_closed(window, session_id);
-
-    let _ = emit_terminal_error(
-        window,
-        session_id,
-        format!("terminal output reader exited: {reason}"),
-    );
 }
 
 pub(crate) fn send_input(
@@ -299,15 +411,7 @@ pub(crate) fn send_input(
     let input = STANDARD
         .decode(data_base64.as_bytes())
         .map_err(|_| BackendError::validation("terminal input must be base64"))?;
-    let pending_output = {
-        let mut runtimes = state.terminal_runtimes.lock();
-        let runtime = runtimes
-            .get_mut(session_id)
-            .ok_or_else(|| BackendError::validation("terminal session was not found"))?;
-        let pending_output = read_runtime_output(runtime)?;
-        write_all_nonblocking(runtime, &input)?;
-        pending_output
-    };
+    let pending_output = get_terminal_runtime(state, session_id)?.write_input(input)?;
 
     if !pending_output.is_empty() {
         push_output_event(state, session_id, pending_output)?;
@@ -328,11 +432,7 @@ pub(crate) fn resize_pty(
         ));
     }
     if let Some(session_id) = session_id {
-        let mut runtimes = state.terminal_runtimes.lock();
-        let runtime = runtimes
-            .get_mut(session_id)
-            .ok_or_else(|| BackendError::validation("terminal session was not found"))?;
-        SshClient::resize_pty(&mut runtime.ssh_runtime, cols, rows)?;
+        get_terminal_runtime(state, session_id)?.resize_pty(cols, rows)?;
     }
     Ok(())
 }
@@ -352,19 +452,26 @@ pub(crate) fn poll_events(
 }
 
 fn read_available_output(state: &BackendState, session_id: &str) -> BackendResult<String> {
-    let mut runtimes = state.terminal_runtimes.lock();
-    let runtime = runtimes
-        .get_mut(session_id)
-        .ok_or_else(|| BackendError::validation("terminal session was not found"))?;
-    read_runtime_output(runtime)
+    get_terminal_runtime(state, session_id)?
+        .read_output()
+        .map(|(output, _)| output)
 }
 
-fn read_runtime_output(runtime: &mut TerminalRuntime) -> BackendResult<String> {
-    SshClient::read_output(&mut runtime.ssh_runtime)
+fn read_runtime_output(ssh_runtime: &mut SshRuntime) -> BackendResult<String> {
+    SshClient::read_output(ssh_runtime)
 }
 
-fn write_all_nonblocking(runtime: &mut TerminalRuntime, input: &[u8]) -> BackendResult<()> {
-    SshClient::write_input(&mut runtime.ssh_runtime, input)
+fn write_all_nonblocking(ssh_runtime: &mut SshRuntime, input: &[u8]) -> BackendResult<()> {
+    SshClient::write_input(ssh_runtime, input)
+}
+
+fn get_terminal_runtime(state: &BackendState, session_id: &str) -> BackendResult<TerminalRuntime> {
+    state
+        .terminal_runtimes
+        .lock()
+        .get(session_id)
+        .cloned()
+        .ok_or_else(|| BackendError::validation("terminal session was not found"))
 }
 
 fn ensure_terminal_exists(state: &BackendState, session_id: &str) -> BackendResult<()> {

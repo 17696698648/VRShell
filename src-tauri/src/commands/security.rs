@@ -8,6 +8,7 @@ use crate::{
 use tauri::State;
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub fn accept_host_key(
     window: tauri::WebviewWindow,
     state: State<'_, BackendState>,

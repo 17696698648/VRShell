@@ -159,57 +159,8 @@
   right: 1px;
 }
 
-.sftp-directory-tree__error {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 8px;
-  align-items: center;
+.sftp-directory-tree-shell > .ui-error-state {
   margin: 0 var(--sftp-explorer-edge) var(--space-2);
-  padding: var(--space-2);
-  border: 1px solid color-mix(in srgb, var(--color-danger) 62%, var(--color-border-subtle));
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--color-danger) 8%, var(--color-bg-panel));
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-xs);
-}
-
-.sftp-directory-tree__error-icon {
-  display: inline-grid;
-  place-items: center;
-  width: 18px;
-  height: 18px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--color-danger) 18%, transparent);
-  color: var(--color-danger);
-  font-weight: 800;
-}
-
-.sftp-directory-tree__error-copy {
-  display: grid;
-  min-width: 0;
-  gap: 2px;
-}
-
-.sftp-directory-tree__error-copy strong {
-  color: var(--color-text-primary);
-}
-
-.sftp-directory-tree__error-copy span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sftp-directory-tree__error button {
-  color: inherit;
-  cursor: pointer;
-}
-
-.sftp-directory-tree__error-actions {
-  display: flex;
-  flex-shrink: 0;
-  gap: var(--space-2);
 }
 
 .sftp-directory-tree .ui-virtual-list,
@@ -486,4 +437,3 @@
     background-position: -80% 0;
   }
 }
-

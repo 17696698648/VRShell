@@ -1,6 +1,6 @@
 import {readdirSync, readFileSync, statSync} from 'node:fs'
 import {fileURLToPath} from 'node:url'
-import {join, relative} from 'node:path'
+import {dirname, join, normalize, relative} from 'node:path'
 
 const root = new URL('..', import.meta.url)
 const rootPath = fileURLToPath(root)
@@ -20,6 +20,14 @@ const checks = [
   {
     file: 'src/shell/status-bar/model/statusBar.types.ts',
     patterns: ['StatusBarIconName', 'compactLabel', 'fullLabel', 'tooltip'],
+  },
+  {
+    file: 'scripts/check-frontend-guards.mjs',
+    patterns: ['assertLayerImports(file, source)', 'function assertLayerImports(file, source)', 'function isAllowedLayerImport(fromLayer, toLayer)'],
+  },
+  {
+    file: 'src/shared/ui/index.ts',
+    patterns: ["export type {PanelBodyState} from './panelBodyState'"],
   },
 ]
 
@@ -41,6 +49,7 @@ for (const file of listSourceFiles('src')) {
   assertNoSecretsInStore(file, source)
   assertNoDirectTauriWindowApi(file, source)
   assertNoReverseDependency(file, source)
+  assertLayerImports(file, source)
 }
 
 assertTerminalOutputStaysOutsideReactiveStore()
@@ -136,6 +145,45 @@ function assertNoReverseDependency(file, source) {
          !source.includes("from '../../pages/") &&
          !source.includes("from '../../shell/"),
     `${file} has reverse dependency on features/widgets/pages/shell; entities should be leaf modules`)
+}
+
+function assertLayerImports(file, source) {
+  if (file.includes('/__tests__/')) return
+  const fromLayer = getLayer(file)
+  if (!fromLayer) return
+  for (const importPath of getImportPaths(source)) {
+    const targetFile = resolveImportPath(file, importPath)
+    if (!targetFile) continue
+    const toLayer = getLayer(targetFile)
+    if (!toLayer || toLayer === fromLayer) continue
+    assert(isAllowedLayerImport(fromLayer, toLayer), `${file} imports ${targetFile}; ${fromLayer} must not depend on ${toLayer}`)
+  }
+}
+
+function getImportPaths(source) {
+  return [...source.matchAll(/import(?:\s+type)?(?:[\s\S]*?)\s+from\s+['"]([^'"]+)['"]/g)].map((match) => match[1])
+}
+
+function resolveImportPath(file, importPath) {
+  if (!importPath.startsWith('.')) return null
+  const resolved = normalize(join(dirname(file), importPath)).replaceAll('\\', '/')
+  return resolved.startsWith('src/') ? resolved : null
+}
+
+function getLayer(file) {
+  return ['app', 'pages', 'shell', 'widgets', 'features', 'entities', 'shared'].find((layer) => file.startsWith(`src/${layer}/`)) ?? null
+}
+
+function isAllowedLayerImport(fromLayer, toLayer) {
+  const forbidden = {
+    shared: new Set(['entities', 'features', 'widgets', 'shell', 'pages', 'app']),
+    entities: new Set(['features', 'widgets', 'shell', 'pages', 'app']),
+    features: new Set(['widgets', 'shell', 'pages', 'app']),
+    widgets: new Set(['shell', 'pages', 'app']),
+    shell: new Set(['app']),
+    pages: new Set(['app']),
+  }
+  return !(forbidden[fromLayer]?.has(toLayer))
 }
 
 function assertNoFeatureCommandRegistryImport(file, source) {

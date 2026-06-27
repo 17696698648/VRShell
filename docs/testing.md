@@ -1,65 +1,58 @@
-# Testing
+# Testing Workflow
 
-Use the fastest checks first while developing, then run broader checks before opening a PR.
+Run checks from the repository root unless a command says otherwise.
 
-## Frontend checks
+## Fast Local Checks
 
 ```powershell
+npm.cmd run check:ipc
+npm.cmd run check:json
+npm.cmd run check:utf8
+npm.cmd run check:tauri-release
 npm.cmd run lint
 npm.cmd run typecheck
+```
+
+Use these before committing frontend, IPC, config, or documentation changes.
+
+## Frontend Checks
+
+```powershell
 npm.cmd run test:frontend
 npm.cmd run build
 ```
 
-`npm.cmd run lint` runs Biome for lightweight JavaScript/TypeScript safety checks. Vue template-aware type issues are covered by `npm.cmd run typecheck`.
+Run `npm.cmd run test:e2e:smoke` when changing workbench startup, command palette, session dialogs, SFTP drawer behavior, or theme switching.
 
-Vite 8 uses Rolldown. Known `INVALID_ANNOTATION` warnings from `@vueuse/core` are filtered in `frontend/vite.config.ts` because they are dependency annotation noise and do not affect the build output.
-
-## E2E smoke
+## Rust Checks
 
 ```powershell
-npm.cmd run test:e2e:smoke
-```
-
-The smoke test builds and previews the frontend, injects a minimal Tauri runtime mock, then verifies:
-
-- app startup
-- command palette open, input focus, and Escape close
-- new session dialog open, Cancel close, and Escape close
-- SFTP drawer toggle
-- theme switching
-
-Reusable browser-side Tauri mocks live in `frontend/e2e/fixtures/tauri.ts`.
-
-If Playwright browsers are missing locally, run:
-
-```powershell
-npx.cmd --prefix frontend playwright install chromium
-```
-
-## Rust checks
-
-```powershell
+npm.cmd run rust:fmt
 npm.cmd run rust:check
 npm.cmd run rust:test
 npm.cmd run rust:clippy
 ```
 
-## Security audit
+Run the Rust checks when changing `src-tauri/**`, IPC DTOs, SSH/SFTP behavior, state handling, or Tauri capabilities.
 
-```powershell
-npm.cmd run audit:frontend
-npm.cmd run rust:audit
-```
-
-`npm.cmd run rust:audit` requires `cargo-audit`; install it with `cargo install cargo-audit --locked`.
-
-## Full local confidence pass
+## Full Check
 
 ```powershell
 npm.cmd run check
-npm.cmd run build
-npm.cmd run test:e2e:smoke
 ```
 
-`npm.cmd run check` intentionally excludes the production frontend build and E2E smoke so developers can run a faster default loop.
+The full check runs generated IPC validation, JSON/UTF-8 checks, the Tauri release security guard, frontend guard/lint/typecheck/tests, and Rust check/test/clippy.
+
+## Release Check
+
+```powershell
+npm.cmd run release:check
+```
+
+The release check runs the full check, production frontend build, and Playwright smoke coverage. Use it for release candidates and dependency PRs that affect runtime behavior.
+
+## Notes
+
+- On Windows PowerShell, prefer `npm.cmd` over `npm` if script execution policy blocks `npm.ps1`.
+- Run `cargo check --manifest-path src-tauri/Cargo.toml --features devtools` after changing Tauri feature flags.
+- E2E tests require Playwright browsers. Install Chromium with `npx --prefix frontend playwright install chromium` if needed.

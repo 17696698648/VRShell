@@ -9,18 +9,15 @@
         <SessionSearchBox v-model="query" :result-count="filteredSessions.length" />
       </section>
       <section class="explorer-content session-explorer__body">
-        <div v-if="showEmptyState" class="explorer-empty-state session-empty-state" :class="{'explorer-empty-state--compact session-empty-state--search': Boolean(query)}">
-          <Server :size="28" />
-          <strong>{{ query ? 'No matching sessions' : 'No sessions yet' }}</strong>
-          <small>{{ query ? `No sessions match “${query}”.` : 'Create a session or import your SSH config to get started.' }}</small>
-          <div class="explorer-empty-state__actions session-empty-state__actions">
-            <button v-if="query" type="button" class="ui-button ghost sm" @click="query = ''">Clear search</button>
+        <EmptyState v-if="showEmptyState" compact class="session-empty-state" :icon="emptyState.icon" :title="emptyState.title" :description="emptyState.description">
+          <template #actions>
+            <UiButton v-if="emptyState.kind === 'search'" size="sm" variant="ghost" @click="query = ''">Clear search</UiButton>
             <template v-else>
-              <button type="button" class="ui-button primary sm" @click="openCreateDialog()">New session</button>
-              <button type="button" class="ui-button ghost sm" @click="handleImport">Import SSH config</button>
+              <UiButton size="sm" variant="primary" @click="openCreateDialog()">New session</UiButton>
+              <UiButton size="sm" variant="ghost" @click="handleImport">Import SSH config</UiButton>
             </template>
-          </div>
-        </div>
+          </template>
+        </EmptyState>
         <SessionTree v-else :filtering="Boolean(query)" :groups="groups" :sessions="filteredSessions" @create="openCreateDialog" @edit="editingSession = $event" />
       </section>
       <section v-if="message" class="session-explorer__feedback" role="status">{{ message }}</section>
@@ -39,7 +36,9 @@ import {createSession, type CreateSessionInput} from '../../../features/session/
 import {importSshConfigSessions, type ImportSshConfigSummary} from '../../../features/session/create-session/importSshConfigSessions'
 import {persistSessionAuth} from '../../../features/session/manage-credentials/sessionCredentials'
 import {createSessionGroup} from '../../../features/session/manage-groups/manageSessionGroups'
-import {UiWorkbenchPanel} from '../../../shared/ui'
+import {getErrorMessage} from '../../../shared/error/getErrorMessage'
+import {EmptyState, UiButton, UiWorkbenchPanel} from '../../../shared/ui'
+import {getSessionExplorerEmptyState} from '../model/sessionExplorerEmptyState'
 import {useSessionExplorer} from '../model/useSessionExplorer'
 import SessionCreateForm from './SessionCreateForm.vue'
 import SessionEditDialog from './SessionEditDialog.vue'
@@ -53,6 +52,7 @@ const formOpen = ref(false)
 const targetGroupId = ref('all')
 const editingSession = ref<SessionHost | null>(null)
 const showEmptyState = computed(() => filteredSessions.value.length === 0)
+const emptyState = computed(() => getSessionExplorerEmptyState(query.value))
 let messageTimer: ReturnType<typeof window.setTimeout> | null = null
 
 watch(message, (value) => {
@@ -111,7 +111,4 @@ function formatImportSummary(summary: ImportSshConfigSummary) {
   return `Imported ${summary.imported} SSH config hosts, skipped ${summary.skipped} invalid or duplicate hosts`
 }
 
-function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error)
-}
 </script>

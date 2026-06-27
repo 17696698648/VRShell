@@ -5,7 +5,10 @@
 //! - 校验 SSH 服务器 host key fingerprint
 //! - 添加/移除已接受的 host key 条目
 
-use crate::error::{BackendError, BackendResult};
+use crate::{
+    error::{BackendError, BackendResult},
+    infrastructure::app_paths::AppPaths,
+};
 use sha2::{Digest, Sha256};
 use std::{
     fs::{self, OpenOptions},
@@ -38,11 +41,7 @@ impl KnownHostsStore {
     }
 
     pub fn default_path() -> PathBuf {
-        let home = std::env::var_os("HOME")
-            .map(PathBuf::from)
-            .or_else(|| std::env::var_os("USERPROFILE").map(PathBuf::from))
-            .unwrap_or_else(|| PathBuf::from("."));
-        home.join(".ssh").join("known_hosts")
+        AppPaths::default_known_hosts_path()
     }
 
     /// 校验 host key fingerprint

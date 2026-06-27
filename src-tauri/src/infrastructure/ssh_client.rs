@@ -47,7 +47,7 @@ impl SshClient {
             .host_key()
             .ok_or_else(|| BackendError::validation("failed to retrieve server host key"))?;
 
-        let fingerprint = Self::compute_host_key_fingerprint(&raw_key);
+        let fingerprint = Self::compute_host_key_fingerprint(raw_key);
         let key_type_str = Self::host_key_type_to_string(key_type);
 
         let info = HostKeyInfo {
@@ -131,17 +131,16 @@ impl SshClient {
                     Self::wait_for_nonblocking_io(runtime, pending_attempts)?;
                 }
                 Err(error) => {
-                    return Err(BackendError::validation(format!(
+                    return Err(BackendError::terminal(format!(
                         "failed to write terminal input: {error}"
                     )))
                 }
             }
         }
 
-        runtime
-            .channel
-            .flush()
-            .map_err(|error| BackendError::sftp(format!("failed to flush terminal input: {error}")))
+        runtime.channel.flush().map_err(|error| {
+            BackendError::terminal(format!("failed to flush terminal input: {error}"))
+        })
     }
 
     /// 调整 PTY 大小
@@ -149,7 +148,7 @@ impl SshClient {
         runtime
             .channel
             .request_pty_size(cols as u32, rows as u32, None, None)
-            .map_err(|error| BackendError::sftp(format!("failed to resize pty: {error}")))
+            .map_err(|error| BackendError::terminal(format!("failed to resize pty: {error}")))
     }
 
     /// 检查 Channel 是否已关闭

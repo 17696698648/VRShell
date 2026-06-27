@@ -12,14 +12,14 @@ use crate::{
 };
 
 pub(crate) fn load_session_tree(state: &BackendState) -> BackendResult<Vec<SessionGroup>> {
-    FileStore::new(state.app_data_dir.clone()).load_session_tree()
+    FileStore::from_paths(&state.paths).load_session_tree()
 }
 
 pub(crate) fn save_session_tree(
     state: &BackendState,
     session_tree: Vec<SessionGroup>,
 ) -> BackendResult<()> {
-    FileStore::new(state.app_data_dir.clone()).save_session_tree(&session_tree)
+    FileStore::from_paths(&state.paths).save_session_tree(&session_tree)
 }
 
 pub(crate) fn import_ssh_config() -> BackendResult<Vec<SshConfigHost>> {
@@ -32,7 +32,7 @@ pub(crate) fn session_tree_action(
     target_type: String,
     target_id: String,
 ) -> BackendResult<String> {
-    let store = FileStore::new(state.app_data_dir.clone());
+    let store = FileStore::from_paths(&state.paths);
     let mut groups = store.load_session_tree()?;
     let message = apply_legacy_session_tree_action(&mut groups, action, target_type, target_id)?;
     store.save_session_tree(&groups)?;
@@ -43,7 +43,7 @@ pub(crate) fn apply_session_tree_action_payload(
     state: &BackendState,
     payload: SessionTreeActionPayload,
 ) -> BackendResult<String> {
-    let store = FileStore::new(state.app_data_dir.clone());
+    let store = FileStore::from_paths(&state.paths);
     let mut groups = store.load_session_tree()?;
     let message = apply_session_tree_payload(&mut groups, payload)?;
     store.save_session_tree(&groups)?;
@@ -83,7 +83,7 @@ mod tests {
 
         let groups = load_session_tree(&state).expect("load tree");
         assert!(groups[0].hosts.is_empty());
-        let _ = fs::remove_dir_all(state.app_data_dir);
+        let _ = fs::remove_dir_all(state.paths.app_data_dir());
     }
 
     #[test]
@@ -115,7 +115,7 @@ mod tests {
 
         let groups = load_session_tree(&state).expect("load tree");
         assert_eq!(groups[0].hosts.len(), 2);
-        let _ = fs::remove_dir_all(state.app_data_dir);
+        let _ = fs::remove_dir_all(state.paths.app_data_dir());
     }
 
     fn sample_tree() -> Vec<SessionGroup> {

@@ -396,23 +396,59 @@
   gap: var(--space-3);
   align-items: start;
   padding: var(--space-3);
-  border: 1px solid color-mix(in srgb, var(--color-danger) 42%, transparent);
+  position: relative;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--color-danger) 38%, transparent);
   border-left-width: 3px;
   border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--color-danger-soft) 52%, var(--color-bg-elevated));
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--color-danger-soft) 72%, transparent), transparent 54%),
+    color-mix(in srgb, var(--color-danger-soft) 42%, var(--color-bg-elevated));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 10%, transparent), 0 14px 40px color-mix(in srgb, var(--color-danger) 10%, transparent);
   color: var(--color-danger);
+}
+
+.ui-error-state::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 42px;
+  background: radial-gradient(circle at 0 20%, color-mix(in srgb, var(--color-danger) 18%, transparent), transparent 62%);
+  pointer-events: none;
+}
+
+.ui-error-state.compact {
+  grid-template-columns: auto minmax(0, 1fr);
+  padding: var(--space-2) var(--space-3);
+}
+
+.ui-error-state--warning {
+  border-color: color-mix(in srgb, var(--color-warning) 42%, transparent);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--color-warning-soft) 72%, transparent), transparent 54%),
+    color-mix(in srgb, var(--color-warning-soft) 42%, var(--color-bg-elevated));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 10%, transparent), 0 14px 40px color-mix(in srgb, var(--color-warning) 10%, transparent);
+  color: var(--color-warning);
+}
+
+.ui-error-state--warning::before {
+  background: radial-gradient(circle at 0 20%, color-mix(in srgb, var(--color-warning) 18%, transparent), transparent 62%);
 }
 
 .ui-error-state__icon {
   display: grid;
   place-items: center;
   margin-top: 1px;
+  position: relative;
+  z-index: 1;
 }
 
 .ui-error-state__content {
   display: grid;
   min-width: 0;
   gap: 3px;
+  position: relative;
+  z-index: 1;
 }
 
 .ui-error-state__content span,
@@ -423,6 +459,8 @@
 .ui-error-state__actions {
   display: inline-flex;
   gap: var(--space-2);
+  position: relative;
+  z-index: 1;
 }
 
 .ui-toolbar {

@@ -1,3 +1,4 @@
+pub(crate) mod app_paths;
 pub(crate) mod event_bus;
 pub(crate) mod file_store;
 pub(crate) mod keyring_store;

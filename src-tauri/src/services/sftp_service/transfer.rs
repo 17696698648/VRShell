@@ -232,7 +232,7 @@ pub(super) fn emit_sftp_progress(
     let Some(window) = window else {
         return;
     };
-    let _ = window.emit_event(
+    window.emit_event(
         crate::ipc::events::SFTP_PROGRESS,
         sftp_progress_payload(task_id, snapshot.as_ref(), transferred_bytes, total_bytes),
     );
@@ -264,7 +264,7 @@ pub(super) fn emit_sftp_completed(
     let Some(window) = window else {
         return;
     };
-    let _ = window.emit_event(
+    window.emit_event(
         crate::ipc::events::SFTP_COMPLETED,
         sftp_progress_payload(task_id, snapshot.as_ref(), transferred_bytes, total_bytes),
     );
@@ -317,7 +317,7 @@ pub(crate) fn emit_sftp_failed(
     } else {
         None
     };
-    let _ = window.emit_event(
+    window.emit_event(
         crate::ipc::events::SFTP_FAILED,
         SftpFailedEventPayload {
             task_id: task_id.to_string(),

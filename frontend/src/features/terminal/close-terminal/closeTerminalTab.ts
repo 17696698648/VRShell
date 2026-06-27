@@ -1,6 +1,7 @@
 ﻿import {closeTerminal, getTerminalInputQueueLength, type TerminalTab} from '../../../entities/terminal'
 import {disconnectTerminal} from '../../../entities/terminal/api/terminalRepository'
 import {requestConfirm} from '../../../shared/dialog'
+import {getErrorMessage} from '../../../shared/error/getErrorMessage'
 import {notifyTerminalFailure, notifyWarning} from '../../../shared/feedback'
 
 interface CloseTerminalTabOptions {
@@ -40,9 +41,3 @@ function getCloseMessage(tab: TerminalTab) {
   if (tab.status === 'connecting') return `Close ${tab.title} while it is still connecting?`
   return `Close connected terminal ${tab.title}?`
 }
-
-function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error)
-}
-
-

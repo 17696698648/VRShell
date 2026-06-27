@@ -1,42 +1,43 @@
 ﻿# Release Checklist
 
-Use this checklist before creating a public build or publishing an update.
+Use this checklist before publishing a VRShell desktop build.
 
-## Build readiness
+## Preflight
 
-- [ ] `npm run check` passes locally or in CI.
-- [ ] `npm run test:e2e:smoke` passes against the production frontend build.
-- [ ] `npm run tauri:build` completes on each release target platform.
-- [ ] Release notes include user-visible changes, migration notes, and known issues.
+- Confirm the target version in `package.json`, `frontend/package.json`, `src-tauri/Cargo.toml`, and `src-tauri/tauri.conf.json`.
+- Run `npm.cmd run release:check` from the repository root.
+- Run `npm.cmd run security:audit` and review all reported advisories.
+- Confirm `npm.cmd run check:tauri-release` passes so release builds do not enable DevTools.
 
-## DevTools policy
+## Security
 
-- [ ] Confirm release builds do not expose Tauri DevTools by default.
-- [ ] If a diagnostic build enables DevTools, label it clearly and do not distribute it as a normal release.
+- Verify Tauri capabilities are limited to workflows used by the app.
+- Confirm unknown SSH host keys require explicit user acceptance.
+- Confirm changed SSH host keys are shown as a security warning and are not silently accepted.
+- Do not persist raw passwords or private key passphrases in frontend storage.
+- Review credential and keyring behavior on the release platform.
 
-## Signing and distribution
+## Build
 
-- [ ] Code signing certificates/secrets are present only in trusted CI or release machines.
-- [ ] Signing identity and notarization requirements are verified for each target OS.
-- [ ] Generated artifacts, hashes, and signatures are archived with the release.
+```powershell
+npm.cmd run build
+npm.cmd run tauri:build
+```
 
-## SSH and known_hosts behavior
+Archive installer artifacts and checksums produced by the Tauri build.
 
-- [ ] Unknown-host prompts show the expected fingerprint and host identity.
-- [ ] `known_hosts` writes respect the configured hash-hostnames behavior.
-- [ ] Existing `known_hosts` entries are not rewritten unexpectedly during normal connect/SFTP flows.
-- [ ] Host key mismatch behavior blocks the connection and communicates the risk clearly.
+## Smoke Test
 
-## Credential migration
+- Start the packaged app.
+- Open the command palette.
+- Create or import a non-production SSH session.
+- Verify host-key prompt behavior with a test host.
+- Open a terminal and run a simple command.
+- Open SFTP, list a directory, and test a small upload/download in a safe location.
+- Close the terminal and verify the UI shows a clean closed state.
 
-- [ ] Stored session metadata migration is backward-compatible with the previous release.
-- [ ] Credential/keyring entries from the previous release can still be read.
-- [ ] Removed or renamed credential keys have a documented migration or cleanup path.
-- [ ] Rollback from the new release does not orphan credentials needed by the previous version.
+## Rollback
 
-## Upgrade and rollback
-
-- [ ] Upgrade from the previous stable version preserves sessions, groups, themes, and SSH settings.
-- [ ] Rollback instructions are documented for users and support staff.
-- [ ] Known data format changes have export/backup guidance.
-- [ ] Known issues and workaround notes are included in the release notes.
+- Keep the previous signed installer available until the new release has been smoke-tested.
+- If a release is pulled, publish the reason, affected versions, and recommended user action.
+- Revert dependency or capability changes first when failures appear security- or runtime-related.

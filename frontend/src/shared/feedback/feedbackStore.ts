@@ -1,5 +1,6 @@
 import {reactive} from 'vue'
 import {createId} from '../lib/createId'
+import type {AppErrorSeverity, AppErrorSource} from '../lib/appError'
 import {logMessage} from '../lib/logger'
 
 export type FeedbackLevel = 'info' | 'success' | 'warning' | 'error'
@@ -11,12 +12,15 @@ export interface ToastMessage {
   level: FeedbackLevel
   createdAt: number
   dedupeKey?: string
+  recoverable?: boolean
+  severity?: AppErrorSeverity
+  source?: AppErrorSource
   timeoutMs?: number | null
 }
 
 export interface PushToastInput extends Omit<ToastMessage, 'id' | 'createdAt'> {
   cooldownMs?: number
-  timeoutMs?: number
+  timeoutMs?: number | null
 }
 
 export const feedbackState = reactive({
@@ -33,16 +37,16 @@ export function pushToast(input: PushToastInput) {
     ...input,
     id: createId('toast'),
     createdAt: now,
-    timeoutMs: input.timeoutMs ?? getDefaultTimeoutMs(input.level),
+    timeoutMs: input.timeoutMs === undefined ? getDefaultTimeoutMs(input.level) : input.timeoutMs,
   }
   delete (toast as ToastMessage & {cooldownMs?: number}).cooldownMs
   feedbackState.toasts.push(toast)
-  scheduleToastRemoval(toast.id, input.timeoutMs ?? getDefaultTimeoutMs(toast.level))
+  scheduleToastRemoval(toast.id, toast.timeoutMs ?? null)
   logMessage({
     detail: toast.detail,
-    level: toast.level === 'success' ? 'info' : toast.level,
+    level: toast.severity ?? (toast.level === 'success' ? 'info' : toast.level),
     message: toast.title,
-    source: 'ui',
+    source: toast.source ?? 'ui',
   })
   return toast.id
 }

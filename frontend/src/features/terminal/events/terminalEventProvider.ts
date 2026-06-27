@@ -1,6 +1,7 @@
 import {appendTerminalLines, patchTerminal, terminalState, type TerminalTab} from '../../../entities/terminal'
 import {pollTerminalOutput} from '../../../entities/terminal/api/terminalRepository'
 import {messages} from '../../../shared/copy'
+import {getErrorMessage} from '../../../shared/error/getErrorMessage'
 import {notifyTerminalFailure} from '../../../shared/feedback'
 import {decodeTextBase64} from '../../../shared/lib/base64'
 import type {TerminalOutputEvent as PolledTerminalOutputEvent} from '../../../shared/ipc/ipcContract'
@@ -141,8 +142,4 @@ function decodeEvent(event: TerminalOutputEventPayload) {
 
 function isTauriRuntime() {
   return typeof window !== 'undefined' && Boolean('__TAURI_INTERNALS__' in window)
-}
-
-function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error)
 }

@@ -42,10 +42,13 @@ npm.cmd run tauri:build
 ```
 
 Files of interest:
-- `frontend/src/components/TerminalComponent.vue` - xterm.js terminal and SSH IPC integration
-- `frontend/src/components/SftpPanel.vue` - SFTP browser and transfer UI
-- `frontend/src/composables/useSessions.ts` - session tree state
-- `src-tauri/src/main.rs` - Rust backend with SSH, SFTP, keyring, and session commands
+- `frontend/src/widgets/session-workbench/ui/SessionTerminalPane.vue` - terminal pane wiring and xterm.js host UI
+- `frontend/src/widgets/sftp-explorer/ui/SftpTree.vue` - SFTP browser widget
+- `frontend/src/entities/session/model/sessionTree.ts` - session tree state helpers
+- `frontend/src/shared/ipc/ipcFacade.ts` - typed frontend facade for Tauri IPC commands
+- `src-tauri/src/services/terminal_service.rs` - SSH terminal lifecycle, output events, and PTY operations
+- `src-tauri/src/services/sftp_service.rs` - SFTP connection reuse, listing, and file operations
+- `src-tauri/src/ipc/contract.rs` - backend IPC contract used by generated frontend checks
 
 Useful root scripts:
 - `npm.cmd run dev` - start the Vite frontend
@@ -61,6 +64,8 @@ Useful root scripts:
 - `npm.cmd run tauri:build` - build the desktop bundle
 
 Project operations:
+- `docs/architecture.md` - frontend/backend layering, IPC contract, and security boundaries
+- `docs/adr/` - architecture decision records for release security, terminal/SFTP runtime ownership, and host-key policy
 - `docs/testing.md` - local lint, typecheck, unit, E2E smoke, build, and Rust check workflow
 - `docs/dependency-security.md` - Dependabot and audit remediation workflow
 - `docs/release-checklist.md` - release readiness, signing, DevTools, SSH `known_hosts`, credentials, and rollback checklist

@@ -22,6 +22,11 @@
   padding-inline: var(--session-explorer-edge);
 }
 
+.session-empty-state.empty-state {
+  margin: var(--space-4) var(--session-explorer-edge);
+  min-height: 180px;
+}
+
 .session-tree .ui-tree,
 .session-tree .ui-virtual-list {
   min-height: 0;

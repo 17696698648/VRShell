@@ -32,7 +32,7 @@ pub(super) enum SftpTaskTransition {
 pub(crate) fn list_sftp_tasks(state: &BackendState) -> BackendResult<Vec<SftpTaskSnapshot>> {
     let tasks = pruned_sftp_tasks(state, current_time_ms())?;
     replace_sftp_tasks(state, &tasks)?;
-    FileStore::new(state.app_data_dir.clone()).save_sftp_tasks(&tasks)?;
+    FileStore::from_paths(&state.paths).save_sftp_tasks(&tasks)?;
     Ok(tasks)
 }
 
@@ -61,7 +61,7 @@ pub(crate) fn mark_sftp_task_cancelled(state: &BackendState, task_id: &str) -> B
 fn persist_sftp_tasks(state: &BackendState) -> BackendResult<()> {
     let tasks = pruned_sftp_tasks(state, current_time_ms())?;
     replace_sftp_tasks(state, &tasks)?;
-    FileStore::new(state.app_data_dir.clone()).save_sftp_tasks(&tasks)
+    FileStore::from_paths(&state.paths).save_sftp_tasks(&tasks)
 }
 
 pub(super) fn find_sftp_task(

@@ -9,7 +9,26 @@ updates:
       timezone: Asia/Shanghai
     open-pull-requests-limit: 5
     groups:
+      tauri-runtime:
+        patterns:
+          - '@tauri-apps/*'
+        update-types:
+          - minor
+          - patch
+      terminal-editor-runtime:
+        patterns:
+          - '@xterm/*'
+          - '@codemirror/*'
+          - codemirror
+        update-types:
+          - minor
+          - patch
       frontend-minor-patch:
+        exclude-patterns:
+          - '@tauri-apps/*'
+          - '@xterm/*'
+          - '@codemirror/*'
+          - codemirror
         update-types:
           - minor
           - patch
@@ -25,7 +44,36 @@ updates:
       timezone: Asia/Shanghai
     open-pull-requests-limit: 5
     groups:
+      ssh-security-runtime:
+        patterns:
+          - ssh2
+          - keyring
+          - socket2
+          - hmac
+          - sha1
+          - sha2
+        update-types:
+          - minor
+          - patch
+      tauri-rust-runtime:
+        patterns:
+          - tauri
+          - tauri-build
+          - tauri-plugin-*
+        update-types:
+          - minor
+          - patch
       rust-minor-patch:
+        exclude-patterns:
+          - ssh2
+          - keyring
+          - socket2
+          - hmac
+          - sha1
+          - sha2
+          - tauri
+          - tauri-build
+          - tauri-plugin-*
         update-types:
           - minor
           - patch

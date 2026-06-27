@@ -7,80 +7,63 @@ pub(crate) type BackendResult<T> = Result<T, BackendError>;
 #[serde(rename_all = "camelCase")]
 pub(crate) struct BackendError {
     pub code: String,
+    pub kind: String,
     pub message: String,
     pub recoverable: bool,
 }
 
 impl BackendError {
     pub(crate) fn validation(message: impl Into<String>) -> Self {
-        Self {
-            code: "validationError".to_string(),
-            message: scrub_sensitive_message(message.into()),
-            recoverable: true,
-        }
+        Self::new("validationError", "validation", message, true)
     }
 
     pub(crate) fn network(message: impl Into<String>) -> Self {
-        Self {
-            code: "networkError".to_string(),
-            message: scrub_sensitive_message(message.into()),
-            recoverable: true,
-        }
+        Self::new("networkError", "network", message, true)
     }
 
     pub(crate) fn authentication(message: impl Into<String>) -> Self {
-        Self {
-            code: "authenticationError".to_string(),
-            message: scrub_sensitive_message(message.into()),
-            recoverable: true,
-        }
+        Self::new("authenticationError", "authentication", message, true)
     }
 
     pub(crate) fn sftp(message: impl Into<String>) -> Self {
-        Self {
-            code: "sftpError".to_string(),
-            message: scrub_sensitive_message(message.into()),
-            recoverable: true,
-        }
+        Self::new("sftpError", "sftp", message, true)
+    }
+
+    pub(crate) fn terminal(message: impl Into<String>) -> Self {
+        Self::new("terminalError", "terminal", message, true)
     }
 
     pub(crate) fn cancelled(message: impl Into<String>) -> Self {
-        Self {
-            code: "cancelled".to_string(),
-            message: scrub_sensitive_message(message.into()),
-            recoverable: true,
-        }
+        Self::new("cancelled", "cancelled", message, true)
     }
 
     pub(crate) fn storage(message: impl Into<String>) -> Self {
-        Self {
-            code: "storageError".to_string(),
-            message: scrub_sensitive_message(message.into()),
-            recoverable: true,
-        }
+        Self::new("storageError", "storage", message, true)
     }
 
     pub(crate) fn credential(message: impl Into<String>) -> Self {
-        Self {
-            code: "credentialError".to_string(),
-            message: scrub_sensitive_message(message.into()),
-            recoverable: true,
-        }
+        Self::new("credentialError", "credential", message, true)
     }
 
     pub(crate) fn host_key_changed(message: impl Into<String>) -> Self {
-        Self {
-            code: "hostKeyChanged".to_string(),
-            message: scrub_sensitive_message(message.into()),
-            recoverable: false,
-        }
+        Self::new("hostKeyChanged", "security", message, false)
     }
 
     pub(crate) fn host_key_unknown(message: impl Into<String>) -> Self {
+        Self::new("hostKeyUnknown", "security", message, true)
+    }
+
+    fn new(
+        code: impl Into<String>,
+        kind: impl Into<String>,
+        message: impl Into<String>,
+        recoverable: bool,
+    ) -> Self {
         Self {
-            code: "hostKeyUnknown".to_string(),
+            code: code.into(),
+            kind: kind.into(),
             message: scrub_sensitive_message(message.into()),
-            recoverable: true,
+            recoverable,
         }
     }
 }
@@ -126,6 +109,7 @@ mod tests {
             value,
             json!({
                 "code": "validationError",
+                "kind": "validation",
                 "message": "host is required",
                 "recoverable": true
             })
@@ -137,5 +121,13 @@ mod tests {
         let error = BackendError::credential("failed password=secret token=abc".to_string());
 
         assert_eq!(error.message, "failed [redacted] [redacted]");
+    }
+
+    #[test]
+    fn terminal_error_uses_terminal_code() {
+        let error = BackendError::terminal("failed to resize pty");
+
+        assert_eq!(error.code, "terminalError");
+        assert!(error.recoverable);
     }
 }

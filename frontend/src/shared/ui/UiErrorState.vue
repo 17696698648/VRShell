@@ -1,5 +1,5 @@
 <template>
-  <section class="ui-error-state" role="alert">
+  <section class="ui-error-state" :class="[`ui-error-state--${tone}`, {compact}]" role="alert">
     <div class="ui-error-state__icon" aria-hidden="true"><TriangleAlert :size="18" /></div>
     <div class="ui-error-state__content">
       <strong>{{ title }}</strong>
@@ -21,12 +21,14 @@ import {TriangleAlert} from '@lucide/vue'
 import UiActionButton from './UiActionButton.vue'
 import UiButton from './UiButton.vue'
 
-const props = withDefaults(defineProps<{copyable?: boolean; detail?: string; logsCommandId?: string; message: string; retryLabel?: string; title?: string}>(), {
+const props = withDefaults(defineProps<{compact?: boolean; copyable?: boolean; detail?: string; logsCommandId?: string; message: string; retryLabel?: string; title?: string; tone?: 'danger' | 'warning'}>(), {
+  compact: false,
   copyable: false,
   detail: '',
   logsCommandId: '',
   retryLabel: '',
   title: 'Something went wrong',
+  tone: 'danger',
 })
 defineEmits<{retry: []}>()
 

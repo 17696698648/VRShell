@@ -1,9 +1,10 @@
 ﻿import {describe, expect, it} from 'vitest'
 import source from '../SftpDirectoryTree.vue?raw'
 
-describe('SftpDirectoryTree inline error contract', () => {
-  it('shows retry and dismiss actions for expansion failures', () => {
-    expect(source).toContain('v-if="treeError"')
+describe('SftpDirectoryTree error contract', () => {
+  it('uses the shared error state with retry and dismiss actions', () => {
+    expect(source).toContain('<UiErrorState v-if="treeError" compact')
+    expect(source).toContain('import {UiButton, UiErrorState, UiScrollArea, UiTree}')
     expect(source).toContain('@click="retryTreeError"')
     expect(source).toContain('@click="clearTreeError"')
     expect(source).toContain('treeErrorPath')
