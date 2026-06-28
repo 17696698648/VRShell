@@ -1,9 +1,6 @@
 ﻿<template>
   <UiWorkbenchPanel :compact="compact" :class="panelClasses" :title="messages.sftp.explorer.title"
                     :subtitle="sftpSubtitle">
-    <template #icon>
-      <FolderTree :size="15"/>
-    </template>
     <template #toolbar>
       <SftpToolbar
         :disabled="!hasConnectedTerminal"
@@ -58,7 +55,6 @@
 </template>
 
 <script setup lang="ts">
-import {FolderTree} from '@lucide/vue'
 import {computed, ref, watch} from 'vue'
 import {createRemoteDirectory, uploadFileToRemoteDirectory} from '../../../features/sftp/manage-files/manageSftpFiles'
 import {messages} from '../../../shared/copy'

@@ -17,7 +17,7 @@
       :get-level="(node) => node.level"
       :get-parent-key="(node) => node.parentPath"
       :items="visibleNodes"
-      :item-height="30"
+      :item-height="26"
       :selected-key="selectedPath"
       label="Remote directory tree"
       @select="selectNode"
@@ -29,12 +29,11 @@
                 type="button"
                 :title="item.path" @contextmenu.prevent="openNodeMenu(item, $event)" @dblclick="openNode(item)"
                 @keydown.enter.prevent="openNode(item)">
-          <ChevronDown v-if="item.type === 'directory' && expandedPaths.has(item.path)"
-                       class="sftp-tree__chevron" :size="14" aria-hidden="true"/>
-          <ChevronRight v-else-if="item.type === 'directory'" class="sftp-tree__chevron" :size="14"
-                        aria-hidden="true"/>
+          <ChevronRight v-if="item.type === 'directory'"
+                        :class="['sftp-tree__chevron', {'sftp-tree__chevron--open': expandedPaths.has(item.path)}]"
+                        :size="14" aria-hidden="true"/>
           <span v-else class="sftp-tree__chevron" aria-hidden="true"/>
-          <span class="sftp-tree__icon" aria-hidden="true">
+          <span :class="['sftp-tree__icon', `sftp-tree__icon--${item.type}`]" aria-hidden="true">
             <Folder v-if="item.type === 'directory'" :size="15"/>
             <File v-else :size="15"/>
           </span>
@@ -47,7 +46,7 @@
 </template>
 
 <script setup lang="ts">
-import {ChevronDown, ChevronRight, File, Folder} from '@lucide/vue'
+import {ChevronRight, File, Folder} from '@lucide/vue'
 import {computed, reactive, ref, watch} from 'vue'
 import type {SessionHost} from '../../../entities/session'
 import {getSftpSessionState, sftpState, type SftpItem} from '../../../entities/sftp'

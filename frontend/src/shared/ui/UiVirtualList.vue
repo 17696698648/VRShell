@@ -1,5 +1,5 @@
 <template>
-  <div class="ui-virtual-list-shell" :class="{'ui-virtual-list-shell--custom-scrollbar': customScrollbar}">
+  <div class="ui-virtual-list-shell" :class="{'ui-virtual-list-shell--custom-scrollbar': customScrollbar, 'ui-virtual-list-shell--dragging': dragState}">
     <div ref="rootRef" class="ui-virtual-list" :style="{height}" @scroll="onScroll">
       <div class="ui-virtual-list__spacer" :style="{height: `${totalHeight}px`}" :data-scroll-height="totalHeight">
         <div class="ui-virtual-list__window" :style="{transform: `translateY(${offsetY}px)`}">

@@ -1,5 +1,5 @@
 .session-explorer__layout {
-  --session-tree-row-height: 30px;
+  --session-tree-row-height: 26px;
   --session-tree-indent: 16px;
   --session-tree-hover-radius: var(--radius-md);
   --session-tree-scrollbar-gutter: 6px;
@@ -44,7 +44,7 @@
   grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 6px;
-  min-height: 28px;
+  min-height: 26px;
   padding: 0 6px;
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-md);
@@ -116,11 +116,6 @@
   height: 100%;
 }
 
-.session-tree .ui-virtual-list__scrollbar-thumb {
-  border-radius: 0;
-  background: color-mix(in srgb, var(--color-text-muted) 34%, transparent);
-}
-
 .session-tree .ui-virtual-list__spacer {
   box-sizing: content-box;
   padding-top: var(--space-2);
@@ -152,14 +147,14 @@
 
 .session-group .ui-disclosure__summary {
   position: relative;
-  min-height: 28px;
-  padding: 2px var(--space-row-padding-x) 2px calc((var(--ui-tree-level, 1) - 1) * var(--session-tree-indent) + 6px);
+  min-height: 26px;
+  padding: 1px var(--space-row-padding-x) 1px calc((var(--ui-tree-level, 1) - 1) * var(--session-tree-indent) + 6px);
   z-index: 0;
   border-radius: var(--session-tree-hover-radius);
   color: var(--color-text-muted);
   isolation: isolate;
   background: transparent;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .session-group .ui-disclosure__summary > *,
@@ -309,28 +304,27 @@
 }
 
 .session-group__icon {
-  display: grid;
+  display: inline-grid;
   place-items: center;
-  width: 24px;
-  height: 24px;
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--color-bg-elevated) 76%, transparent);
-  color: var(--color-accent);
-  transition:
-    background var(--duration-fast) var(--ease-standard),
-    color var(--duration-fast) var(--ease-standard);
+  width: 16px;
+  height: 16px;
+  line-height: 0;
 }
 
-.session-group .ui-disclosure__summary:hover .session-group__icon,
-.session-group .ui-disclosure__summary:focus-visible .session-group__icon {
-  background: color-mix(in srgb, var(--color-accent) 12%, var(--color-bg-elevated));
-  color: var(--color-accent-strong);
+.session-group__icon svg {
+  display: block;
+  color: color-mix(in srgb, gray 70%, black);
+  stroke: color-mix(in srgb, gray 42%, var(--color-text-primary));
+  stroke-width: 1.8;
+  fill: color-mix(in srgb, gray 70%, black);
 }
 
 .session-group__title strong {
   min-width: 0;
   overflow: hidden;
   color: var(--color-text-primary);
+  line-height: 16px;
+  font-weight: 400;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -342,7 +336,7 @@
   align-items: center;
   gap: 7px;
   min-height: var(--session-tree-row-height);
-  padding: 2px var(--space-row-padding-x) 2px calc((var(--ui-tree-level, 1) - 1) * var(--session-tree-indent) + 6px);
+  padding: 1px var(--space-row-padding-x) 1px calc((var(--ui-tree-level, 1) - 1) * var(--session-tree-indent) + 6px);
   z-index: 0;
   border-radius: var(--session-tree-hover-radius);
   cursor: pointer;
@@ -406,7 +400,8 @@
   overflow: hidden;
   color: var(--color-text-primary);
   font-size: var(--font-size-sm);
-  font-weight: 600;
+  font-weight: 400;
+  line-height: 16px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }

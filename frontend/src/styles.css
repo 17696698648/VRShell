@@ -20,3 +20,6 @@
 @import './widgets/logs-panel/ui/logs-panel.css';
 @import './widgets/problems-panel/ui/problems-panel.css';
 @import './widgets/output-panel/ui/output-panel.css';
+
+/* Final theme layer */
+@import './shell/styles/jetbrains-theme.css';

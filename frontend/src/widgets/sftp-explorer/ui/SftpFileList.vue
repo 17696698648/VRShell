@@ -1,7 +1,7 @@
 <template>
   <div :class="['sftp-file-list', `sftp-file-list--${displayMode}`]">
     <UiScrollArea axis="x">
-      <UiDataGrid :columns="columns" :items="sortedItems" :item-height="30" :get-key="(item) => item.id"
+      <UiDataGrid :columns="columns" :items="sortedItems" :item-height="26" :get-key="(item) => item.id"
                   custom-scrollbar
                   :label="messages.sftp.treeGrid.label" :empty-text="messages.sftp.treeGrid.emptyText"
                   :selected-key="selectedItemId" :sort-key="sortKey" :sort-direction="sortDirection"
@@ -20,7 +20,9 @@
             @keydown.delete.prevent="deleteSftpItem(item)"
           >
             <strong v-bind="cellProps(columns[0])" class="sftp-file-row__name">
-              <Folder v-if="item.type === 'directory'" :size="16" aria-hidden="true"/>
+              <span v-if="item.type === 'directory'" class="sftp-folder-icon" aria-hidden="true">
+                <Folder :size="16"/>
+              </span>
               <File v-else :size="16" aria-hidden="true"/>
               <span>{{ item.name }}</span>
             </strong>

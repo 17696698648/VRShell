@@ -11,7 +11,7 @@
       :items="visibleNodes"
       custom-scrollbar
       :active-index="activeNodeIndex"
-      :item-height="30"
+      :item-height="26"
       :get-key="(node) => node.id"
       :get-level="getNodeLevel"
       :get-parent-key="getParentKey"

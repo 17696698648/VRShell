@@ -1,10 +1,11 @@
 :root {
-  --size-titlebar-height: 34px;
-  --size-activitybar-width: 42px;
+  --size-titlebar-height: 40px;
+  --size-activitybar-width: 38px;
+  --size-right-activitybar-width: 38px;
   --size-sidebar-default-width: 280px;
   --size-sidebar-min-width: 220px;
   --size-sidebar-max-width: 420px;
-  --size-statusbar-height: 25px;
+  --size-statusbar-height: 24px;
   --size-toolbar-height: 32px;
   --size-panel-header-height: 36px;
   --size-tab-height: 30px;
@@ -18,7 +19,7 @@
   --size-bottom-panel-max-height: 520px;
   --size-right-dock-min-width: 260px;
   --size-right-dock-max-width: 520px;
-  --size-splitter-hit-area: 8px;
+  --size-splitter-hit-area: 4px;
   --size-splitter-handle: 2px;
 
   --space-workbench-padding: var(--space-3);

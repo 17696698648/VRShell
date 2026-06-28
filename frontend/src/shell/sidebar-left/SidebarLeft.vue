@@ -3,7 +3,6 @@
     <slot>
       <SidebarLeftPanelHost/>
     </slot>
-    <button class="workbench-shell__sidebar-left-handle" type="button" aria-label="Resize sidebar" @pointerdown="emit('resize-start', $event)" />
   </aside>
 </template>
 
@@ -14,7 +13,4 @@ defineProps<{
   width: number
 }>()
 
-const emit = defineEmits<{
-  'resize-start': [event: PointerEvent]
-}>()
 </script>

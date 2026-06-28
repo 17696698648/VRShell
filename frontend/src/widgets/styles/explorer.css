@@ -145,19 +145,3 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
-.explorer-scroll {
-  scrollbar-color: color-mix(in srgb, var(--color-text-muted) 28%, transparent) transparent;
-  scrollbar-width: thin;
-}
-
-.explorer-scroll::-webkit-scrollbar {
-  width: 8px;
-}
-
-.explorer-scroll::-webkit-scrollbar-thumb {
-  border: 2px solid transparent;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--color-text-muted) 24%, transparent);
-  background-clip: content-box;
-}

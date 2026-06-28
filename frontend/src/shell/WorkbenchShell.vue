@@ -1,24 +1,29 @@
 <template>
   <div class="workbench-shell" data-testid="app-shell">
     <AppTitlebar/>
-    <div class="workbench-shell__body" :class="bodyClasses">
+    <div class="workbench-shell__workspace" :class="bodyClasses">
       <ActivityBarLeft/>
       <button v-if="workspaceState.sidebarVisible" class="workbench-shell__sidebar-left-backdrop" type="button" aria-label="Close sidebar" @click="workspaceState.sidebarVisible = false" />
-      <div v-if="workspaceState.sidebarVisible" class="workbench-shell__sidebar-left-resize" :style="sidebarLeftStyle">
-        <SidebarLeft :width="workspaceState.sidebarWidth" @resize-start="startSidebarLeftResize">
-          <slot name="sidebar-left"/>
-        </SidebarLeft>
-      </div>
-      <main class="workbench-shell__main">
-        <slot name="main">
-          <slot/>
-        </slot>
-      </main>
-      <div v-if="workspaceState.rightPanelVisible" class="workbench-shell__sidebar-right-resize" :style="sidebarRightStyle">
-        <SidebarRight :width="workspaceState.rightPanelWidth" @resize-start="startSidebarRightResize">
-          <slot name="sidebar-right"/>
-        </SidebarRight>
-      </div>
+      <section class="workbench-shell__stage">
+        <div v-if="workspaceState.sidebarVisible" class="workbench-shell__sidebar-left-resize" :style="sidebarLeftStyle">
+          <SidebarLeft :width="workspaceState.sidebarWidth">
+            <slot name="sidebar-left"/>
+          </SidebarLeft>
+        </div>
+        <button v-if="workspaceState.sidebarVisible" class="workbench-shell__sidebar-left-handle" type="button" aria-label="Resize sidebar" @pointerdown="startSidebarLeftResize" />
+        <main class="workbench-shell__main">
+          <slot name="main">
+            <slot/>
+          </slot>
+        </main>
+        <button v-if="workspaceState.rightPanelVisible" class="workbench-shell__sidebar-right-handle" type="button" aria-label="Resize sidebar" @pointerdown="startSidebarRightResize" />
+        <div v-if="workspaceState.rightPanelVisible" class="workbench-shell__sidebar-right-resize" :style="sidebarRightStyle">
+          <SidebarRight :width="workspaceState.rightPanelWidth">
+            <slot name="sidebar-right"/>
+          </SidebarRight>
+        </div>
+      </section>
+      <ActivityBarRight/>
     </div>
     <StatusBar/>
     <CommandPaletteHost/>
@@ -35,6 +40,7 @@
 import {computed, onMounted, onUnmounted, ref} from 'vue'
 import {setRightPanelWidth, setSidebarWidth, workspaceState} from '../entities/workspace'
 import ActivityBarLeft from './activity-bar-left/ActivityBarLeft.vue'
+import ActivityBarRight from './activity-bar-right/ActivityBarRight.vue'
 import CommandPaletteHost from './overlays/CommandPaletteHost.vue'
 import ContextMenuHost from './overlays/ContextMenuHost.vue'
 import DialogHost from './overlays/DialogHost.vue'
@@ -54,8 +60,8 @@ const sidebarLeftStyle = computed(() => ({width: `${resizingSidebarLeftWidth.val
 const sidebarRightStyle = computed(() => ({width: `${resizingSidebarRightWidth.value ?? workspaceState.rightPanelWidth}px`}))
 
 const bodyClasses = computed(() => ({
-  'workbench-shell__body--no-sidebar-left': !workspaceState.sidebarVisible,
-  'workbench-shell__body--no-sidebar-right': !workspaceState.rightPanelVisible,
+  'workbench-shell__workspace--no-sidebar-left': !workspaceState.sidebarVisible,
+  'workbench-shell__workspace--no-sidebar-right': !workspaceState.rightPanelVisible,
 }))
 
 onMounted(() => window.addEventListener('keydown', closeSidebarWithEscape))

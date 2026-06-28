@@ -1,5 +1,5 @@
 .sftp-explorer__layout {
-  --sftp-tree-row-height: 30px;
+  --sftp-tree-row-height: 26px;
   --sftp-tree-indent: 16px;
   --sftp-tree-hover-radius: var(--radius-md);
   --sftp-tree-scrollbar-gutter: 10px;
@@ -222,12 +222,6 @@
   height: 100%;
 }
 
-.sftp-directory-tree .ui-virtual-list__scrollbar-thumb,
-.sftp-file-list .ui-virtual-list__scrollbar-thumb {
-  border-radius: 0;
-  background: color-mix(in srgb, var(--color-text-muted) 34%, transparent);
-}
-
 .sftp-directory-tree .ui-virtual-list__spacer {
   box-sizing: content-box;
   padding-top: var(--space-2);
@@ -245,13 +239,13 @@
 .sftp-tree__row {
   position: relative;
   display: grid;
-  grid-template-columns: 14px 24px minmax(0, 1fr) auto;
+  grid-template-columns: 14px 16px minmax(0, 1fr) auto;
   align-items: center;
   gap: 7px;
   width: 100%;
   min-width: 0;
   min-height: var(--sftp-tree-row-height);
-  padding: 2px var(--space-row-padding-x) 2px 6px;
+  padding: 1px var(--space-row-padding-x) 1px 6px;
   z-index: 0;
   border: 0;
   border-radius: var(--sftp-tree-hover-radius);
@@ -316,26 +310,55 @@
   display: inline-grid;
   place-items: center;
   width: 14px;
-  color: var(--color-text-muted);
+  color: currentColor;
+  transition: transform var(--duration-fast) var(--ease-standard);
+}
+
+.sftp-tree__chevron--open {
+  transform: rotate(90deg);
 }
 
 .sftp-tree__icon {
   display: grid;
   place-items: center;
-  width: 24px;
-  height: 24px;
+  width: 16px;
+  height: 16px;
   border-radius: var(--radius-md);
+  border: 1px solid transparent;
   background: color-mix(in srgb, var(--color-bg-elevated) 76%, transparent);
   color: var(--color-accent);
+  line-height: 0;
   transition:
     background var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard),
     color var(--duration-fast) var(--ease-standard);
+}
+
+.sftp-tree__icon svg {
+  display: block;
+}
+
+.sftp-tree__icon--directory {
+  background: transparent;
+  color: color-mix(in srgb, gray 70%, black);
+}
+
+.sftp-tree__icon--directory svg {
+  stroke: color-mix(in srgb, gray 42%, var(--color-text-primary));
+  stroke-width: 1.8;
+  fill: color-mix(in srgb, gray 70%, black);
 }
 
 .sftp-tree__row:hover .sftp-tree__icon,
 .sftp-tree__row:focus-visible .sftp-tree__icon {
   background: color-mix(in srgb, var(--color-accent) 12%, var(--color-bg-elevated));
   color: var(--color-accent-strong);
+}
+
+.sftp-tree__row:hover .sftp-tree__icon--directory,
+.sftp-tree__row:focus-visible .sftp-tree__icon--directory {
+  background: transparent;
+  color: color-mix(in srgb, gray 70%, black);
 }
 
 .sftp-tree__label,
@@ -349,7 +372,8 @@
 .sftp-tree__label {
   color: var(--color-text-primary);
   font-size: var(--font-size-sm);
-  font-weight: 600;
+  font-weight: 400;
+  line-height: 16px;
 }
 
 .sftp-tree__meta {
@@ -432,7 +456,7 @@
   min-width: max-content;
   min-height: var(--sftp-tree-row-height);
   gap: var(--space-2);
-  padding: 2px var(--space-row-padding-x);
+  padding: 1px var(--space-row-padding-x);
   z-index: 0;
   border: 0;
   border-radius: var(--sftp-tree-hover-radius);
@@ -467,11 +491,35 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  line-height: 16px;
 }
 
 .sftp-file-row__name svg {
   flex: 0 0 auto;
   color: var(--color-accent-strong);
+}
+
+.sftp-folder-icon {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  color: color-mix(in srgb, gray 70%, black);
+  line-height: 0;
+}
+
+.sftp-file-row:hover .sftp-folder-icon,
+.sftp-file-row:focus-visible .sftp-folder-icon {
+  color: color-mix(in srgb, gray 70%, black);
+}
+
+.sftp-folder-icon svg {
+  display: block;
+  color: currentColor;
+  stroke: color-mix(in srgb, gray 42%, var(--color-text-primary));
+  stroke-width: 1.8;
+  fill: color-mix(in srgb, gray 70%, black);
 }
 
 .sftp-file-row small {

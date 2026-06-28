@@ -597,7 +597,7 @@
 
 .session-terminal-pane__viewport::-webkit-scrollbar,
 .session-terminal-pane__viewport .xterm-viewport::-webkit-scrollbar {
-  width: 20px;
+  width: 10px;
   height: 10px;
 }
 
@@ -608,21 +608,22 @@
 
 .session-terminal-pane__viewport::-webkit-scrollbar-thumb,
 .session-terminal-pane__viewport .xterm-viewport::-webkit-scrollbar-thumb {
-  border: 3px solid transparent;
+  border: 2px solid transparent;
+  border-radius: 999px;
   background: transparent;
-  background-clip: padding-box;
+  background-clip: content-box;
 }
 
 .session-terminal-pane__viewport:hover::-webkit-scrollbar-thumb,
 .session-terminal-pane__viewport .xterm:hover .xterm-viewport::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--color-terminal-text) 28%, var(--color-terminal-bg));
-  background-clip: padding-box;
+  background: color-mix(in srgb, var(--color-text-muted) 42%, var(--color-bg-panel));
+  background-clip: content-box;
 }
 
 .session-terminal-pane__viewport:hover::-webkit-scrollbar-thumb:hover,
 .session-terminal-pane__viewport .xterm:hover .xterm-viewport::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in srgb, var(--color-terminal-text) 42%, var(--color-terminal-bg));
-  background-clip: padding-box;
+  background: color-mix(in srgb, var(--color-text-muted) 58%, var(--color-bg-panel));
+  background-clip: content-box;
 }
 .session-terminal-pane__viewport .xterm {
   width: 100%;
@@ -1418,18 +1419,35 @@
   overflow: auto;
   padding: 18px;
   background: color-mix(in srgb, var(--color-bg-panel) 82%, transparent);
-  scrollbar-color: color-mix(in srgb, var(--color-text-muted) 28%, transparent) transparent;
+  scrollbar-color: transparent transparent;
   scrollbar-width: thin;
 }
 
+.settings-page__content:hover,
+.settings-page__content:focus-within {
+  scrollbar-color: color-mix(in srgb, var(--color-text-muted) 42%, var(--color-bg-panel)) transparent;
+}
+
 .settings-page__content::-webkit-scrollbar {
-  width: 8px;
+  width: 10px;
 }
 
 .settings-page__content::-webkit-scrollbar-thumb {
   border: 2px solid transparent;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--color-text-muted) 24%, transparent);
+  background: transparent;
+  background-clip: content-box;
+}
+
+.settings-page__content:hover::-webkit-scrollbar-thumb,
+.settings-page__content:focus-within::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--color-text-muted) 42%, var(--color-bg-panel));
+  background-clip: content-box;
+}
+
+.settings-page__content:hover::-webkit-scrollbar-thumb:hover,
+.settings-page__content:focus-within::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--color-text-muted) 58%, var(--color-bg-panel));
   background-clip: content-box;
 }
 

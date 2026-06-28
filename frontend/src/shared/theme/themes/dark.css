@@ -2,11 +2,11 @@
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  --color-bg-app: #070a0f;
-  --color-bg-shell: #0b1119;
-  --color-bg-panel: #101722;
-  --color-bg-workspace: #05070b;
-  --color-bg-elevated: #182231;
+  --color-bg-app: #202327;
+  --color-bg-shell: #202327;
+  --color-bg-panel: #151719;
+  --color-bg-workspace: #151719;
+  --color-bg-elevated: #2f3339;
   --color-bg-hover: rgba(148, 163, 184, 0.1);
   --color-bg-selected: rgba(56, 189, 248, 0.16);
   --color-bg-card: rgba(16, 23, 34, 0.92);

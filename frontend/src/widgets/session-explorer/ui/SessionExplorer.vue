@@ -1,8 +1,5 @@
 ﻿<template>
   <UiWorkbenchPanel compact class="explorer-panel session-explorer" title="Sessions" subtitle="SSH inventory">
-    <template #icon>
-      <Server :size="14"/>
-    </template>
     <template #actions>
       <button :class="['session-search-toggle', {active: searchOpen || query}]" type="button"
               aria-label="Toggle session search" @click="searchOpen = !searchOpen">
@@ -48,7 +45,7 @@
 </template>
 
 <script setup lang="ts">
-import {Search, Server, X} from '@lucide/vue'
+import {Search, X} from '@lucide/vue'
 import {computed, onBeforeUnmount, ref, watch} from 'vue'
 import {patchSession, type SessionGroup, type SessionHost} from '../../../entities/session'
 import {connectSession} from '../../../features/session/connect-session/connectSession'

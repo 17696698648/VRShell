@@ -1,0 +1,833 @@
+﻿/* JetBrains screenshot-inspired outer shell theme only. */
+:root {
+  --jb-top: #25292e;
+  --jb-status: #24282c;
+  --jb-stage: #202327;
+  --jb-panel: #151719;
+  --jb-text: #c9cdd3;
+  --jb-muted: #8d949e;
+  --jb-blue: #5795f7;
+  --jb-blue-soft: rgba(87, 149, 247, 0.18);
+  --jb-line-strong: rgba(160, 170, 185, 0.2);
+  --jb-radius: 9px;
+  --jb-gap: 0;
+}
+
+html,
+body,
+#app,
+.workbench-shell {
+  background: var(--jb-stage);
+}
+
+.workbench-shell {
+  grid-template-rows: 40px minmax(0, 1fr) 24px;
+}
+
+.titlebar {
+  grid-template-columns: minmax(160px, 1fr) minmax(260px, 520px) minmax(180px, 1fr);
+  min-height: 40px;
+  height: 40px;
+  gap: 14px;
+  padding: 0 10px 0 6px;
+  border: 0;
+  background: var(--jb-top);
+  color: var(--jb-muted);
+  backdrop-filter: none;
+}
+
+.titlebar__brand {
+  justify-content: flex-start;
+  gap: 12px;
+  min-width: 160px;
+  color: var(--jb-text);
+}
+
+.titlebar__brand::after {
+  content: 'VRShell';
+  color: var(--jb-text);
+  font-weight: 650;
+  font-size: 12px;
+}
+
+.titlebar__logo {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+}
+
+.workspace-context {
+  justify-self: center;
+  width: min(520px, 100%);
+  min-width: 260px;
+  max-width: 520px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--jb-line-strong);
+  border-radius: 7px;
+  background: #202227;
+  color: var(--jb-muted);
+  box-shadow: none;
+}
+
+.workspace-context::before {
+  content: 'Current File';
+  color: var(--jb-text);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.workspace-context:hover,
+.workspace-context:focus-visible {
+  border-color: rgba(160, 170, 185, 0.32);
+  background: #202227;
+  color: var(--jb-text);
+}
+
+.workspace-context__workspace,
+.workspace-context__main,
+.workspace-context__status {
+  display: none;
+}
+
+.workspace-context kbd {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: var(--jb-muted);
+}
+
+.workspace-context kbd::before {
+  content: '⌄  ▷  ⚙  ⋮';
+  font-family: var(--font-ui);
+}
+
+.workspace-context kbd > * {
+  display: none;
+}
+
+.workbench-shell__workspace {
+  grid-template-columns: 38px minmax(0, 1fr) 38px;
+  background: var(--jb-stage);
+}
+
+.workbench-shell__stage {
+  gap: var(--jb-gap);
+  background: var(--jb-stage);
+}
+
+.activity-bar-left,
+.activity-bar-right {
+  width: 38px;
+  padding: 5px 0;
+  border: 0;
+  border-radius: 0;
+  background: var(--jb-top);
+  color: #a2aab4;
+}
+
+.activity-bar-left {
+  box-shadow: inset -1px 0 rgba(0, 0, 0, 0.18);
+}
+
+.activity-bar-right {
+  box-shadow: inset 1px 0 rgba(0, 0, 0, 0.18);
+}
+
+.activity-bar-left__primary,
+.activity-bar-right__primary {
+  justify-items: center;
+  gap: 4px;
+}
+
+.activity-bar-left__item,
+.activity-bar-right__item,
+.activity-bar-left__settings {
+  width: 30px;
+  height: 30px;
+  margin: 2px 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #a2aab4;
+  box-shadow: none;
+}
+
+.activity-bar-left__item:hover,
+.activity-bar-left__item:focus-visible,
+.activity-bar-right__item:hover,
+.activity-bar-right__item:focus-visible {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--jb-text);
+}
+
+.activity-bar-left__item.active,
+.activity-bar-right__item.active {
+  background: var(--jb-blue-soft);
+  color: #8cb9ff;
+  box-shadow: none;
+}
+
+.activity-bar-left__item small,
+.activity-bar-right__item small {
+  display: none;
+}
+
+.activity-bar-left__badge,
+.activity-bar-right__badge {
+  border-color: var(--jb-top);
+}
+
+.workbench-shell__sidebar-left-resize,
+.workbench-shell__sidebar-right-resize,
+.workbench-shell__main {
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--jb-radius);
+  background: var(--jb-panel);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.025);
+  clip-path: inset(0 round var(--jb-radius));
+}
+
+.sidebar-left,
+.sidebar-right,
+.workbench-shell__main {
+  border: 0;
+  border-radius: var(--jb-radius);
+  background: var(--jb-panel);
+  background-image: none;
+  box-shadow: none;
+}
+
+.sidebar-left::before,
+.sidebar-right::before,
+.workbench-shell__main::before {
+  display: none;
+}
+
+.status-bar {
+  height: 24px;
+  min-height: 24px;
+  padding: 0 12px;
+  border: 0;
+  background: var(--jb-status);
+  color: #9199a4;
+  font-size: 11px;
+}
+
+.status-bar__group {
+  gap: 12px;
+}
+
+.status-bar__item {
+  min-height: 20px;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+}
+
+.window-controls {
+  display: flex;
+  margin-left: auto;
+  justify-self: end;
+  align-self: stretch;
+  height: 100%;
+}
+
+.window-controls button {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 100%;
+  min-height: 40px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #aeb5bf;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.window-controls button svg {
+  stroke-width: 1.65;
+}
+
+.window-controls button:hover {
+  background: rgba(255, 255, 255, 0.075);
+  color: #f0f3f7;
+}
+
+.window-controls button:active {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.window-controls__close:hover {
+  background: #c42b1c;
+  color: #ffffff;
+}
+
+.window-controls__close:active {
+  background: #a92318;
+  color: #ffffff;
+}
+
+@media (max-width: 900px) {
+  .workbench-shell__workspace {
+    grid-template-columns: 38px minmax(0, 1fr) 38px;
+  }
+
+  .workbench-shell__stage {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.workbench-shell__main > *,
+.sidebar-left > *,
+.sidebar-right > * {
+  border-radius: inherit;
+}
+
+
+/* Left sidebar / Sessions panel: JetBrains Project-window layer */
+.sidebar-left .ui-workbench-panel,
+.sidebar-left .explorer-panel,
+.sidebar-left .session-explorer {
+  height: 100%;
+  min-height: 0;
+  border: 0;
+  border-radius: inherit;
+  background: var(--jb-panel);
+  color: var(--jb-text);
+  box-shadow: none;
+}
+
+.sidebar-left .ui-workbench-panel__header {
+  min-height: 38px;
+  padding: 0 10px 0 13px;
+  border: 0;
+  background: var(--jb-panel);
+  color: var(--jb-text);
+}
+
+.sidebar-left .ui-workbench-panel__title strong,
+.sidebar-left .ui-workbench-panel__title h2,
+.sidebar-left .ui-workbench-panel__title h3 {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.sidebar-left .ui-workbench-panel__title small {
+  color: var(--jb-muted);
+  font-size: 11px;
+}
+
+.sidebar-left .ui-workbench-panel__actions button,
+.sidebar-left .session-search-toggle {
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--jb-faint);
+}
+
+.sidebar-left .ui-workbench-panel__actions button:hover,
+.sidebar-left .session-search-toggle:hover,
+.sidebar-left .session-search-toggle.active {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--jb-text);
+}
+
+.sidebar-left .ui-workbench-panel__toolbar {
+  padding: 4px 7px 6px;
+  border: 0;
+  background: var(--jb-panel);
+}
+
+.sidebar-left .ui-workbench-panel__body,
+.sidebar-left .explorer-layout,
+.sidebar-left .session-explorer__body,
+.sidebar-left .explorer-content {
+  min-height: 0;
+  border: 0;
+  background: var(--jb-panel);
+}
+
+.sidebar-left .session-search-bar,
+.sidebar-left .explorer-utility {
+  padding: 4px 7px;
+  border: 0;
+  background: var(--jb-panel);
+}
+
+.sidebar-left .session-search-field {
+  min-height: 28px;
+  border: 1px solid var(--jb-line-strong);
+  border-radius: 7px;
+  background: #202227;
+  color: var(--jb-muted);
+}
+
+.sidebar-left input {
+  background: transparent;
+  color: var(--jb-text);
+}
+
+.sidebar-left .tree-row,
+.sidebar-left .session-tree__row,
+.sidebar-left [role='treeitem'],
+.sidebar-left .explorer-row {
+  min-height: 24px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--jb-muted);
+}
+
+.sidebar-left .tree-row:hover,
+.sidebar-left .session-tree__row:hover,
+.sidebar-left [role='treeitem']:hover,
+.sidebar-left .explorer-row:hover {
+  background: rgba(255, 255, 255, 0.055);
+  color: var(--jb-text);
+}
+
+.sidebar-left .tree-row.active,
+.sidebar-left .session-tree__row.active,
+.sidebar-left [aria-selected='true'],
+.sidebar-left .explorer-row.active {
+  background: #3b3e46;
+  color: #e1e5ea;
+}
+
+/* Main editor/session area: JetBrains editor-panel layer */
+.workbench-shell__main .workbench-layout-root,
+.workbench-shell__main .session-workbench,
+.workbench-shell__main .welcome-page,
+.workbench-shell__main .editor-workbench {
+  background: var(--jb-panel);
+  color: var(--jb-text);
+}
+
+.workbench-shell__main .session-tabs,
+.workbench-shell__main .editor-tabs {
+  min-height: 35px;
+  padding: 0 6px;
+  border: 0;
+  background: var(--jb-panel-soft);
+}
+
+.workbench-shell__main .session-tabs__item,
+.workbench-shell__main .editor-tabs__item,
+.workbench-shell__main .editor-tab {
+  min-height: 30px;
+  border: 0;
+  border-radius: 6px 6px 0 0;
+  background: transparent;
+  color: var(--jb-muted);
+}
+
+.workbench-shell__main .session-tabs__item:hover,
+.workbench-shell__main .editor-tabs__item:hover,
+.workbench-shell__main .editor-tab:hover {
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--jb-text);
+}
+
+.workbench-shell__main .session-tabs__item.active,
+.workbench-shell__main .editor-tabs__item.active,
+.workbench-shell__main .editor-tab.active {
+  background: var(--jb-panel);
+  color: var(--jb-text);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+.workbench-shell__main .session-tabs__item::before {
+  display: none;
+}
+
+.workbench-shell__main .session-pane,
+.workbench-shell__main .session-terminal-area,
+.workbench-shell__main .session-terminal-pane,
+.workbench-shell__main .terminal-area {
+  background: var(--jb-panel);
+}
+
+.workbench-shell__main .session-terminal-tabs {
+  min-height: 30px;
+  padding: 0 8px;
+  border: 0;
+  background: #181a1d;
+}
+
+.workbench-shell__main .session-terminal-tabs__item,
+.workbench-shell__main .session-terminal-tabs button {
+  min-height: 26px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--jb-muted);
+}
+
+.workbench-shell__main .session-terminal-tabs__item:hover,
+.workbench-shell__main .session-terminal-tabs button:hover {
+  background: rgba(255, 255, 255, 0.055);
+  color: var(--jb-text);
+}
+
+.workbench-shell__main .session-terminal-tabs__item.active,
+.workbench-shell__main .session-terminal-tabs button.active {
+  background: #30343a;
+  color: #c8cdd4;
+}
+
+.workbench-shell__main .xterm,
+.workbench-shell__main .terminal,
+.workbench-shell__main .terminal-host,
+.workbench-shell__main .terminal-pane {
+  background: #111318 !important;
+}
+
+.workbench-shell__main .xterm .xterm-viewport,
+.workbench-shell__main .xterm .xterm-screen {
+  background-color: #111318 !important;
+}
+
+.workbench-shell__main .empty-state,
+.workbench-shell__main .welcome-page {
+  color: var(--jb-faint);
+}
+
+/* Right sidebar / Inspector layer */
+.sidebar-right .sidebar-right__header {
+  justify-content: space-between;
+  min-height: 38px;
+  padding: 0 10px 0 13px;
+  border: 0;
+  background: var(--jb-panel);
+  color: var(--jb-text);
+}
+
+.sidebar-right__title {
+  gap: 6px;
+  overflow: hidden;
+}
+
+.sidebar-right__title strong {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-right__actions {
+  gap: 3px;
+  color: var(--jb-faint);
+}
+
+.sidebar-right__action {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--jb-faint);
+}
+
+.sidebar-right__action:hover,
+.sidebar-right__action:focus-visible,
+.sidebar-right__action.active {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--jb-text);
+}
+
+.sidebar-right__content {
+  background: var(--jb-panel);
+}
+
+.session-connection-info,
+.sidebar-right .sftp-explorer,
+.sidebar-right .ui-workbench-panel {
+  background: var(--jb-panel);
+  color: var(--jb-text);
+}
+
+.session-connection-info {
+  gap: 10px;
+  padding: 12px;
+}
+
+.session-connection-info__hero,
+.session-connection-info__card {
+  border: 0;
+  border-radius: 7px;
+  background: #292c31;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.045);
+}
+
+.session-connection-info__hero {
+  padding: 11px;
+}
+
+.session-connection-info__card {
+  padding: 11px;
+}
+
+.session-connection-info__card h3 {
+  color: var(--jb-muted);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.session-connection-info__details dt,
+.session-connection-info__hero small,
+.session-connection-info__list-latency {
+  color: var(--jb-faint);
+}
+
+.session-connection-info__details dd,
+.session-connection-info__list-title,
+.session-connection-info__empty strong {
+  color: var(--jb-text);
+}
+
+.session-connection-info__list-item {
+  border-radius: 5px;
+}
+
+.session-connection-info__list-item:hover {
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.sidebar-right .ui-workbench-panel__header,
+.sidebar-right .ui-workbench-panel__toolbar,
+.sidebar-right .sftp-pathbar {
+  border: 0;
+  background: var(--jb-panel-soft);
+}
+
+.sidebar-right .ui-workbench-panel__body,
+.sidebar-right .sftp-explorer__layout,
+.sidebar-right .sftp-explorer__body,
+.sidebar-right .sftp-directory-tree,
+.sidebar-right .sftp-file-list {
+  background: var(--jb-panel);
+  color: var(--jb-muted);
+}
+
+.sidebar-right .sftp-explorer .breadcrumbs {
+  border: 1px solid var(--jb-line-strong);
+  border-radius: 7px;
+  background: #202227;
+  box-shadow: none;
+}
+
+.sidebar-right .ui-tree__item,
+.sidebar-right .sftp-file-list__row,
+.sidebar-right .ui-virtual-list__item {
+  border-radius: 5px;
+  color: var(--jb-muted);
+}
+
+.sidebar-right .ui-tree__item:hover,
+.sidebar-right .sftp-file-list__row:hover,
+.sidebar-right .ui-virtual-list__item:hover {
+  background: rgba(255, 255, 255, 0.055);
+  color: var(--jb-text);
+}
+
+/* Fixed panel titles requested for current shell layout */
+.sidebar-left .ui-workbench-panel__title > * {
+  display: none;
+}
+
+.sidebar-left .ui-workbench-panel__title::before {
+  content: 'SESSION';
+  color: var(--jb-text);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.sidebar-right .ui-workbench-panel__title > * {
+  display: none;
+}
+
+.sidebar-right .ui-workbench-panel__title::before {
+  content: 'SFTP';
+  color: var(--jb-text);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.sidebar-right {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.sidebar-left .ui-workbench-panel__header,
+.sidebar-right .ui-workbench-panel__header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Refined activity icon rails */
+.activity-bar-left,
+.activity-bar-right {
+  padding: 6px 0;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 56px),
+    var(--jb-top);
+}
+
+.activity-bar-left__primary,
+.activity-bar-right__primary {
+  gap: 6px;
+}
+
+.activity-bar-left__item,
+.activity-bar-right__item,
+.activity-bar-left__settings {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  margin: 0;
+  border-radius: 8px;
+  color: #98a1ad;
+  transition:
+    background 140ms ease,
+    color 140ms ease,
+    transform 140ms ease;
+}
+
+.activity-bar-left__item svg,
+.activity-bar-right__item svg,
+.activity-bar-left__settings svg {
+  stroke-width: 1.8;
+}
+
+.activity-bar-left__item:hover,
+.activity-bar-left__item:focus-visible,
+.activity-bar-right__item:hover,
+.activity-bar-right__item:focus-visible,
+.activity-bar-left__settings:hover,
+.activity-bar-left__settings:focus-visible {
+  background: rgba(255, 255, 255, 0.07);
+  color: #d7dbe1;
+}
+
+.activity-bar-left__item:active,
+.activity-bar-right__item:active,
+.activity-bar-left__settings:active {
+  transform: scale(0.96);
+}
+
+.activity-bar-left__item.active,
+.activity-bar-right__item.active {
+  background: rgba(87, 149, 247, 0.16);
+  color: #9fc4ff;
+}
+
+.activity-bar-left__item.active::before,
+.activity-bar-right__item.active::before {
+  position: absolute;
+  top: 7px;
+  bottom: 7px;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--jb-blue);
+  content: '';
+}
+
+.activity-bar-left__item.active::before {
+  left: -4px;
+}
+
+.activity-bar-right__item.active::before {
+  right: -4px;
+}
+
+.activity-bar-left__badge,
+.activity-bar-right__badge {
+  top: 2px;
+  width: 7px;
+  min-width: 7px;
+  height: 7px;
+  border: 1px solid var(--jb-top);
+}
+
+.activity-bar-left__badge {
+  right: 2px;
+}
+
+.activity-bar-right__badge {
+  left: 2px;
+}
+
+/* Activity rail refinement rollback: no side indicators, no badge reposition, no press scaling. */
+.activity-bar-left__item:active,
+.activity-bar-right__item:active,
+.activity-bar-left__settings:active {
+  transform: none;
+}
+
+.activity-bar-left__item.active,
+.activity-bar-right__item.active {
+  background: rgba(255, 255, 255, 0.07);
+  color: #d7dbe1;
+}
+
+.activity-bar-left__item.active::before,
+.activity-bar-right__item.active::before {
+  display: none;
+}
+
+.activity-bar-left__badge,
+.activity-bar-right__badge {
+  top: -2px;
+  min-width: 8px;
+  width: auto;
+  height: 8px;
+  border: 2px solid var(--jb-top);
+}
+
+.activity-bar-left__badge {
+  right: -4px;
+}
+
+.activity-bar-right__badge {
+  left: -4px;
+}
+
+/* Session/SFTP header and toolbar icon color cleanup */
+.session-explorer .ui-workbench-panel__icon,
+.sftp-explorer .ui-workbench-panel__icon {
+  display: none;
+}
+
+.session-explorer .ui-workbench-panel__toolbar svg,
+.session-explorer .ui-workbench-panel__actions svg,
+.session-explorer .session-search-toggle svg,
+.sftp-explorer .ui-workbench-panel__toolbar svg,
+.sftp-explorer .ui-workbench-panel__actions svg,
+.sftp-explorer .sftp-toolbar svg,
+.sftp-explorer .ui-icon-button svg,
+.sftp-explorer .ui-toolbar-button-group__item svg {
+  color: currentColor;
+  stroke: currentColor;
+}
+
+.session-explorer .ui-workbench-panel__toolbar button,
+.session-explorer .ui-workbench-panel__actions button,
+.session-explorer .session-search-toggle,
+.sftp-explorer .ui-workbench-panel__toolbar button,
+.sftp-explorer .ui-workbench-panel__actions button,
+.sftp-explorer .sftp-toolbar button,
+.sftp-explorer .ui-icon-button,
+.sftp-explorer .ui-toolbar-button-group__item {
+  color: inherit;
+}

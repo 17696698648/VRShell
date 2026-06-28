@@ -1,5 +1,5 @@
 <template>
-  <div ref="rootRef" class="ui-scroll-area" :class="{'ui-scroll-area--x': canScrollX, 'ui-scroll-area--y': canScrollY}" @pointerleave="dragState = null">
+  <div ref="rootRef" class="ui-scroll-area" :class="{'ui-scroll-area--x': canScrollX, 'ui-scroll-area--y': canScrollY, 'ui-scroll-area--dragging': dragState}">
     <div ref="viewportRef" class="ui-scroll-area__viewport" @scroll.capture="syncScrollState">
       <slot />
     </div>

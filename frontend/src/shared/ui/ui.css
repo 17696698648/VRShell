@@ -1249,7 +1249,7 @@
   min-height: var(--size-splitter-hit-area);
   border-radius: 0;
   background: linear-gradient(90deg, transparent calc(50% - 1px), var(--color-border-subtle) calc(50% - 1px), var(--color-border-subtle) calc(50% + 1px), transparent calc(50% + 1px));
-  cursor: col-resize;
+  cursor: ew-resize;
 }
 
 .ui-split-pane.vertical .ui-split-pane__handle {
@@ -1305,14 +1305,23 @@
   z-index: 30;
   display: block;
   padding: 0;
-  border: 2px solid color-mix(in srgb, var(--color-bg-panel) 92%, transparent);
+  border: 2px solid color-mix(in srgb, var(--color-bg-panel) 90%, transparent);
   border-radius: 999px;
   background: color-mix(in srgb, var(--color-text-muted) 42%, var(--color-bg-panel));
   background-clip: padding-box;
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-bg-panel) 80%, transparent);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    background var(--duration-fast) var(--ease-standard),
+    opacity var(--duration-fast) var(--ease-standard);
+}
+
+.ui-scroll-area:hover .ui-scroll-area__thumb,
+.ui-scroll-area:focus-within .ui-scroll-area__thumb,
+.ui-scroll-area--dragging .ui-scroll-area__thumb {
   opacity: 1;
   pointer-events: auto;
-  transition: background var(--duration-fast) var(--ease-standard);
 }
 
 .ui-scroll-area__thumb:hover,
@@ -1322,19 +1331,19 @@
 
 .ui-scroll-area__thumb--y {
   top: var(--ui-scroll-area-y-offset, 0);
-  right: 0;
-  width: 8px;
+  right: 2px;
+  width: 10px;
 }
 
 .ui-scroll-area__thumb--x {
-  right: 0;
-  bottom: 0;
-  left: 0;
-  height: 8px;
+  right: 2px;
+  bottom: 2px;
+  left: 2px;
+  height: 10px;
 }
 
 .ui-scroll-area--x.ui-scroll-area--y .ui-scroll-area__thumb--x {
-  right: 10px;
+  right: 12px;
 }
 
 .ui-scroll-area--x.ui-scroll-area--y .ui-scroll-area__thumb--y {
@@ -1377,22 +1386,30 @@
 }
 
 .ui-virtual-list-shell--custom-scrollbar:hover .ui-virtual-list__scrollbar,
-.ui-virtual-list-shell--custom-scrollbar:focus-within .ui-virtual-list__scrollbar {
+.ui-virtual-list-shell--custom-scrollbar:focus-within .ui-virtual-list__scrollbar,
+.ui-virtual-list-shell--dragging .ui-virtual-list__scrollbar {
   opacity: 1;
   pointer-events: auto;
 }
 
 .ui-virtual-list__scrollbar--y {
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 8px;
+  top: 2px;
+  right: 2px;
+  bottom: 2px;
+  width: 10px;
 }
 
 .ui-virtual-list__scrollbar-thumb {
   width: 100%;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--color-text-muted) 34%, transparent);
+  background: color-mix(in srgb, var(--color-text-muted) 42%, var(--color-bg-panel));
+  background-clip: padding-box;
+  border: 2px solid color-mix(in srgb, var(--color-bg-panel) 90%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-bg-panel) 80%, transparent);
+}
+
+.ui-virtual-list__scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--color-text-muted) 58%, var(--color-bg-panel));
 }
 
 .ui-virtual-list__spacer {
