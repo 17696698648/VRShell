@@ -50,10 +50,12 @@ for (const file of listSourceFiles('src')) {
   assertNoDirectTauriWindowApi(file, source)
   assertNoReverseDependency(file, source)
   assertLayerImports(file, source)
+  assertUiDesignBaseline(file, source)
 }
 
 assertTerminalOutputStaysOutsideReactiveStore()
 assertSessionNodeDoesNotConnectOnSingleClick()
+assertVisualSnapshotsExist()
 
 const statusItems = readProjectFile('src/shell/status-bar/model/registerDefaultStatusItems.ts')
 for (const match of statusItems.matchAll(/label:\s*`([^`]+)`|label:\s*'([^']+)'|label:\s*"([^"]+)"/g)) {
@@ -207,6 +209,64 @@ function assertSessionNodeDoesNotConnectOnSingleClick() {
   const source = readProjectFile('src/widgets/session-explorer/ui/SessionTreeNode.vue')
   assert(!source.includes('@click="connectSession'), 'SessionTreeNode should not connect on single click; use select on click and connect on double-click/Enter/action')
   assert(source.includes('@dblclick="connectSession'), 'SessionTreeNode should support double-click to connect')
+}
+
+function assertUiDesignBaseline(file, source) {
+  assertSettingsUseSharedFormControls(file, source)
+  assertSessionFormAvoidsNakedControls(file, source)
+  assertNoLegacyUiTokens(file, source)
+  assertWorkbenchAvoidsCardChrome(file, source)
+}
+
+function assertSettingsUseSharedFormControls(file, source) {
+  if (!file.startsWith('src/pages/settings/') || !file.endsWith('.vue')) return
+  assert(!/<(?:input|select)\b/.test(source), `${file} uses naked input/select; use UiInput or UiSelect`)
+}
+
+function assertSessionFormAvoidsNakedControls(file, source) {
+  if (!file.endsWith('session-explorer/ui/session-explorer.css')) return
+  assert(!/\.session-form\s+(?:input|select|button)\b/.test(source), `${file} styles naked session-form controls; use shared form components`)
+}
+
+function assertNoLegacyUiTokens(file, source) {
+  if (!/\.(css|vue)$/.test(file)) return
+  if (file.startsWith('src/shared/theme/')) return
+  const guardedFiles = new Set([
+    'src/widgets/session-explorer/ui/session-explorer.css',
+    'src/widgets/sftp-explorer/ui/sftp-explorer.css',
+    'src/shell/dock/dock.css',
+  ])
+  if (!guardedFiles.has(file)) return
+  const legacyTokens = ['--color-surface', '--color-surface-2', '--color-border)', '--color-text)', '--color-muted)']
+  const matches = legacyTokens.filter((token) => source.includes(token))
+  assert(matches.length === 0, `${file} uses legacy UI tokens (${matches.join(', ')}); prefer tool-window/text/border semantic tokens`)
+}
+
+function assertWorkbenchAvoidsCardChrome(file, source) {
+  if (!file.endsWith('.css')) return
+  const workbenchCss = file.includes('/workbench-layout/') || file.includes('/session-workbench/') || file.includes('/editor-workbench/') || file.endsWith('src/shell/styles/shell.css') || file.endsWith('src/shell/dock/dock.css')
+  if (!workbenchCss) return
+  const withoutResponsiveDrawer = source.replace(/\.workbench-shell__sidebar-left-resize\s*\{[\s\S]*?\}/g, '')
+  assert(!/box-shadow:\s*var\(--shadow-(?:soft|panel|card-hover|glow)\)/.test(withoutResponsiveDrawer), `${file} adds card shadow inside workbench; use dividers/embedded panels`)
+  assert(!/border-radius:\s*var\(--radius-(?:xl|2xl)\)/.test(withoutResponsiveDrawer), `${file} adds large radius inside workbench; use embedded square panels`)
+}
+
+function assertVisualSnapshotsExist() {
+  const visualSpec = readProjectFile('e2e/visual.spec.ts')
+  const requiredSnapshots = [...visualSpec.matchAll(/toHaveScreenshot\(['"]([^'"]+)['"]\)/g)].map((match) => match[1])
+  for (const snapshot of requiredSnapshots) {
+    const snapshotFile = `e2e/visual.spec.ts-snapshots/${snapshot.replace(/\.png$/, '')}-chromium-win32.png`
+    assert(fileExists(snapshotFile), `${snapshotFile} is missing; run visual tests with --update-snapshots`)
+  }
+}
+
+function fileExists(file) {
+  try {
+    statSync(new URL(file, root))
+    return true
+  } catch {
+    return false
+  }
 }
 
 function listSourceFiles(directory) {

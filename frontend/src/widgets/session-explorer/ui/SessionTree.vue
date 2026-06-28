@@ -1,7 +1,7 @@
 <template>
   <div
     ref="treeContainerRef"
-    :class="['explorer-scroll', 'session-tree', {'is-dragging': isDragging}]"
+    :class="['explorer-scroll', 'explorer-tree', 'session-tree', {'is-dragging': isDragging, 'has-vertical-scrollbar': hasVerticalScrollbar}]"
     @pointerdown="onPointerDown"
     @pointermove.prevent="onPointerMove"
     @pointerup="onPointerUp"
@@ -9,8 +9,9 @@
   >
     <UiTree
       :items="visibleNodes"
+      custom-scrollbar
       :active-index="activeNodeIndex"
-      :item-height="32"
+      :item-height="30"
       :get-key="(node) => node.id"
       :get-level="getNodeLevel"
       :get-parent-key="getParentKey"
@@ -22,19 +23,20 @@
       <template #default="{item: node, treeItemProps}">
         <section
           v-if="node.type === 'group'"
-          v-bind="treeItemProps"
-          :class="['session-group', {
+          v-bind="withoutTreeItemClass(treeItemProps)"
+          :class="['session-tree__row', 'session-tree__row--group', 'session-group', {
             'session-group--empty': getGroupCount(node.group.id) === 0,
             'session-group--drop-inside': isGroupDropTarget(node.group.id, 'inside'),
             'session-group--drop-after': isGroupDropTarget(node.group.id, 'after'),
           }]"
           :data-group-id="node.group.id"
         >
-          <UiDisclosure :open="expandedKeys.includes(node.id)" :badge="getGroupCount(node.group.id)" @update:open="toggleNode(node)">
+          <UiDisclosure :open="expandedKeys.includes(node.id)" :badge="getGroupCount(node.group.id)"
+                        @update:open="toggleNode(node)">
             <template #title>
               <span class="session-group__title">
                 <span class="session-group__icon" aria-hidden="true">
-                  <component :is="expandedKeys.includes(node.id) ? FolderOpen : Folder" :size="15" />
+                  <component :is="expandedKeys.includes(node.id) ? FolderOpen : Folder" :size="15"/>
                 </span>
                 <strong>{{ node.group.name }}</strong>
               </span>
@@ -43,7 +45,7 @@
         </section>
         <SessionTreeNode
           v-else
-          v-bind="treeItemProps"
+          v-bind="withoutTreeItemClass(treeItemProps)"
           :class="{
             'session-node--drop-before': isSessionDropTarget(node.session.id, 'before'),
             'session-node--drop-after': isSessionDropTarget(node.session.id, 'after'),
@@ -53,61 +55,77 @@
         />
       </template>
     </UiTree>
-    <div v-if="isDragging" ref="ghostRef" class="session-tree__ghost" />
+    <div v-if="isDragging" ref="ghostRef" class="session-tree__ghost"/>
   </div>
 </template>
 
 <script setup lang="ts">
 import {Folder, FolderOpen} from '@lucide/vue'
-import {computed, nextTick, ref, watch} from 'vue'
+import {computed, nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue'
 import {moveGroup, moveSession, sessionState, type SessionGroup, type SessionHost} from '../../../entities/session'
 import {createSessionGroup, deleteSessionGroup} from '../../../features/session/manage-groups/manageSessionGroups'
 import {openContextMenu} from '../../../shared/context-menu'
 import {UiDisclosure, UiTree} from '../../../shared/ui'
 import SessionTreeNode from './SessionTreeNode.vue'
 
-const props = withDefaults(defineProps<{filtering?: boolean; groups: SessionGroup[]; sessions: SessionHost[]}>(), {filtering: false})
-const emit = defineEmits<{create: [group: SessionGroup]; edit: [session: SessionHost]}>()
-
-/* ===== Types & constants ===== */
+const props = withDefaults(defineProps<{
+  filtering?: boolean;
+  groups: SessionGroup[];
+  sessions: SessionHost[]
+}>(), {filtering: false})
+const emit = defineEmits<{ create: [group: SessionGroup]; edit: [session: SessionHost] }>()
 
 type SessionTreeFlatNode =
-  | {id: string; level: number; parentKey: string | null; type: 'group'; group: SessionGroup}
-  | {id: string; level: number; parentKey: string | null; type: 'session'; session: SessionHost}
+  | { id: string; level: number; parentKey: string | null; type: 'group'; group: SessionGroup }
+  | { id: string; level: number; parentKey: string | null; type: 'session'; session: SessionHost }
 
 type DragSourceType =
-  | {type: 'session'; session: SessionHost}
-  | {type: 'group'; group: SessionGroup}
+  | { type: 'session'; session: SessionHost }
+  | { type: 'group'; group: SessionGroup }
 
 type DropTarget =
-  | {type: 'group'; groupId: string; position: 'inside' | 'after'}
-  | {type: 'session'; sessionId: string; position: 'before' | 'after'}
+  | { type: 'group'; groupId: string; position: 'inside' | 'after' }
+  | { type: 'session'; sessionId: string; position: 'before' | 'after' }
 
 const LONG_PRESS_MS = 180
 const DRAG_THRESHOLD_PX = 5
 
-/* ===== State ===== */
-
 const expandedKeys = ref<string[]>([])
 const treeContainerRef = ref<HTMLElement | null>(null)
 const ghostRef = ref<HTMLElement | null>(null)
+const hasVerticalScrollbar = ref(false)
 
 const dragSource = ref<DragSourceType | null>(null)
 const isDragging = ref(false)
 const dropTarget = ref<DropTarget | null>(null)
 
-// Non-reactive drag bookkeeping (avoids re-renders during pointer tracking)
 let pressTimer: ReturnType<typeof setTimeout> | null = null
 let pressStartX = 0
 let pressStartY = 0
 let dragDidMove = false
 let autoScrollRaf: number | null = null
-
-/* ===== Tree data ===== */
+let resizeObserver: ResizeObserver | null = null
 
 const flatNodes = computed<SessionTreeFlatNode[]>(() => flattenSessionTree())
 const visibleNodes = computed(() => flatNodes.value.filter(isNodeVisible))
 const activeNodeIndex = computed(() => visibleNodes.value.findIndex((n) => n.type === 'session' && n.session.id === sessionState.activeSessionId))
+
+onMounted(() => {
+  updateScrollbarState()
+  const virtualList = getVirtualListElement()
+  if (!virtualList) return
+  resizeObserver = new ResizeObserver(updateScrollbarState)
+  resizeObserver.observe(virtualList)
+})
+
+onBeforeUnmount(() => {
+  resizeObserver?.disconnect()
+  resizeObserver = null
+})
+
+watch(visibleNodes, () => {
+  void nextTick(updateScrollbarState)
+})
 
 watch(
   () => props.groups.map((g) => g.id),
@@ -134,7 +152,13 @@ function appendGroup(nodes: SessionTreeFlatNode[], groups: SessionGroup[], group
   const key = getGroupKey(group.id)
   nodes.push({id: key, level, parentKey, type: 'group', group})
   for (const child of groups.filter((g) => g.parentId === group.id)) appendGroup(nodes, groups, child, level + 1, key)
-  for (const s of getOrderedGroupSessions(group)) nodes.push({id: s.id, level: level + 1, parentKey: key, type: 'session', session: s})
+  for (const s of getOrderedGroupSessions(group)) nodes.push({
+    id: s.id,
+    level: level + 1,
+    parentKey: key,
+    type: 'session',
+    session: s
+  })
 }
 
 function getOrderedGroupSessions(group: SessionGroup) {
@@ -146,7 +170,10 @@ function getOrderedGroupSessions(group: SessionGroup) {
 
 function ensureRenderableGroups() {
   if (props.groups.some((g) => g.id === 'all')) return props.groups
-  return [{id: 'all', name: '所有', sessionIds: []}, ...props.groups.map((g) => ({...g, parentId: g.parentId ?? 'all'}))]
+  return [{id: 'all', name: '所有', sessionIds: []}, ...props.groups.map((g) => ({
+    ...g,
+    parentId: g.parentId ?? 'all'
+  }))]
 }
 
 function isNodeVisible(node: SessionTreeFlatNode) {
@@ -158,16 +185,41 @@ function isNodeVisible(node: SessionTreeFlatNode) {
   return true
 }
 
-function getNodeLevel(node: SessionTreeFlatNode) { return node.level }
-function getParentKey(node: SessionTreeFlatNode) { return node.parentKey }
+function getNodeLevel(node: SessionTreeFlatNode) {
+  return node.level
+}
+
+function getParentKey(node: SessionTreeFlatNode) {
+  return node.parentKey
+}
+
+function withoutTreeItemClass(treeItemProps: Record<string, unknown>) {
+  const {class: _class, ...props} = treeItemProps
+  return props
+}
+
+function getVirtualListElement() {
+  return treeContainerRef.value?.querySelector<HTMLElement>('.ui-virtual-list') ?? null
+}
+
+function updateScrollbarState() {
+  const virtualList = getVirtualListElement()
+  hasVerticalScrollbar.value = Boolean(virtualList && virtualList.scrollHeight > virtualList.clientHeight + 1)
+}
 
 function selectNode(node: SessionTreeFlatNode) {
-  if (dragDidMove) { dragDidMove = false; return }
+  if (dragDidMove) {
+    dragDidMove = false;
+    return
+  }
   if (node.type === 'session') sessionState.activeSessionId = node.session.id
 }
 
 function toggleNode(node: SessionTreeFlatNode) {
-  if (dragDidMove) { dragDidMove = false; return }
+  if (dragDidMove) {
+    dragDidMove = false;
+    return
+  }
   if (node.type !== 'group') return
   const key = getGroupKey(node.group.id)
   expandedKeys.value = expandedKeys.value.includes(key) ? expandedKeys.value.filter((k) => k !== key) : [...expandedKeys.value, key]
@@ -187,7 +239,9 @@ function collectChildGroupIds(groupId: string) {
   return ids
 }
 
-function getGroupKey(groupId: string) { return `group-${groupId}` }
+function getGroupKey(groupId: string) {
+  return `group-${groupId}`
+}
 
 function isGroupDropTarget(groupId: string, position: 'inside' | 'after') {
   return dropTarget.value?.type === 'group' && dropTarget.value.groupId === groupId && dropTarget.value.position === position
@@ -196,8 +250,6 @@ function isGroupDropTarget(groupId: string, position: 'inside' | 'after') {
 function isSessionDropTarget(sessionId: string, position: 'before' | 'after') {
   return dropTarget.value?.type === 'session' && dropTarget.value.sessionId === sessionId && dropTarget.value.position === position
 }
-
-/* ===== Context menu ===== */
 
 function onContextMenu(event: MouseEvent) {
   const target = (event.target as HTMLElement).closest<HTMLElement>('[data-group-id]')
@@ -211,15 +263,16 @@ function onContextMenu(event: MouseEvent) {
     items: [
       {id: 'new-session', label: 'New session', run: () => emit('create', group)},
       {id: 'new-subgroup', label: 'New subgroup', run: () => createSessionGroup(group)},
-      {id: 'delete-group', label: 'Delete group', danger: true, disabled: group.id === 'all', run: async () => { await deleteSessionGroup(group) }},
+      {
+        id: 'delete-group', label: 'Delete group', danger: true, disabled: group.id === 'all', run: async () => {
+          await deleteSessionGroup(group)
+        }
+      },
     ],
   })
 }
 
-/* ===== Pointer-event drag & drop ===== */
-
 function findDragSource(el: HTMLElement): DragSourceType | null {
-  // Check session first (by CSS class, then read data-session-id from the <article>)
   const sessionEl = el.closest<HTMLElement>('.session-node[data-session-id]')
   if (sessionEl && treeContainerRef.value?.contains(sessionEl)) {
     const sessionId = sessionEl.dataset.sessionId!
@@ -323,7 +376,10 @@ function onDocPointerUp() {
 }
 
 function onPointerUp() {
-  if (pressTimer) { clearTimeout(pressTimer); pressTimer = null }
+  if (pressTimer) {
+    clearTimeout(pressTimer);
+    pressTimer = null
+  }
 }
 
 function executeDrop() {
@@ -382,8 +438,14 @@ function cancelDrag() {
   isDragging.value = false
   dropTarget.value = null
   dragDidMove = false
-  if (pressTimer) { clearTimeout(pressTimer); pressTimer = null }
-  if (autoScrollRaf) { cancelAnimationFrame(autoScrollRaf); autoScrollRaf = null }
+  if (pressTimer) {
+    clearTimeout(pressTimer);
+    pressTimer = null
+  }
+  if (autoScrollRaf) {
+    cancelAnimationFrame(autoScrollRaf);
+    autoScrollRaf = null
+  }
 }
 
 function handleAutoScroll(clientY: number) {
@@ -393,9 +455,15 @@ function handleAutoScroll(clientY: number) {
   const speed = 6
 
   if (clientY < rect.top + edge) {
-    if (!autoScrollRaf) autoScrollRaf = requestAnimationFrame(() => { treeContainerRef.value!.scrollTop -= speed; autoScrollRaf = null })
+    if (!autoScrollRaf) autoScrollRaf = requestAnimationFrame(() => {
+      treeContainerRef.value!.scrollTop -= speed;
+      autoScrollRaf = null
+    })
   } else if (clientY > rect.bottom - edge) {
-    if (!autoScrollRaf) autoScrollRaf = requestAnimationFrame(() => { treeContainerRef.value!.scrollTop += speed; autoScrollRaf = null })
+    if (!autoScrollRaf) autoScrollRaf = requestAnimationFrame(() => {
+      treeContainerRef.value!.scrollTop += speed;
+      autoScrollRaf = null
+    })
   }
 }
 </script>

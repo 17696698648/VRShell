@@ -39,6 +39,22 @@ export async function installTauriMock(page: Page, sessionTree = emptySessionTre
           return Promise.resolve(mockSessionTree)
         }
 
+        if (command === 'list_sftp_tasks') {
+          return Promise.resolve([
+            {taskId: 'sftp-upload-app', kind: 'upload', title: 'Upload app.tar.gz', detail: '/srv/releases/app.tar.gz', status: 'running', transferredBytes: 62, totalBytes: 100, error: null, updatedAtMs: 3},
+            {taskId: 'sftp-download-log', kind: 'download', title: 'Download app.log', detail: '/var/log/app.log', status: 'failed', transferredBytes: 20, totalBytes: 100, error: 'Connection reset by peer', updatedAtMs: 2},
+            {taskId: 'sftp-upload-env', kind: 'upload', title: 'Upload .env', detail: '/srv/app/.env', status: 'done', transferredBytes: 100, totalBytes: 100, error: null, updatedAtMs: 1}
+          ])
+        }
+
+        if (command === 'sftp_list') {
+          return Promise.resolve([
+            {name: 'logs', path: '/srv/logs', is_dir: true, size: 0, modified: Date.now()},
+            {name: 'app.tar.gz', path: '/srv/releases/app.tar.gz', is_dir: false, size: 73400320, modified: Date.now()},
+            {name: '.env', path: '/srv/app/.env', is_dir: false, size: 2048, modified: Date.now()}
+          ])
+        }
+
         if (command === 'load_ui_state') {
           return Promise.resolve(null)
         }

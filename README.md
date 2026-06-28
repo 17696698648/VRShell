@@ -43,7 +43,7 @@ npm.cmd run tauri:build
 
 Files of interest:
 - `frontend/src/widgets/session-workbench/ui/SessionTerminalPane.vue` - terminal pane wiring and xterm.js host UI
-- `frontend/src/widgets/sftp-explorer/ui/SftpTree.vue` - SFTP browser widget
+- `frontend/src/widgets/sftp-explorer/ui/SftpFileList.vue` - SFTP file list widget
 - `frontend/src/entities/session/model/sessionTree.ts` - session tree state helpers
 - `frontend/src/shared/ipc/ipcFacade.ts` - typed frontend facade for Tauri IPC commands
 - `src-tauri/src/services/terminal_service.rs` - SSH terminal lifecycle, output events, and PTY operations

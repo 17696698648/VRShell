@@ -1,6 +1,6 @@
 import {computed, watch} from 'vue'
 import {sessionState, setActiveSession} from '../../../entities/session'
-import {activateSftpSessionState, getSftpSessionState, persistActiveSftpState, sftpState, type SftpItem} from '../../../entities/sftp'
+import {activateSftpSessionState, clearSftpState, getSftpSessionState, persistActiveSftpState, sftpState, type SftpItem} from '../../../entities/sftp'
 import {listRemoteDirectory} from '../../../entities/sftp/api/sftpRepository'
 import {terminalState} from '../../../entities/terminal'
 import {getErrorMessage} from '../../../shared/error/getErrorMessage'
@@ -25,7 +25,11 @@ export function useSftpExplorer() {
   )
 
   watch([activeSession, hasConnectedTerminal], ([session, connected]) => {
-    if (!session || !connected) return
+    if (!session || !connected) {
+      persistActiveSftpState()
+      clearSftpState()
+      return
+    }
     if (sftpState.connectedSessionId !== session.id) {
       persistActiveSftpState()
       activateSftpSessionState(session.id)
@@ -67,7 +71,7 @@ export function useSftpExplorer() {
     return refresh(parentPath ? `/${parentPath}` : '/')
   }
 
-  return {sftpState, activeSession, refresh, openParentDirectory}
+  return {sftpState, activeSession, hasConnectedTerminal, refresh, openParentDirectory}
 }
 
 function applyDirectoryState(sessionId: string, path: string, items: SftpItem[]) {

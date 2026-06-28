@@ -1,7 +1,8 @@
 <template>
   <article
-    :class="['session-node', `session-node--${session.status}`, {active: session.id === sessionState.activeSessionId}]"
+    :class="['session-tree__row', 'session-tree__row--session', 'session-node', `session-node--${session.status}`, {active: session.id === sessionState.activeSessionId, 'is-selected': session.id === sessionState.activeSessionId}]"
     :aria-label="`${session.name}, ${statusLabel}, ${session.username}@${session.host}:${session.port}`"
+    :aria-selected="session.id === sessionState.activeSessionId"
     :title="`${session.name} · ${session.username}@${session.host}:${session.port} · ${statusLabel} · Double-click to connect`"
     :data-session-id="session.id"
     @dblclick="connectSession(session)"
@@ -10,10 +11,8 @@
     @keydown.f2.prevent="emit('edit', session)"
     @contextmenu.prevent="openSessionMenu"
   >
-    <span class="session-node__icon" aria-hidden="true">
-      <span class="session-node__status-dot" />
-    </span>
-    <strong>{{ session.name }}</strong>
+    <span class="session-tree__status session-node__status-dot" aria-hidden="true"/>
+    <strong class="session-tree__label">{{ session.name }}</strong>
   </article>
 </template>
 
@@ -25,8 +24,8 @@ import {confirmDeleteSession} from '../../../features/session/delete-session/del
 import {renameSession} from '../../../features/session/edit-session/renameSession'
 import {openContextMenu} from '../../../shared/context-menu'
 
-const props = defineProps<{session: SessionHost}>()
-const emit = defineEmits<{edit: [session: SessionHost]}>()
+const props = defineProps<{ session: SessionHost }>()
+const emit = defineEmits<{ edit: [session: SessionHost] }>()
 
 const statusLabels: Record<SessionHost['status'], string> = {
   connected: 'Connected',
@@ -41,7 +40,12 @@ function openSessionMenu(event: MouseEvent) {
     x: event.clientX,
     y: event.clientY,
     items: [
-      {id: 'connect', label: props.session.status === 'failed' ? 'Reconnect' : 'Connect', disabled: props.session.status === 'connecting', run: () => connectSession(props.session)},
+      {
+        id: 'connect',
+        label: props.session.status === 'failed' ? 'Reconnect' : 'Connect',
+        disabled: props.session.status === 'connecting',
+        run: () => connectSession(props.session)
+      },
       {id: 'session-actions', type: 'separator'},
       {id: 'edit', label: 'Edit', run: () => emit('edit', props.session)},
       {id: 'rename', label: 'Rename', run: () => renameSession(props.session)},

@@ -1,44 +1,63 @@
-.sftp-explorer {
-  --sftp-explorer-edge: calc(var(--explorer-edge) / 2);
-}
-
 .sftp-explorer__layout {
+  --sftp-tree-row-height: 30px;
+  --sftp-tree-indent: 16px;
+  --sftp-tree-hover-radius: var(--radius-md);
+  --sftp-tree-scrollbar-gutter: 10px;
   grid-template-rows: auto minmax(0, 1fr);
   gap: 0;
+}
+
+.sftp-explorer .ui-workbench-panel__toolbar {
+  border-bottom: 0;
+  background: color-mix(in srgb, var(--color-bg-tool-window-raised) 56%, var(--color-bg-tool-window));
 }
 
 .sftp-explorer .ui-workbench-panel__toolbar .ui-toolbar {
   grid-template-columns: minmax(0, 1fr);
   justify-items: start;
   min-width: 0;
-  padding-inline: 0;
+  min-height: 36px;
+  padding: 6px var(--explorer-edge) 4px;
+  border-radius: 0;
 }
 
 .sftp-toolbar .ui-toolbar__group.align-end {
   justify-content: flex-start;
-  gap: 6px;
+  gap: 5px;
   min-width: 0;
   max-width: 100%;
+  padding: 2px;
   overflow: visible;
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-bg-panel) 58%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-border-subtle) 46%, transparent);
 }
 
 .sftp-toolbar .ui-toolbar-button-group {
-  gap: 0;
-  padding: 0;
+  gap: 2px;
+  padding: 2px;
   border: 0;
-  background: transparent;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-bg-elevated) 62%, transparent);
 }
 
-.sftp-toolbar .ui-toolbar-button-group__item {
+.sftp-toolbar .ui-toolbar-button-group__item,
+.sftp-toolbar .ui-icon-button {
   display: inline-grid;
   place-items: center;
-  width: calc(var(--size-toolbar-height) - 8px);
-  min-width: calc(var(--size-toolbar-height) - 8px);
-  height: calc(var(--size-toolbar-height) - 8px);
-  min-height: calc(var(--size-toolbar-height) - 8px);
+  width: calc(var(--size-toolbar-height) - 10px);
+  min-width: calc(var(--size-toolbar-height) - 10px);
+  height: calc(var(--size-toolbar-height) - 10px);
+  min-height: calc(var(--size-toolbar-height) - 10px);
   padding: 0;
   border: 1px solid transparent;
   border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  transition:
+    background var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard),
+    transform var(--duration-fast) var(--ease-standard);
 }
 
 .sftp-toolbar .ui-toolbar-button-group__item span {
@@ -52,54 +71,119 @@
   border: 0;
 }
 
+.sftp-toolbar .ui-tooltip {
+  display: inline-grid;
+}
+
+.sftp-toolbar .ui-toolbar-button-group + .ui-tooltip {
+  margin-left: 3px;
+}
+
 .sftp-toolbar .ui-toolbar-button-group__item.active,
-.sftp-toolbar .ui-toolbar-button-group__item:hover:not(:disabled) {
-  border-color: var(--color-border-subtle);
-  background: var(--color-bg-hover);
+.sftp-toolbar .ui-toolbar-button-group__item:hover:not(:disabled),
+.sftp-toolbar .ui-icon-button:hover:not(:disabled),
+.sftp-toolbar .ui-icon-button:focus-visible:not(:disabled) {
+  border-color: color-mix(in srgb, var(--color-border-active) 70%, transparent);
+  background: color-mix(in srgb, var(--color-bg-selected) 86%, transparent);
   color: var(--color-text-primary);
 }
 
-.sftp-explorer__utility {
+.sftp-toolbar .ui-toolbar-button-group__item:hover:not(:disabled),
+.sftp-toolbar .ui-icon-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.sftp-toolbar .ui-toolbar-button-group__item.active {
+  color: var(--color-accent-strong);
+}
+
+.sftp-toolbar .ui-icon-button:disabled,
+.sftp-toolbar .ui-toolbar-button-group__item:disabled {
+  opacity: 0.45;
+  transform: none;
+}
+
+.sftp-pathbar {
   display: grid;
-  gap: 6px;
-  margin-top: 0;
-  padding: 6px 0;
-  padding-inline: var(--sftp-explorer-edge);
-  border-top: 1px solid var(--color-border-subtle);
-  border-bottom: 1px solid var(--color-border-subtle);
+  padding: 3px var(--explorer-edge) 7px;
+  border-bottom: 1px solid color-mix(in srgb, var(--tool-window-border) 82%, transparent);
+  background: color-mix(in srgb, var(--color-bg-tool-window-raised) 56%, var(--color-bg-tool-window));
 }
 
 .sftp-explorer .breadcrumbs {
   width: 100%;
   min-width: 0;
+  min-height: 29px;
   margin-inline: 0;
-  min-height: 28px;
-  padding: 0 var(--space-2);
+  padding: 3px 30px 3px 6px;
   border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--color-bg-selected) 36%, transparent), transparent 44%),
+    color-mix(in srgb, var(--color-bg-panel) 92%, var(--color-bg-elevated));
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--color-border-subtle) 72%, transparent),
+    0 1px 1px color-mix(in srgb, var(--color-shadow-soft) 26%, transparent);
   color: var(--color-text-muted);
 }
 
+.sftp-explorer .breadcrumbs .ui-path-breadcrumb__trail {
+  gap: 2px;
+}
+
+.sftp-explorer .breadcrumbs .ui-path-breadcrumb__trail > span {
+  padding-inline: 1px;
+  color: color-mix(in srgb, var(--color-text-muted) 62%, transparent);
+  font-size: 11px;
+}
+
 .sftp-explorer .breadcrumbs button {
-  min-height: 24px;
+  min-height: 22px;
+  padding: 0 7px;
   border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
   transition:
-    background var(--duration-normal) var(--ease-standard),
-    border-color var(--duration-normal) var(--ease-standard),
-    color var(--duration-normal) var(--ease-standard);
+    background var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard),
+    transform var(--duration-fast) var(--ease-standard);
+}
+
+.sftp-explorer .breadcrumbs button:first-child {
+  min-width: 24px;
+  background: color-mix(in srgb, var(--color-bg-elevated) 74%, transparent);
+  color: var(--color-accent-strong);
+  font-weight: 700;
 }
 
 .sftp-explorer .breadcrumbs button:hover,
 .sftp-explorer .breadcrumbs button:focus-visible {
-  border-color: var(--color-border-subtle);
-  background: color-mix(in srgb, var(--list-row-hover-bg) 82%, var(--color-bg-panel));
+  border-color: color-mix(in srgb, var(--color-border-active) 72%, transparent);
+  background: color-mix(in srgb, var(--color-bg-selected) 82%, transparent);
   color: var(--color-text-primary);
 }
 
+.sftp-explorer .breadcrumbs button:hover {
+  transform: translateY(-1px);
+}
+
+.sftp-explorer .breadcrumbs .ui-path-breadcrumb__action {
+  width: 22px;
+  padding: 0;
+  color: var(--color-text-muted);
+}
+
+.sftp-explorer .breadcrumbs .ui-path-breadcrumb__action:hover,
+.sftp-explorer .breadcrumbs .ui-path-breadcrumb__action:focus-visible {
+  color: var(--color-accent-strong);
+}
+
 .sftp-explorer__body,
-.sftp-tree--list {
+.sftp-directory-tree-shell,
+.sftp-directory-tree,
+.sftp-file-list,
+.sftp-file-list--list {
   min-height: 0;
   height: 100%;
 }
@@ -107,165 +191,195 @@
 .sftp-explorer__body {
   align-self: stretch;
   grid-template-rows: minmax(0, 1fr);
-  height: 100%;
 }
 
-.sftp-explorer__hint {
-  display: block;
-  min-width: 0;
-  padding-inline: 1px;
-  overflow: hidden;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
 .sftp-explorer .ui-error-state {
   margin-inline: var(--explorer-edge);
 }
 
 .sftp-directory-tree-shell {
-  min-height: 0;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-.sftp-directory-tree {
-  min-height: 0;
-  flex: 1;
-  padding-inline: 0;
-  overflow: hidden;
-}
-
-.sftp-directory-tree-shell > .ui-scroll-area,
-.sftp-tree > .ui-scroll-area {
-  min-height: 0;
-  height: 100%;
-  overflow: visible;
-}
-
-.sftp-directory-tree-shell > .ui-scroll-area {
-  --ui-scroll-area-y-gutter: 10px;
-}
-
-.sftp-tree > .ui-scroll-area {
-  --ui-scroll-area-y-offset: 36px;
-  --ui-scroll-area-y-bottom: 12px;
-}
-
-.sftp-directory-tree-shell .ui-scroll-area__thumb--y {
-  right: 1px;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
 }
 
 .sftp-directory-tree-shell > .ui-error-state {
-  margin: 0 var(--sftp-explorer-edge) var(--space-2);
+  margin: 0 var(--explorer-edge) var(--space-2);
 }
 
-.sftp-directory-tree .ui-virtual-list,
-.sftp-tree .ui-data-grid,
-.sftp-tree .ui-virtual-list {
-  scrollbar-width: none;
+.sftp-directory-tree {
+  --sftp-tree-indent: 16px;
+  min-width: 0;
+  overflow: hidden;
+  padding-left: var(--explorer-edge);
+  color: var(--color-text-secondary);
+  user-select: none;
+}
+
+.sftp-directory-tree .ui-tree,
+.sftp-directory-tree .ui-virtual-list {
+  min-height: 0;
+  height: 100%;
+}
+
+.sftp-directory-tree .ui-virtual-list__scrollbar-thumb,
+.sftp-file-list .ui-virtual-list__scrollbar-thumb {
+  border-radius: 0;
+  background: color-mix(in srgb, var(--color-text-muted) 34%, transparent);
 }
 
 .sftp-directory-tree .ui-virtual-list__spacer {
   box-sizing: content-box;
+  padding-top: var(--space-2);
+  padding-bottom: var(--space-1);
 }
 
-.sftp-tree .ui-virtual-list__spacer {
-  box-sizing: content-box;
-  padding-right: 10px;
-  padding-bottom: 10px;
+.sftp-directory-tree .ui-tree__item {
+  padding-inline: 0 var(--space-row-padding-x);
 }
 
-
-.sftp-directory-tree .ui-virtual-list::-webkit-scrollbar,
-.sftp-tree .ui-data-grid::-webkit-scrollbar,
-.sftp-tree .ui-virtual-list::-webkit-scrollbar {
-  display: none;
-  width: 0;
-  height: 0;
+.sftp-directory-tree .sftp-directory-tree__row {
+  padding-left: calc((var(--ui-tree-level, 1) - 1) * var(--sftp-tree-indent) + 6px);
 }
 
-.sftp-directory-tree__item {
-  display: inline-flex;
+.sftp-tree__row {
   position: relative;
+  display: grid;
+  grid-template-columns: 14px 24px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   width: 100%;
   min-width: 0;
-  min-height: 32px;
-  padding: 0 10px 0 calc((var(--ui-tree-level, 1) - 1) * 18px + 10px);
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
+  min-height: var(--sftp-tree-row-height);
+  padding: 2px var(--space-row-padding-x) 2px 6px;
+  z-index: 0;
+  border: 0;
+  border-radius: var(--sftp-tree-hover-radius);
   background: transparent;
   color: var(--color-text-secondary);
   text-align: left;
   cursor: pointer;
-  transition:
-    background var(--duration-normal) var(--ease-standard),
-    border-color var(--duration-normal) var(--ease-standard),
-    color var(--duration-normal) var(--ease-standard);
+  isolation: isolate;
 }
 
-.sftp-directory-tree__item::before {
-  content: '';
+.sftp-tree__row > * {
+  position: relative;
+  z-index: 1;
+}
+
+.sftp-tree__row::before,
+.sftp-file-row::before {
   position: absolute;
-  inset-block: 7px;
-  left: 3px;
-  width: 2px;
-  border-radius: 999px;
+  inset-block: 1px;
+  left: 0;
+  right: var(--sftp-tree-scrollbar-gutter);
+  z-index: 0;
+  border-radius: var(--sftp-tree-hover-radius);
   background: transparent;
+  content: '';
 }
 
-.sftp-directory-tree__item:hover,
-.sftp-directory-tree__item:focus-visible {
-  border-color: var(--color-border-subtle);
-  background: color-mix(in srgb, var(--list-row-hover-bg) 82%, var(--color-bg-panel));
+.sftp-tree__row:hover,
+.sftp-tree__row:focus-visible,
+.sftp-file-row:hover,
+.sftp-file-row:focus-visible {
   color: var(--color-text-primary);
 }
 
-.sftp-directory-tree__item[aria-selected='true'] {
-  border-color: color-mix(in srgb, var(--color-accent) 28%, var(--color-border-subtle));
-  background: color-mix(in srgb, var(--list-row-selected-bg) 86%, var(--color-bg-panel));
+.sftp-tree__row:hover::before,
+.sftp-tree__row:focus-visible::before,
+.sftp-file-row:hover::before,
+.sftp-file-row:focus-visible::before {
+  background: var(--row-hover-bg);
+}
+
+.sftp-tree__row.is-selected,
+.sftp-tree__row[aria-selected='true'],
+.sftp-file-row.selected,
+.sftp-file-row.is-selected,
+.sftp-file-row[aria-selected='true'] {
   color: var(--color-text-primary);
 }
 
-.sftp-directory-tree__item[aria-selected='true']::before {
-  background: var(--color-accent);
+.sftp-tree__row.is-selected::before,
+.sftp-tree__row[aria-selected='true']::before,
+.sftp-file-row.selected::before,
+.sftp-file-row.is-selected::before,
+.sftp-file-row[aria-selected='true']::before,
+.sftp-file-row.selected:hover::before,
+.sftp-file-row.is-selected:hover::before,
+.sftp-file-row[aria-selected='true']:hover::before {
+  background: var(--row-active-bg);
 }
 
-.sftp-directory-tree__item svg {
-  flex: 0 0 auto;
-  color: var(--color-accent-strong);
-}
-
-.sftp-directory-tree__item .sftp-directory-tree__chevron {
+.sftp-tree__chevron {
+  display: inline-grid;
+  place-items: center;
   width: 14px;
   color: var(--color-text-muted);
 }
 
-.sftp-directory-tree__item span {
+.sftp-tree__icon {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-bg-elevated) 76%, transparent);
+  color: var(--color-accent);
+  transition:
+    background var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
+}
+
+.sftp-tree__row:hover .sftp-tree__icon,
+.sftp-tree__row:focus-visible .sftp-tree__icon {
+  background: color-mix(in srgb, var(--color-accent) 12%, var(--color-bg-elevated));
+  color: var(--color-accent-strong);
+}
+
+.sftp-tree__label,
+.sftp-tree__meta {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.sftp-tree {
-  display: grid;
-  min-height: 0;
-  height: 100%;
-  padding-inline: 0;
-  overflow: hidden;
+.sftp-tree__label {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
 }
 
-.sftp-tree .ui-data-grid {
+.sftp-tree__meta {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.sftp-file-list {
+  display: grid;
+  overflow: hidden;
+  padding-left: var(--explorer-edge);
+}
+
+.sftp-file-list .ui-scroll-area {
+  --ui-scroll-area-y-bottom: 10px;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+}
+
+.sftp-file-list .ui-scroll-area__viewport {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+}
+
+.sftp-file-list .ui-data-grid {
   box-sizing: border-box;
   width: max-content;
-  min-width: 100%;
-  padding-bottom: 10px;
+  min-width: max(100%, 410px);
   overflow: visible;
   border: 0;
   border-radius: 0;
@@ -273,11 +387,11 @@
   box-shadow: none;
 }
 
-
-.sftp-tree .ui-data-grid__header {
+.sftp-file-list .ui-data-grid__header {
   min-width: max-content;
-  padding: 8px 10px;
-  background: color-mix(in srgb, var(--color-bg-elevated) 76%, transparent);
+  padding: 8px var(--space-row-padding-x);
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: color-mix(in srgb, var(--color-bg-tool-window-raised) 78%, transparent);
   color: var(--color-text-muted);
   font-size: var(--font-size-xs);
   font-weight: 700;
@@ -285,103 +399,86 @@
   text-transform: uppercase;
 }
 
-.sftp-tree .ui-data-grid__header button:hover,
-.sftp-tree .ui-data-grid__header button:focus-visible {
+.sftp-file-list .ui-data-grid__header button:hover,
+.sftp-file-list .ui-data-grid__header button:focus-visible {
   color: var(--color-text-primary);
 }
 
-.sftp-row {
+.sftp-file-list .ui-virtual-list-shell,
+.sftp-file-list .ui-virtual-list,
+.sftp-file-list .ui-virtual-list__spacer,
+.sftp-file-list .ui-virtual-list__window,
+.sftp-file-list .ui-virtual-list__item {
+  min-width: max-content;
+}
+
+.sftp-file-list .ui-virtual-list__item {
+  overflow: visible;
+}
+
+.sftp-file-list .ui-virtual-list__spacer {
+  box-sizing: content-box;
+  padding-top: var(--space-2);
+  padding-right: var(--sftp-tree-scrollbar-gutter);
+  padding-bottom: var(--space-1);
+}
+
+.sftp-file-row {
   position: relative;
   display: grid;
   grid-template-columns: var(--ui-data-grid-template, repeat(4, minmax(0, 1fr)));
   align-items: center;
-  width: calc(100% - 10px);
+  width: 100%;
   min-width: max-content;
+  min-height: var(--sftp-tree-row-height);
   gap: var(--space-2);
-  padding-inline: 5px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
-  color: var(--color-text-secondary);
-  transition:
-    background var(--duration-normal) var(--ease-standard),
-    border-color var(--duration-normal) var(--ease-standard),
-    box-shadow var(--duration-normal) var(--ease-standard),
-    color var(--duration-normal) var(--ease-standard);
-}
-
-.sftp-row::before {
-  position: absolute;
-  left: -1px;
-  width: 2px;
-  height: 18px;
-  border-radius: 999px;
+  padding: 2px var(--space-row-padding-x);
+  z-index: 0;
+  border: 0;
+  border-radius: var(--sftp-tree-hover-radius);
   background: transparent;
-  content: '';
+  color: var(--color-text-secondary);
+  isolation: isolate;
 }
 
-.sftp-row.clickable {
+.sftp-file-row > * {
+  position: relative;
+  z-index: 1;
+}
+
+.sftp-file-row.clickable {
   cursor: pointer;
 }
 
-.sftp-row:hover,
-.sftp-row:focus-visible {
-  border-color: var(--color-border-subtle);
-  background: color-mix(in srgb, var(--list-row-hover-bg) 82%, var(--color-bg-panel));
-  box-shadow: none;
-  color: var(--color-text-primary);
-}
-
-.sftp-row:focus-visible {
-  outline: 2px solid var(--color-focus-ring);
-  outline-offset: 2px;
-}
-
-.sftp-row.selected {
-  border-color: color-mix(in srgb, var(--color-accent) 24%, var(--color-border-subtle));
-  background: color-mix(in srgb, var(--list-row-selected-bg) 84%, var(--color-bg-panel));
-  box-shadow: none;
-  color: var(--color-text-primary);
-}
-
-.sftp-row.selected::before {
-  background: var(--color-accent);
-}
-
-.sftp-row strong {
+.sftp-file-row strong,
+.sftp-file-row__name span,
+.sftp-file-row small {
   min-width: 0;
   overflow: hidden;
-  color: var(--color-text-primary);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.sftp-row__name {
+.sftp-file-row strong {
+  color: var(--color-text-primary);
+}
+
+.sftp-file-row__name {
   display: inline-flex;
   align-items: center;
   gap: 8px;
 }
 
-.sftp-row__name svg {
+.sftp-file-row__name svg {
   flex: 0 0 auto;
   color: var(--color-accent-strong);
 }
 
-.sftp-row__name span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sftp-row small {
-  min-width: 0;
-  overflow: hidden;
+.sftp-file-row small {
   color: var(--color-text-muted);
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.sftp-row__type {
+.sftp-file-row__type {
   display: inline-grid;
   place-items: center;
   justify-self: start;
@@ -389,38 +486,32 @@
   padding: 2px 6px;
   border: 1px solid var(--color-border-subtle);
   border-radius: 999px;
-  background: var(--color-bg-hover);
+  background: color-mix(in srgb, var(--color-bg-tool-window-raised) 72%, transparent);
   color: var(--color-text-muted);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.04em;
 }
 
-.sftp-row.clickable .sftp-row__type {
+.sftp-file-row.clickable .sftp-file-row__type {
   background: var(--color-bg-selected);
   color: var(--color-accent-strong);
 }
 
-
-.sftp-tree--loading {
+.sftp-file-list--loading {
   align-content: start;
   gap: 6px;
-  margin-inline: var(--sftp-explorer-edge);
-  padding: 8px;
-  padding-inline: 4px;
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--color-bg-panel) 94%, var(--color-bg-shell));
-  box-shadow: none;
+  padding: var(--space-2) var(--explorer-edge);
+  background: transparent;
 }
 
-.sftp-tree--loading .sftp-row {
+.sftp-file-list--loading .sftp-file-row {
   height: 36px;
-  border-color: var(--color-border-subtle);
+  border: 1px solid var(--color-border-subtle);
   background: color-mix(in srgb, var(--color-bg-elevated) 62%, transparent);
 }
 
-.sftp-tree--loading .sftp-row > * {
+.sftp-file-list--loading .sftp-file-row > * {
   height: 10px;
   border-radius: 999px;
   background: linear-gradient(90deg, var(--color-bg-hover), var(--color-bg-selected), var(--color-bg-hover));

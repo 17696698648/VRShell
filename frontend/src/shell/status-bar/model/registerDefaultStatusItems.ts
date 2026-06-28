@@ -50,16 +50,18 @@ export function registerDefaultStatusItems() {
     }),
     registerStatusBarItem('task.running', () => {
       const runningCount = taskItems.filter((task) => task.status === 'running').length
+      const failedCount = taskItems.filter((task) => task.status === 'failed').length
+      const taskLabel = failedCount > 0 ? `${failedCount} failed` : `${runningCount} running`
       return {
         align: 'center',
         id: 'task.running',
         iconName: 'tasks',
-        intent: runningCount > 0 ? 'info' : 'neutral',
-        label: `${runningCount}`,
-        fullLabel: `Tasks ${runningCount}`,
+        intent: failedCount > 0 ? 'danger' : runningCount > 0 ? 'info' : 'neutral',
+        label: failedCount > 0 ? `${failedCount}!` : `${runningCount}`,
+        fullLabel: `Queue ${taskLabel}`,
         onClick: () => executeCommand('workspace.openTasksPanel'),
         priority: 10,
-        title: `${runningCount} running tasks`,
+        title: failedCount > 0 ? `${failedCount} failed tasks — open Task Queue` : `${runningCount} running tasks — open Task Queue`,
       }
     }),
     registerStatusBarItem('sftp.status', () => ({

@@ -1,4 +1,5 @@
 .workbench-layout-root,
+.workbench-layout__primary,
 .workbench-layout__secondary,
 .workbench-layout__dock {
   min-width: 0;
@@ -9,13 +10,28 @@
   display: grid;
   grid-template-rows: minmax(0, 1fr);
   height: 100%;
-  gap: var(--space-workbench-gap);
+  gap: 0;
 }
 
 .workbench-layout-root > .ui-split-pane,
 .workbench-layout-root .ui-split-pane {
   width: 100%;
   height: 100%;
+}
+
+.workbench-layout-root > .ui-split-pane {
+  gap: 0;
+}
+
+.workbench-layout__primary {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 0;
+}
+
+.workbench-layout--has-dock .workbench-layout__primary {
+  border-radius: 0;
 }
 
 .workbench-layout__responsive-switcher {
@@ -38,10 +54,24 @@
   width: 100%;
   height: 100%;
   overflow: hidden;
+  border-top: 1px solid var(--tool-window-border);
 }
 
 @media (max-width: 1100px) {
+  .workbench-layout-root {
+    grid-template-rows: auto minmax(0, 1fr);
+    isolation: isolate;
+  }
+
+  .workbench-layout-root > .ui-split-pane {
+    grid-row: 2;
+    height: auto;
+  }
+
   .workbench-layout__responsive-switcher {
+    position: relative;
+    z-index: 10;
+    grid-row: 1;
     display: inline-flex;
     gap: var(--space-1);
     overflow: auto;
@@ -62,6 +92,7 @@
   }
 
   .workbench-layout__responsive-switcher button.active,
+  .workbench-layout__responsive-switcher button[aria-pressed='true'],
   .workbench-layout__responsive-switcher button:hover {
     background: var(--tab-active-bg);
     color: var(--color-text-primary);
@@ -76,6 +107,10 @@
   .workbench-layout__secondary,
   .workbench-layout__dock {
     min-height: 220px;
+  }
+
+  .workbench-layout__pane--responsive-hidden {
+    display: none;
   }
 }
 

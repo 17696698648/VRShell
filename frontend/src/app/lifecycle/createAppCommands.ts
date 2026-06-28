@@ -7,7 +7,7 @@ import {broadcastTerminalCommand} from '../../features/terminal/broadcast-comman
 import {reconnectTerminalTab} from '../../features/terminal/manage-connection/manageTerminalConnection'
 import {toggleTerminalSearch} from '../../features/terminal/search-terminal/searchTerminal'
 import {closeCommandPalette, openCommandPalette} from '../../features/workspace/open-command-palette/commandPalette'
-import {openLogsPanel, reopenRecentDockPanel} from '../../features/workspace/open-logs-panel'
+import {openLogsPanel, openTasksPanel, reopenRecentDockPanel} from '../../features/workspace/open-logs-panel'
 import {openQuickOpen} from '../../features/workspace/quick-open/quickOpen'
 import {switchPanel} from '../../features/workspace/switch-panel/switchPanel'
 import {switchTerminal} from '../../features/workspace/switch-terminal/switchTerminal'
@@ -136,11 +136,12 @@ export function createAppCommands(): AppCommand[] {
     },
     {
       id: 'workspace.openTasksPanel',
-      title: 'Open Tasks panel',
+      title: 'Open Task Queue',
       category: 'Workspace',
-      description: 'Show running and completed background tasks.',
+      description: 'Show running and completed background jobs in the bottom dock.',
       group: 'workspace',
-      run: () => switchPanel('tasks'),
+      keywords: ['tasks', 'jobs', 'transfers', 'queue', 'background'],
+      run: openTasksPanel,
     },
     {
       id: 'workspace.openLogsPanel',

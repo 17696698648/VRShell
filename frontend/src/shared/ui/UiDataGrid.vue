@@ -10,7 +10,7 @@
         <span role="gridcell" :aria-colspan="columns.length">{{ emptyText }}</span>
       </slot>
     </div>
-    <UiVirtualList v-else :items="items" :item-height="itemHeight" :get-key="getKey">
+    <UiVirtualList v-else :items="items" :item-height="itemHeight" :get-key="getKey" :custom-scrollbar="customScrollbar">
       <template #default="slotProps">
         <slot :item="slotProps.item" :index="slotProps.index" :cell-props="getCellProps" :grid-style="gridStyle" :row-props="getRowProps(slotProps.item, slotProps.index)" />
       </template>
@@ -31,8 +31,8 @@ export interface UiDataGridColumn {
 }
 
 const props = withDefaults(
-  defineProps<{columns: UiDataGridColumn[]; emptyText?: string; getKey: (item: T, index: number) => string; itemHeight?: number; items: T[]; label?: string; selectedKey?: string | null; sortDirection?: 'asc' | 'desc'; sortKey?: string}>(),
-  {emptyText: 'No data', itemHeight: 36, label: 'Data grid', selectedKey: null, sortDirection: 'asc', sortKey: ''},
+  defineProps<{columns: UiDataGridColumn[]; customScrollbar?: boolean; emptyText?: string; getKey: (item: T, index: number) => string; itemHeight?: number; items: T[]; label?: string; selectedKey?: string | null; sortDirection?: 'asc' | 'desc'; sortKey?: string}>(),
+  {customScrollbar: false, emptyText: 'No data', itemHeight: 36, label: 'Data grid', selectedKey: null, sortDirection: 'asc', sortKey: ''},
 )
 const emit = defineEmits<{activate: [item: T, index: number]; contextmenu: [item: T | null, index: number, event: MouseEvent]; select: [item: T, index: number, key: string]; sort: [columnId: string]}>()
 

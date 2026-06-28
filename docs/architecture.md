@@ -7,7 +7,7 @@ VRShell is a Tauri desktop application with a Vue 3 frontend and a Rust backend.
 - `app/` wires application startup, providers, persistence, and command contributions.
 - `shell/` contains the workbench frame: titlebar, sidebars, dock, overlays, status bar, and activity bars.
 - `pages/` composes top-level screens such as welcome, settings, and workbench.
-- `widgets/` contains reusable business UI blocks, such as terminal panes, SFTP explorer, session explorer, and task center.
+- `widgets/` contains reusable business UI blocks, such as terminal panes, SFTP explorer, session explorer, and task queue.
 - `features/` contains user workflows, such as connecting sessions, managing SFTP files, terminal search, and global shortcuts.
 - `entities/` contains domain state, repositories, validation, and model helpers for sessions, terminals, SFTP, security, tasks, and workspace layout.
 - `shared/` contains infrastructure shared across layers: IPC, command registry, stores, UI primitives, theme, copy, dialogs, feedback, and error handling.

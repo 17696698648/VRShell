@@ -2,6 +2,7 @@
 import {connectTerminal} from '../../../entities/terminal/api/terminalRepository'
 import {openTerminal} from '../../../entities/terminal'
 import type {SessionHost} from '../../../entities/session'
+import {workspaceState} from '../../../entities/workspace'
 import {notifyAppError} from '../../../shared/feedback'
 import {resolveSessionAuth} from '../manage-credentials/sessionCredentials'
 import {messages} from '../../../shared/copy'
@@ -23,6 +24,9 @@ export async function connectSession(session: SessionHost) {
       cwd: '~',
       lines: [`Connecting to ${session.username}@${session.host}:${session.port}...`],
     })
+    workspaceState.activeRightPanel = 'sftp'
+    workspaceState.recentRightPanel = 'sftp'
+    workspaceState.rightPanelVisible = true
   } catch (error) {
     patchSession(session.id, {status: 'failed'})
     notifyAppError(error, {title: messages.session.failures.connect(session.name), action: 'connect-session', dedupeKey: `session:${session.id}:connect`})

@@ -35,4 +35,20 @@ test.describe('smoke', () => {
 
     await expect(page.getByText('Remote files').first()).toBeVisible()
   })
+
+  test('switches workbench panels on narrow viewports @smoke', async ({page}) => {
+    await page.setViewportSize({width: 1000, height: 720})
+    await page.keyboard.press('Control+K')
+    await page.getByTestId('command-palette-search').fill('Open Task Queue')
+    await page.keyboard.press('Enter')
+
+    await expect(page.getByRole('button', {name: 'Terminal'})).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.locator('.task-center')).not.toBeVisible()
+
+    await page.getByRole('button', {name: 'Details'}).click()
+
+    await expect(page.getByRole('button', {name: 'Details'})).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.locator('.task-center')).toBeVisible()
+    await expect(page.getByRole('heading', {name: 'Welcome to VRShell'})).not.toBeVisible()
+  })
 })

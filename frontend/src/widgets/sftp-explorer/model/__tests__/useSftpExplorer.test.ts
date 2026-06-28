@@ -69,6 +69,34 @@ describe('useSftpExplorer', () => {
     expect(feedbackState.toasts).toHaveLength(0)
   })
 
+  it('shows disconnected state until the active session has a connected terminal', async () => {
+    const {hasConnectedTerminal} = useSftpExplorer()
+
+    expect(hasConnectedTerminal.value).toBe(false)
+    expect(sftpState.connectedSessionId).toBe('')
+    expect(sftpState.path).toBe('/')
+
+    terminalState.tabs.push(connectedTerminal(activeSession.id))
+    await nextTick()
+
+    expect(hasConnectedTerminal.value).toBe(true)
+    expect(sftpState.connectedSessionId).toBe(activeSession.id)
+  })
+
+  it('clears the active sftp state when the connected terminal disconnects', async () => {
+    terminalState.tabs.push(connectedTerminal(activeSession.id))
+    const {refresh} = useSftpExplorer()
+    await nextTick()
+    await refresh('/tmp')
+
+    terminalState.tabs[0].status = 'disconnected'
+    await nextTick()
+
+    expect(sftpState.connectedSessionId).toBe('')
+    expect(sftpState.path).toBe('/')
+    expect(sftpState.items).toHaveLength(0)
+  })
+
   it('restores the last loaded directory per active session', async () => {
     sessionState.sessions.splice(0, sessionState.sessions.length, JSON.parse(JSON.stringify(activeSession)), JSON.parse(JSON.stringify(secondarySession)))
     terminalState.tabs.push(connectedTerminal(activeSession.id), connectedTerminal(secondarySession.id))

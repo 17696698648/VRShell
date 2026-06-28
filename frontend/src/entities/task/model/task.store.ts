@@ -29,3 +29,10 @@ export function patchTask(taskId: string, patch: Partial<TaskItem>) {
   const task = taskItems.find((item) => item.id === taskId)
   if (task) Object.assign(task, patch)
 }
+
+export function clearSettledTasks() {
+  for (let index = taskItems.length - 1; index >= 0; index -= 1) {
+    const task = taskItems[index]
+    if (task.status === 'done' || task.status === 'cancelled') taskItems.splice(index, 1)
+  }
+}

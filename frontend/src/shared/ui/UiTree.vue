@@ -1,6 +1,6 @@
 <template>
   <div class="ui-tree" role="tree" :aria-label="label" @keydown="handleKeydown">
-    <UiVirtualList :items="items" :item-height="itemHeight" :get-key="getKey">
+    <UiVirtualList :items="items" :item-height="itemHeight" :get-key="getKey" :custom-scrollbar="customScrollbar">
       <template #default="slotProps">
         <slot :item="slotProps.item" :index="slotProps.index" :tree-item-props="getTreeItemProps(slotProps.item, slotProps.index)" />
       </template>
@@ -11,7 +11,7 @@
 <script setup lang="ts" generic="T">
 import UiVirtualList from './UiVirtualList.vue'
 
-const props = withDefaults(defineProps<{activeIndex?: number; expandedKeys?: string[]; getKey: (item: T, index: number) => string; getLevel?: (item: T, index: number) => number; getParentKey?: (item: T, index: number) => string | null; itemHeight?: number; items: T[]; label?: string; selectedKey?: string | null}>(), {activeIndex: -1, expandedKeys: () => [], getLevel: () => 1, getParentKey: () => null, itemHeight: 34, label: 'Tree', selectedKey: null})
+const props = withDefaults(defineProps<{activeIndex?: number; customScrollbar?: boolean; expandedKeys?: string[]; getKey: (item: T, index: number) => string; getLevel?: (item: T, index: number) => number; getParentKey?: (item: T, index: number) => string | null; itemHeight?: number; items: T[]; label?: string; selectedKey?: string | null}>(), {activeIndex: -1, customScrollbar: false, expandedKeys: () => [], getLevel: () => 1, getParentKey: () => null, itemHeight: 34, label: 'Tree', selectedKey: null})
 const emit = defineEmits<{select: [item: T, index: number, key: string]; toggle: [item: T, index: number, key: string]}>()
 
 function handleKeydown(event: KeyboardEvent) {
@@ -46,7 +46,7 @@ function getTreeItemProps(item: T, index: number) {
     'aria-posinset': index + 1,
     'aria-selected': selected,
     'aria-setsize': props.items.length,
-    class: ['ui-tree__item', {'ui-tree__item--expanded': expanded, 'ui-tree__item--selected': selected}],
+    class: ['ui-tree__item', 'ui-row', {'is-selected': selected, 'ui-tree__item--expanded': expanded, 'ui-tree__item--selected': selected}],
     role: 'treeitem',
     style: {'--ui-tree-level': props.getLevel(item, index)},
     tabindex: selected ? 0 : -1,

@@ -7,10 +7,7 @@
       </div>
     </header>
 
-    <label class="settings-page__search">
-      <span>Search settings</span>
-      <input v-model="settingsQuery" placeholder="Search sections, keywords, or fields" />
-    </label>
+    <UiInput v-model="settingsQuery" class="settings-page__search" label="Search settings" placeholder="Search sections, keywords, or fields" />
 
     <div class="settings-page__layout">
       <nav class="settings-page__nav" aria-label="Settings sections">
@@ -30,6 +27,7 @@
 <script setup lang="ts">
 import {computed, ref, watchEffect} from 'vue'
 import {useSettingsSections} from '../../features/settings/settings-registry'
+import {UiInput} from '../../shared/ui'
 
 withDefaults(defineProps<{embedded?: boolean}>(), {embedded: false})
 

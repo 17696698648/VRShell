@@ -7,7 +7,7 @@
       <SessionForm :initial-value="initialValue" submit-label="Save session" @submit="handleSubmit" />
       <p v-if="error" class="dialog__error">{{ error }}</p>
       <footer>
-        <button type="button" @click="emit('close')">Cancel</button>
+        <UiButton variant="secondary" @click="emit('close')">Cancel</UiButton>
       </footer>
     </section>
   </div>
@@ -19,6 +19,7 @@ import type {SessionHost} from '../../../entities/session'
 import type {CreateSessionInput} from '../../../features/session/create-session/createSession'
 import {editSession} from '../../../features/session/edit-session/editSession'
 import {persistSessionAuth} from '../../../features/session/manage-credentials/sessionCredentials'
+import {UiButton} from '../../../shared/ui'
 import SessionForm from './SessionForm.vue'
 
 const props = defineProps<{session: SessionHost}>()

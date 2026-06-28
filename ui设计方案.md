@@ -6,6 +6,16 @@ VRShell 前端按“桌面工作台 + 领域分层 + typed IPC”建设。UI 不
 
 最终目标不是把若干 Vue 页面拼在一起，而是构建一个可长期演进的小型 IDE/运维工作台。
 
+### 当前 UI 设计基线
+
+- **主布局**：采用连续 IDE 分栏式布局。Titlebar / StatusBar 全宽固定，中间区域按 ActivityBar、左侧栏、主工作区、右侧栏连续拼接，区域之间只使用单条 divider，不使用外层卡片间距。
+- **主工作区**：Terminal / Editor 是视觉中心，底部 Dock 属于主工作区内部面板，只用顶部 divider 分隔，不再作为独立卡片。
+- **面板体系**：Workbench 内面板默认使用 embedded 风格，避免圆角、阴影、完整外框叠加；浮层、对话框、菜单才使用圆角和阴影。
+- **交互状态**：Tabs、Tree/List、Command item、Menu item 的 selected/focus 统一使用左侧或顶部 accent 线；hover 使用低对比背景。
+- **表单体系**：Session 表单和 Settings 页统一使用 `UiInput`、`UiSelect`、`UiButton`，禁止业务组件再为裸 `input/select/button` 单独定义样式。
+- **视觉回归**：视觉基线由 Playwright snapshots 维护，覆盖 theme、density、Workbench、Session/SFTP/Task/Logs、Command Palette、Settings、Session Form。
+- **质量守卫**：`npm run guard` 会检查 UI baseline：Settings 禁止裸 `input/select`、Session 表单禁止裸控件样式、已规范化区域禁止旧 token、Workbench 内部禁止卡片阴影/大圆角、visual snapshots 必须存在。
+
 ### 核心原则
 
 - **领域清晰**：Session、Terminal、SFTP、Task、Workspace、Settings、Security 各自独立。
@@ -134,7 +144,6 @@ src/
         SessionExplorer.vue
         SessionTree.vue
         SessionTreeNode.vue
-        SessionSearchBox.vue
         TerminalToolbar.vue
       model/
         useSessionExplorer.ts

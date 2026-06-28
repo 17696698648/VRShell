@@ -20,7 +20,7 @@ describe('workspace layout store', () => {
 
   it('reorders dock panels and resets layout', () => {
     reorderDockPanels('logs', 'logs')
-    expect(workspaceState.dockOrder).toEqual(['logs'])
+    expect(workspaceState.dockOrder).toEqual(['logs', 'tasks'])
 
     resetWorkspaceLayout()
     expect(workspaceState.layoutPreset).toBe('operations')

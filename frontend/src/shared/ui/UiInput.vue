@@ -24,6 +24,7 @@
 </template>
 
 <script setup lang="ts">
+import {computed} from 'vue'
 import {createId} from '../lib/createId'
 
 const props = withDefaults(
@@ -47,5 +48,6 @@ const emit = defineEmits<{
   enter: []
 }>()
 
-const descriptionId = props.description || props.error ? createId('ui-input-description') : undefined
+const fieldDescriptionId = createId('ui-input-description')
+const descriptionId = computed(() => props.description || props.error ? fieldDescriptionId : undefined)
 </script>

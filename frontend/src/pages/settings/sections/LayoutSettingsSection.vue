@@ -19,13 +19,13 @@
       <UiActionButton command-id="workspace.toggleMaximizePanel" label="Maximize" />
       <UiActionButton command-id="workspace.moveDockBottom" label="Dock Bottom" />
     </div>
-    <label class="settings-field"><span>Compact mode</span><select :value="workspaceState.compactMode ? 'on' : 'auto'" @change="onCompactChange"><option value="auto">Auto by window width</option><option value="on">Force compact</option><option value="off">Force full layout</option></select><small>Compact mode hides secondary panes to keep terminal space usable.</small></label>
-    <label class="settings-field"><span>Dock restore</span><select disabled><option>Restore last open dock panels</option><option>Open Problems when errors exist</option></select><small>Restore policy will be persisted with workspace layout.</small></label>
+    <div class="settings-field"><UiSelect :model-value="workspaceState.compactMode ? 'on' : 'auto'" label="Compact mode" description="Compact mode hides secondary panes to keep terminal space usable." :options="compactModeOptions" @update:model-value="onCompactChange" /></div>
+    <div class="settings-field"><UiSelect model-value="restore-last" label="Dock restore" disabled description="Restore policy will be persisted with workspace layout." :options="dockRestoreOptions" /></div>
   </section>
 </template>
 <script setup lang="ts">
 import {applyLayoutPreset, setCompactMode, workspaceState, type WorkspaceLayoutPreset} from '../../../entities/workspace'
-import {UiActionButton} from '../../../shared/ui'
+import {UiActionButton, UiSelect, type UiSelectOption} from '../../../shared/ui'
 
 const presets: Array<{id: WorkspaceLayoutPreset; title: string; description: string}> = [
   {id: 'operations', title: 'Operations', description: 'Terminal first with diagnostics dock.'},
@@ -33,9 +33,17 @@ const presets: Array<{id: WorkspaceLayoutPreset; title: string; description: str
   {id: 'file-transfer', title: 'File transfer', description: 'SFTP and task progress focused.'},
   {id: 'monitoring', title: 'Monitoring', description: 'Logs, output, and problems visible.'},
 ]
+const compactModeOptions: UiSelectOption[] = [
+  {label: 'Auto by window width', value: 'auto'},
+  {label: 'Force compact', value: 'on'},
+  {label: 'Force full layout', value: 'off'},
+]
+const dockRestoreOptions: UiSelectOption[] = [
+  {label: 'Restore last open dock panels', value: 'restore-last'},
+  {label: 'Open Problems when errors exist', value: 'open-problems'},
+]
 
-function onCompactChange(event: Event) {
-  const value = (event.target as HTMLSelectElement).value
+function onCompactChange(value: string) {
   if (value !== 'auto') setCompactMode(value === 'on')
 }
 </script>

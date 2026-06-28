@@ -1,4 +1,4 @@
-export const workspacePanels = ['sessions', 'tasks', 'settings'] as const
+export const workspacePanels = ['sessions', 'settings'] as const
 export const workspaceRightPanels = ['connection-info', 'sftp'] as const
 export const workspaceThemes = ['system', 'dark', 'light', 'high-contrast'] as const
 export const workspaceDensities = ['compact', 'comfortable', 'dense'] as const
@@ -6,7 +6,7 @@ export const mainAreaModes = ['single', 'horizontal-split', 'vertical-split'] as
 export const workspaceLayoutPresets = ['development', 'operations', 'file-transfer', 'monitoring'] as const
 export const panelPlacements = ['sidebar', 'right', 'bottom', 'floating'] as const
 export const workspaceMainViews = ['welcome', 'terminal', 'editor', 'settings'] as const
-export const workspaceDockPanels = ['none', 'logs'] as const
+export const workspaceDockPanels = ['none', 'logs', 'tasks'] as const
 
 export type WorkspacePanel = (typeof workspacePanels)[number]
 export type WorkspaceRightPanel = (typeof workspaceRightPanels)[number]

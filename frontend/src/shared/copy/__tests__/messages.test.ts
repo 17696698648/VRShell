@@ -8,6 +8,7 @@ describe('messages contract', () => {
     expect(messages.sftp.toolbar.actions).toBe('SFTP actions')
     expect(messages.sftp.treeGrid.columns.name).toBe('Name')
     expect(messages.sftp.taskMiniPanel.title).toBe('Transfers')
+    expect(messages.sftp.taskMiniPanel.openTaskCenter).toBe('Open Task Queue')
     expect(messages.sftp.directoryTree.expandFailed('/root', 'denied')).toBe('Failed to expand /root: denied')
     expect(messages.sftp.failures.transfer('upload')).toBe('Upload failed')
     expect(messages.sftp.dialogs.deleteMessage('/tmp/app.log')).toContain('/tmp/app.log')

@@ -1,9 +1,12 @@
 ﻿<template>
-  <UiWorkbenchPanel :compact="compact" :class="['explorer-panel', 'sftp-explorer', `sftp-explorer--${viewMode}`]" :title="messages.sftp.explorer.title" :subtitle="sftpSubtitle">
-    <template #icon><FolderTree :size="15" /></template>
+  <UiWorkbenchPanel :compact="compact" :class="panelClasses" :title="messages.sftp.explorer.title"
+                    :subtitle="sftpSubtitle">
+    <template #icon>
+      <FolderTree :size="15"/>
+    </template>
     <template #toolbar>
       <SftpToolbar
-        :disabled="!activeSession"
+        :disabled="!hasConnectedTerminal"
         :loading="sftpState.loading"
         :view-mode="viewMode"
         @mkdir="handleMkdir"
@@ -14,19 +17,21 @@
       />
     </template>
     <div class="explorer-layout sftp-explorer__layout">
-      <section class="explorer-utility sftp-explorer__utility">
-        <SftpBreadcrumbs :path="breadcrumbPath" @open="openBreadcrumbPath" />
-        <small v-if="!activeSession" class="sftp-explorer__hint">{{ messages.sftp.explorer.hint }}</small>
+      <section class="explorer-utility sftp-pathbar">
+        <SftpBreadcrumbs :path="breadcrumbPath" @open="openBreadcrumbPath"/>
       </section>
       <section class="explorer-content sftp-explorer__body">
-        <UiErrorState v-if="sftpBodyState.kind === 'error'" copyable logs-command-id="workspace.openLogsPanel" :title="sftpBodyState.title" :message="sftpBodyState.description" :retry-label="messages.sftp.explorer.retry" @retry="refresh()" />
-        <div v-else-if="sftpBodyState.kind === 'loading'" class="sftp-tree sftp-tree--loading" :aria-label="sftpBodyState.title">
-          <article v-for="index in 4" :key="index" class="sftp-row skeleton-row">
-            <span />
-            <strong />
-            <small />
-            <small />
-            <span />
+        <UiErrorState v-if="sftpBodyState.kind === 'error'" copyable logs-command-id="workspace.openLogsPanel"
+                      :title="sftpBodyState.title" :message="sftpBodyState.description"
+                      :retry-label="messages.sftp.explorer.retry" @retry="refresh()"/>
+        <div v-else-if="sftpBodyState.kind === 'loading'" class="sftp-file-list sftp-file-list--loading"
+             :aria-label="sftpBodyState.title">
+          <article v-for="index in 4" :key="index" class="sftp-file-row skeleton-row">
+            <span/>
+            <strong/>
+            <small/>
+            <small/>
+            <span/>
           </article>
         </div>
         <EmptyState
@@ -38,11 +43,15 @@
           :description="sftpBodyState.description"
         >
           <template #actions>
-            <UiButton v-if="sftpBodyState.kind === 'empty'" size="sm" variant="primary" @click="refresh()">{{ messages.sftp.explorer.refreshDirectory }}</UiButton>
+            <UiButton v-if="sftpBodyState.kind === 'empty'" size="sm" variant="primary" @click="refresh()">
+              {{ messages.sftp.explorer.refreshDirectory }}
+            </UiButton>
           </template>
         </EmptyState>
-        <SftpDirectoryTree v-else-if="viewMode === 'tree'" :key="activeSession?.id ?? 'no-session'" :items="sftpState.items" :root-path="sftpState.path" :session="activeSession" @select-directory="selectedTreePath = $event" />
-        <SftpTree v-else :items="sftpState.items" display-mode="list" @open-directory="refresh" />
+        <SftpDirectoryTree v-else-if="viewMode === 'tree'" :key="activeSession?.id ?? 'no-session'"
+                           :items="sftpState.items" :root-path="sftpState.path" :session="activeSession"
+                           @select-directory="selectedTreePath = $event"/>
+        <SftpFileList v-else :items="sftpState.items" display-mode="list" @open-directory="refresh"/>
       </section>
     </div>
   </UiWorkbenchPanel>
@@ -61,15 +70,22 @@ import {useSftpViewMode} from '../model/sftpViewMode'
 import SftpBreadcrumbs from './SftpBreadcrumbs.vue'
 import SftpDirectoryTree from './SftpDirectoryTree.vue'
 import SftpToolbar from './SftpToolbar.vue'
-import SftpTree from './SftpTree.vue'
+import SftpFileList from './SftpFileList.vue'
 
-defineProps<{compact?: boolean}>()
-const {sftpState, activeSession, refresh, openParentDirectory} = useSftpExplorer()
+defineProps<{ compact?: boolean }>()
+const {sftpState, activeSession, hasConnectedTerminal, refresh, openParentDirectory} = useSftpExplorer()
 const {viewMode} = useSftpViewMode()
 const selectedTreePath = ref<string | null>(null)
+const panelClasses = computed(() => ['explorer-panel', 'sftp-explorer', `sftp-explorer--${viewMode.value}`])
 const sftpSubtitle = computed(() => activeSession.value ? `${activeSession.value.name} · ${activeSession.value.username}@${activeSession.value.host}:${activeSession.value.port}` : messages.sftp.explorer.noSelectedSession)
 const breadcrumbPath = computed(() => viewMode.value === 'tree' ? selectedTreePath.value ?? sftpState.path : sftpState.path)
-const sftpBodyState = computed(() => getSftpBodyState({activeSession: Boolean(activeSession.value), copy: messages.sftp.explorer, error: sftpState.error, itemCount: sftpState.items.length, loading: sftpState.loading}))
+const sftpBodyState = computed(() => getSftpBodyState({
+  activeSession: hasConnectedTerminal.value,
+  copy: messages.sftp.explorer,
+  error: sftpState.error,
+  itemCount: sftpState.items.length,
+  loading: sftpState.loading
+}))
 
 watch(() => [activeSession.value?.id, sftpState.path] as const, () => {
   selectedTreePath.value = null
@@ -81,7 +97,11 @@ function openBreadcrumbPath(path: string) {
 }
 
 async function handleMkdir() {
-  const name = await requestPrompt({title: messages.sftp.explorer.createRemoteDirectoryTitle, label: messages.sftp.explorer.directoryName, confirmLabel: messages.sftp.dialogs.create})
+  const name = await requestPrompt({
+    title: messages.sftp.explorer.createRemoteDirectoryTitle,
+    label: messages.sftp.explorer.directoryName,
+    confirmLabel: messages.sftp.dialogs.create
+  })
   if (name) await createRemoteDirectory(name)
 }
 

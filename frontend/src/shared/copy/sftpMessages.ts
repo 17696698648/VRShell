@@ -2,13 +2,14 @@ export const sftpMessages = {
   explorer: {
     title: 'SFTP',
     noSelectedSession: 'No selected session',
-    hint: 'Select a connected session to enable remote file actions.',
+    hint: 'Connect a session to enable remote file actions.',
     unableToLoadDirectory: 'Unable to load remote directory',
     retry: 'Retry',
     loadingDirectory: 'Loading remote directory',
     emptyTitle: 'No remote files',
     emptyWithSession: 'Refresh the current path or upload files into this directory.',
-    emptyWithoutSession: 'Select a connected session to browse remote files.',
+    emptyWithoutSessionTitle: 'Connect a session first',
+    emptyWithoutSession: 'Connect a session to browse remote files.',
     refreshDirectory: 'Refresh directory',
     createRemoteDirectoryTitle: 'Create remote directory',
     directoryName: 'Directory name',
@@ -46,7 +47,7 @@ export const sftpMessages = {
   taskMiniPanel: {
     label: 'Recent SFTP transfers',
     title: 'Transfers',
-    openTaskCenter: 'Open Task Center',
+    openTaskCenter: 'Open Task Queue',
   },
   directoryTree: {
     breadcrumbs: 'Remote path breadcrumbs',

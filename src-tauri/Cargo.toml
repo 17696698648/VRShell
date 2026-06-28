@@ -8,7 +8,7 @@ default = []
 devtools = ["tauri/devtools"]
 
 [dependencies]
-tauri = { version = "2.11" }
+tauri = { version = "2.11", features = [] }
 tauri-plugin-dialog = "2"
 ssh2 = "0.9"
 base64 = "0.21"

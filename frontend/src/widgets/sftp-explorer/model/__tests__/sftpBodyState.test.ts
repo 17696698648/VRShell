@@ -4,6 +4,7 @@ import {getSftpBodyState, type SftpBodyStateCopy} from '../sftpBodyState'
 const copy: SftpBodyStateCopy = {
   emptyTitle: 'No remote files',
   emptyWithSession: 'This directory is empty.',
+  emptyWithoutSessionTitle: 'Connect a session first',
   emptyWithoutSession: 'Connect a session to browse files.',
   loadingDirectory: 'Loading directory',
   unableToLoadDirectory: 'Unable to load directory',
@@ -23,7 +24,7 @@ describe('getSftpBodyState', () => {
   })
 
   it('distinguishes disconnected and empty directory states', () => {
-    expect(getSftpBodyState({activeSession: false, copy, error: '', itemCount: 0, loading: false})).toMatchObject({kind: 'disconnected', description: copy.emptyWithoutSession})
+    expect(getSftpBodyState({activeSession: false, copy, error: '', itemCount: 0, loading: false})).toMatchObject({kind: 'disconnected', title: copy.emptyWithoutSessionTitle, description: copy.emptyWithoutSession})
     expect(getSftpBodyState({activeSession: true, copy, error: '', itemCount: 0, loading: false})).toMatchObject({kind: 'empty', description: copy.emptyWithSession})
   })
 

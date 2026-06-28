@@ -1,14 +1,27 @@
 <template>
   <section class="settings-section">
     <div><h3>Appearance</h3><p>Theme and density apply immediately.</p></div>
-    <label class="settings-field"><span>Theme</span><select :value="workspaceState.theme" @change="onThemeChange"><option value="dark">Dark</option><option value="light">Light</option><option value="high-contrast">High contrast</option></select></label>
-    <label class="settings-field"><span>Density</span><select :value="workspaceState.density" @change="onDensityChange"><option value="compact">Compact</option><option value="comfortable">Comfortable</option><option value="dense">Dense</option></select><small>Density is independent from theme.</small></label>
+    <div class="settings-field"><UiSelect :model-value="workspaceState.theme" label="Theme" :options="themeOptions" @update:model-value="onThemeChange" /></div>
+    <div class="settings-field"><UiSelect :model-value="workspaceState.density" label="Density" description="Density is independent from theme." :options="densityOptions" @update:model-value="onDensityChange" /></div>
   </section>
 </template>
 <script setup lang="ts">
 import {workspaceState, type WorkspaceDensity, type WorkspaceTheme} from '../../../entities/workspace'
 import {switchDensity} from '../../../features/settings/switch-density/switchDensity'
 import {switchTheme} from '../../../features/settings/switch-theme/switchTheme'
-function onThemeChange(event: Event) { switchTheme((event.target as HTMLSelectElement).value as WorkspaceTheme) }
-function onDensityChange(event: Event) { switchDensity((event.target as HTMLSelectElement).value as WorkspaceDensity) }
+import {UiSelect, type UiSelectOption} from '../../../shared/ui'
+
+const themeOptions: UiSelectOption[] = [
+  {label: 'Dark', value: 'dark'},
+  {label: 'Light', value: 'light'},
+  {label: 'High contrast', value: 'high-contrast'},
+]
+const densityOptions: UiSelectOption[] = [
+  {label: 'Compact', value: 'compact'},
+  {label: 'Comfortable', value: 'comfortable'},
+  {label: 'Dense', value: 'dense'},
+]
+
+function onThemeChange(value: string) { switchTheme(value as WorkspaceTheme) }
+function onDensityChange(value: string) { switchDensity(value as WorkspaceDensity) }
 </script>

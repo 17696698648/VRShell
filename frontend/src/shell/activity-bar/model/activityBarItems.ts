@@ -8,6 +8,5 @@ export interface ActivityBarItem {
 
 export const activityBarItems: ActivityBarItem[] = [
   {id: 'sessions', icon: 'SSH', commandId: 'workspace.openSessionsPanel'},
-  {id: 'tasks', icon: 'TASK', commandId: 'workspace.openTasksPanel'},
   {id: 'settings', icon: 'SET', commandId: 'settings.openPanel'},
 ]

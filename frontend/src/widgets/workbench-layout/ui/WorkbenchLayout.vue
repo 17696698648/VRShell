@@ -1,9 +1,9 @@
 <template>
-  <section :class="classes" :style="layoutStyle">
+  <section ref="rootRef" :class="classes" :style="layoutStyle">
     <nav v-if="showResponsiveSwitcher" class="workbench-layout__responsive-switcher" aria-label="Workbench panels">
-      <button type="button" :class="{active: responsivePanel === 'primary'}" @click="responsivePanel = 'primary'">Terminal</button>
-      <button v-if="hasSecondary" type="button" :class="{active: responsivePanel === 'secondary'}" @click="responsivePanel = 'secondary'">Editor</button>
-      <button v-if="hasDock" type="button" :class="{active: responsivePanel === 'dock'}" @click="responsivePanel = 'dock'">Details</button>
+      <button type="button" :class="{active: responsivePanel === 'primary'}" :aria-pressed="responsivePanel === 'primary'" @click="responsivePanel = 'primary'">Terminal</button>
+      <button v-if="hasSecondary" type="button" :class="{active: responsivePanel === 'secondary'}" :aria-pressed="responsivePanel === 'secondary'" @click="responsivePanel = 'secondary'">Editor</button>
+      <button v-if="hasDock" type="button" :class="{active: responsivePanel === 'dock'}" :aria-pressed="responsivePanel === 'dock'" @click="responsivePanel = 'dock'">Details</button>
     </nav>
     <UiSplitPane
       v-if="hasDock"
@@ -17,7 +17,7 @@
         <MainSplitContent :responsive-panel="responsivePanel" />
       </template>
       <template #second>
-        <aside class="workbench-layout__dock" :data-placement="dockPlacement">
+        <aside class="workbench-layout__dock" :class="responsivePaneClass('dock')" :data-placement="dockPlacement">
           <slot name="dock" />
         </aside>
       </template>
@@ -27,7 +27,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed, defineComponent, h, ref, useSlots, watch} from 'vue'
+import {computed, defineComponent, h, onMounted, onUnmounted, ref, useSlots, watch} from 'vue'
 import {setBottomPanelHeight, setMainSplitRatio} from '../../../entities/workspace'
 import type {MainAreaMode, PanelPlacement, WorkspaceLayoutPreset} from '../../../entities/workspace'
 import {UiSplitPane} from '../../../shared/ui'
@@ -54,6 +54,8 @@ const props = withDefaults(
 )
 
 const slots = useSlots()
+const rootRef = ref<HTMLElement | null>(null)
+const layoutHeight = ref(820)
 const responsivePanel = ref<ResponsivePanel>('primary')
 const hasSecondary = computed(() => Boolean(slots.secondary) && props.mode !== 'single')
 const hasDock = computed(() => props.visible && props.dockPlacement === 'bottom')
@@ -61,8 +63,8 @@ const showResponsiveSwitcher = computed(() => hasSecondary.value || hasDock.valu
 const mainSplitDirection = computed(() => (props.mode === 'vertical-split' ? 'horizontal' : 'vertical'))
 const dockSplitDirection = 'vertical' as const
 const dockSplitRatio = computed({
-  get: () => heightToRatio(props.bottomPanelHeight, 820),
-  set: (value) => setBottomPanelHeight(ratioToHeight(value, 820)),
+  get: () => heightToRatio(props.bottomPanelHeight, layoutHeight.value),
+  set: (value) => setBottomPanelHeight(ratioToHeight(value, layoutHeight.value)),
 })
 const dockSplitMin = computed(() => 48)
 const dockSplitMax = computed(() => 78)
@@ -75,6 +77,8 @@ const layoutStyle = computed(() => ({
   '--dock-bottom-height': `${props.bottomPanelHeight}px`,
 }))
 
+let resizeObserver: ResizeObserver | null = null
+
 const MainSplitContent = defineComponent({
   name: 'MainSplitContent',
   props: {
@@ -83,9 +87,10 @@ const MainSplitContent = defineComponent({
       type: String,
     },
   },
-  setup() {
+  setup(componentProps) {
     return () => {
-      const primary = h('div', slots.primary?.())
+      const activePanel = componentProps.responsivePanel as ResponsivePanel
+      const primary = h('div', {class: ['workbench-layout__primary', responsivePaneClass('primary', activePanel)]}, slots.primary?.())
       if (!hasSecondary.value) return primary
       return h(
         UiSplitPane,
@@ -101,12 +106,21 @@ const MainSplitContent = defineComponent({
         },
         {
           first: () => primary,
-          second: () => h('div', {class: 'workbench-layout__secondary'}, slots.secondary?.()),
+          second: () => h('div', {class: ['workbench-layout__secondary', responsivePaneClass('secondary', activePanel)]}, slots.secondary?.()),
         },
       )
     }
   },
 })
+
+onMounted(() => {
+  updateLayoutHeight()
+  if (!rootRef.value) return
+  resizeObserver = new ResizeObserver(updateLayoutHeight)
+  resizeObserver.observe(rootRef.value)
+})
+
+onUnmounted(() => resizeObserver?.disconnect())
 
 watch([hasSecondary, hasDock], () => {
   if (responsivePanel.value === 'secondary' && !hasSecondary.value) responsivePanel.value = 'primary'
@@ -114,7 +128,16 @@ watch([hasSecondary, hasDock], () => {
 })
 
 function commitDockResize(value: number) {
-  setBottomPanelHeight(ratioToHeight(value, 820))
+  setBottomPanelHeight(ratioToHeight(value, layoutHeight.value))
+}
+
+function updateLayoutHeight() {
+  const nextHeight = rootRef.value?.getBoundingClientRect().height
+  if (nextHeight && nextHeight > 0) layoutHeight.value = Math.round(nextHeight)
+}
+
+function responsivePaneClass(panel: ResponsivePanel, activePanel = responsivePanel.value) {
+  return {'workbench-layout__pane--responsive-hidden': activePanel !== panel}
 }
 
 function heightToRatio(height: number, total: number) {

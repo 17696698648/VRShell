@@ -57,10 +57,11 @@ export function applyLayoutPreset(preset: WorkspaceLayoutPreset) {
     return
   }
   if (preset === 'monitoring') {
-    workspaceState.activePanel = 'tasks'
+    workspaceState.activePanel = 'sessions'
     workspaceState.mainAreaMode = 'single'
     workspaceState.mainSplitRatio = 68
-    workspaceState.activeBottomDockPanel = 'logs'
+    workspaceState.activeBottomDockPanel = 'tasks'
+    workspaceState.recentBottomDockPanel = 'tasks'
     workspaceState.bottomPanelVisible = true
     return
   }

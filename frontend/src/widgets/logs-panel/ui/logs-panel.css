@@ -4,10 +4,10 @@
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
-  background: var(--color-bg-panel);
-  box-shadow: var(--shadow-panel);
+  border: 0;
+  border-radius: 0;
+  background: var(--dock-panel-bg);
+  box-shadow: none;
 }
 
 .logs-panel__header {
@@ -17,6 +17,7 @@
   gap: var(--space-3);
   padding: var(--space-3);
   border-bottom: 1px solid var(--color-border-subtle);
+  background: color-mix(in srgb, var(--color-bg-tool-window-raised) 58%, transparent);
 }
 
 .logs-panel__header > div:first-child {
@@ -31,7 +32,7 @@
 .logs-panel__list {
   display: grid;
   align-content: start;
-  gap: 4px;
+  gap: 2px;
   overflow: auto;
   padding: var(--space-2);
 }
@@ -40,8 +41,10 @@
   display: grid;
   grid-template-columns: 72px 80px minmax(0, 1fr);
   gap: var(--space-2);
-  align-items: start;
-  padding: 7px 8px;
+  align-items: center;
+  min-height: var(--row-height-md);
+  padding: 4px 8px;
+  border: 1px solid transparent;
   border-radius: var(--radius-md);
   background: transparent;
   color: var(--color-text-secondary);
@@ -50,7 +53,8 @@
 }
 
 .logs-panel__entry:hover {
-  background: var(--color-bg-hover);
+  border-color: var(--color-border-subtle);
+  background: var(--row-hover-bg);
 }
 
 .logs-panel__entry time,
@@ -72,10 +76,12 @@
 }
 
 .logs-panel__entry--warning {
+  border-left-color: var(--color-warning);
   color: var(--color-warning);
 }
 
 .logs-panel__entry--error,
 .logs-panel__entry--fatal {
+  border-left-color: var(--color-danger);
   color: var(--color-danger);
 }

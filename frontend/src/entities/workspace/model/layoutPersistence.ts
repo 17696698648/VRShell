@@ -21,7 +21,7 @@ const defaultLayout: WorkspaceLayoutState = {
   bottomPanelVisible: true,
   compactMode: false,
   density: 'compact',
-  dockOrder: ['logs'],
+  dockOrder: ['logs', 'tasks'],
   layoutPreset: 'operations',
   mainAreaMode: 'single',
   mainSplitRatio: 62,
@@ -40,14 +40,16 @@ export function getDefaultWorkspaceLayout(): WorkspaceLayoutState {
 
 export function normalizeWorkspaceLayout(input: Partial<WorkspaceLayoutState> | null | undefined): WorkspaceLayoutState {
   const {activeBottom, recentBottom} = normalizeDockPanels(input)
-  const legacySftpPanel = (input as Record<string, unknown> | null | undefined)?.activePanel === 'sftp'
+  const legacyActivePanel = (input as Record<string, unknown> | null | undefined)?.activePanel
+  const legacySftpPanel = legacyActivePanel === 'sftp'
+  const legacyTasksPanel = legacyActivePanel === 'tasks'
   return {
-    activeBottomDockPanel: activeBottom,
+    activeBottomDockPanel: legacyTasksPanel ? 'tasks' : activeBottom,
     activeMainView: isOneOf(input?.activeMainView, workspaceMainViews) ? input.activeMainView : defaultLayout.activeMainView,
-    activePanel: legacySftpPanel ? 'sessions' : isOneOf(input?.activePanel, workspacePanels) ? input.activePanel : defaultLayout.activePanel,
+    activePanel: legacySftpPanel || legacyTasksPanel ? 'sessions' : isOneOf(input?.activePanel, workspacePanels) ? input.activePanel : defaultLayout.activePanel,
     activeRightPanel: legacySftpPanel ? 'sftp' : isOneOf(input?.activeRightPanel, workspaceRightPanels) ? input.activeRightPanel : defaultLayout.activeRightPanel,
     bottomPanelHeight: clampNumber(input?.bottomPanelHeight, 160, 520, defaultLayout.bottomPanelHeight),
-    bottomPanelVisible: normalizeBottomVisibility(input?.bottomPanelVisible, activeBottom),
+    bottomPanelVisible: legacyTasksPanel ? true : normalizeBottomVisibility(input?.bottomPanelVisible, activeBottom),
     compactMode: typeof input?.compactMode === 'boolean' ? input.compactMode : defaultLayout.compactMode,
     density: isOneOf(input?.density, workspaceDensities) ? input.density : defaultLayout.density,
     dockOrder: Array.isArray(input?.dockOrder) ? input.dockOrder.filter((panel) => isOneOf(panel, workspaceDockPanels)) : defaultLayout.dockOrder,
@@ -55,7 +57,7 @@ export function normalizeWorkspaceLayout(input: Partial<WorkspaceLayoutState> | 
     mainAreaMode: isOneOf(input?.mainAreaMode, mainAreaModes) ? input.mainAreaMode : defaultLayout.mainAreaMode,
     mainSplitRatio: clampNumber(input?.mainSplitRatio, 30, 75, defaultLayout.mainSplitRatio),
     panelPlacement: normalizePanelPlacement(input?.panelPlacement),
-    recentBottomDockPanel: recentBottom,
+    recentBottomDockPanel: legacyTasksPanel ? 'tasks' : recentBottom,
     recentRightPanel: legacySftpPanel ? 'sftp' : isOneOf(input?.recentRightPanel, workspaceRightPanels) ? input.recentRightPanel : defaultLayout.recentRightPanel,
     rightPanelVisible: legacySftpPanel ? true : typeof input?.rightPanelVisible === 'boolean' ? input.rightPanelVisible : defaultLayout.rightPanelVisible,
     rightPanelWidth: clampNumber(input?.rightPanelWidth, 220, 420, defaultLayout.rightPanelWidth),

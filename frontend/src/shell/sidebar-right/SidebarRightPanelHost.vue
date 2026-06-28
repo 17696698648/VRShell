@@ -5,7 +5,7 @@
     compact
     icon="ℹ"
     title="Info"
-    description="Select a panel from the right activity bar."
+    description="Select an inspector tab to view connection or SFTP context."
   />
 </template>
 

@@ -62,6 +62,7 @@ function getDockOrder(panelId: string) {
 
 function getDockGroup(panelId: string) {
   if (panelId === 'logs') return 'Diagnostics'
+  if (panelId === 'tasks') return 'Background Jobs'
   if (panelId.includes('detail')) return 'Details'
   return 'Dock'
 }

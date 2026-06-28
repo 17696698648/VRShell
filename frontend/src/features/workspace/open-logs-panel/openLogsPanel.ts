@@ -23,6 +23,10 @@ export function openLogsPanel() {
   openDockPanel('logs')
 }
 
+export function openTasksPanel() {
+  openDockPanel('tasks')
+}
+
 export function closeLogsPanel() {
   closeDockPanel()
 }

@@ -2,7 +2,7 @@
   <section class="settings-section">
     <div><h3>Keybindings</h3><p>Command registry keeps menus, shortcuts, and command palette behavior consistent.</p></div>
     <p v-if="keybindingConflicts.length > 0" class="settings-warning">{{ keybindingConflicts.length }} shortcut conflicts detected. Review commands that share the same shortcut and scope.</p>
-    <label class="settings-field settings-field--search"><span>Search keybindings</span><input v-model="keybindingQuery" placeholder="Search by command, category, or shortcut" /></label>
+    <div class="settings-field settings-field--search"><UiInput v-model="keybindingQuery" label="Search keybindings" placeholder="Search by command, category, or shortcut" /></div>
     <div class="settings-keybindings" role="table" aria-label="Registered command keybindings">
       <div class="settings-keybindings__row settings-keybindings__row--header" role="row"><span>Command</span><span>Category</span><span>Shortcut</span><span>Scope</span></div>
       <div v-for="entry in filteredKeybindings" :key="entry.command.id" class="settings-keybindings__row" :class="{disabled: !entry.availability.enabled}" role="row">
@@ -15,6 +15,7 @@
 <script setup lang="ts">
 import {computed, ref} from 'vue'
 import {getCommandAvailability, searchCommands} from '../../../shared/command'
+import {UiInput} from '../../../shared/ui'
 const keybindingQuery = ref('')
 const filteredKeybindings = computed(() => searchCommands(keybindingQuery.value, {includeHidden: true}).filter((command) => command.shortcut || command.visibleInPalette !== false).map((command) => ({command, availability: getCommandAvailability(command)})))
 const keybindingConflicts = computed(() => {

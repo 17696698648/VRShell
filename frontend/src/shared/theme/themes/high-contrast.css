@@ -2,23 +2,23 @@
   color-scheme: dark;
 
   --color-bg-app: #000000;
-  --color-bg-shell: #050505;
-  --color-bg-panel: #050505;
+  --color-bg-shell: #020617;
+  --color-bg-panel: #050a14;
   --color-bg-workspace: #000000;
-  --color-bg-elevated: #111111;
+  --color-bg-elevated: #111827;
   --color-bg-hover: rgba(255, 255, 255, 0.14);
   --color-bg-selected: rgba(250, 204, 21, 0.24);
-  --color-bg-card: #050505;
-  --color-bg-card-hover: #111111;
+  --color-bg-card: #050a14;
+  --color-bg-card-hover: #111827;
   --color-bg-hero: #000000;
 
   --color-text-primary: #ffffff;
-  --color-text-secondary: #f3f4f6;
-  --color-text-muted: #d1d5db;
-  --color-text-disabled: #9ca3af;
+  --color-text-secondary: #f8fafc;
+  --color-text-muted: #dbeafe;
+  --color-text-disabled: #94a3b8;
 
-  --color-border-subtle: rgba(255, 255, 255, 0.42);
-  --color-border-strong: rgba(255, 255, 255, 0.7);
+  --color-border-subtle: rgba(255, 255, 255, 0.48);
+  --color-border-strong: rgba(255, 255, 255, 0.78);
   --color-focus-ring: #facc15;
   --color-shadow-soft: rgba(0, 0, 0, 0.7);
   --color-shadow-card: rgba(0, 0, 0, 0.85);
@@ -35,7 +35,7 @@
 
   --color-terminal-bg: #000000;
   --color-terminal-text: #ffffff;
-  --color-terminal-muted: #d1d5db;
+  --color-terminal-muted: #dbeafe;
   --color-terminal-selection: rgba(250, 204, 21, 0.34);
   --color-terminal-cursor: #facc15;
 
@@ -46,6 +46,11 @@
   --color-text: var(--color-text-primary);
   --color-muted: var(--color-text-muted);
   --color-accent-soft: var(--color-bg-selected);
+  --color-bg-tool-stripe: #020617;
+  --color-bg-tool-window: #050a14;
+  --color-bg-tool-window-raised: #111827;
+  --color-border-active: #facc15;
+  --tool-window-border: var(--color-border-strong);
   --command-item-hover-bg: rgba(250, 204, 21, 0.2);
   --list-row-hover-bg: rgba(250, 204, 21, 0.18);
   --list-row-selected-bg: rgba(250, 204, 21, 0.28);

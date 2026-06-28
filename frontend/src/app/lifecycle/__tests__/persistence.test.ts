@@ -47,7 +47,8 @@ describe('persistence', () => {
 
   it('persists session and workspace state', () => {
     sessionState.activeSessionId = 'staging-web'
-    workspaceState.activePanel = 'tasks'
+    workspaceState.activePanel = 'sessions'
+    workspaceState.activeBottomDockPanel = 'tasks'
     workspaceState.sidebarWidth = 360
     workspaceState.bottomPanelVisible = true
     workspaceState.mainAreaMode = 'vertical-split'
@@ -63,7 +64,8 @@ describe('persistence', () => {
         version: 5,
         activeSessionId: 'staging-web',
         workspaceLayout: {
-          activePanel: 'tasks',
+          activePanel: 'sessions',
+          activeBottomDockPanel: 'tasks',
           sidebarWidth: 360,
           bottomPanelVisible: true,
           mainAreaMode: 'vertical-split',

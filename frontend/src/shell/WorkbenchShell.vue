@@ -19,7 +19,6 @@
           <slot name="sidebar-right"/>
         </SidebarRight>
       </div>
-      <ActivityBarRight/>
     </div>
     <StatusBar/>
     <CommandPaletteHost/>
@@ -36,7 +35,6 @@
 import {computed, onMounted, onUnmounted, ref} from 'vue'
 import {setRightPanelWidth, setSidebarWidth, workspaceState} from '../entities/workspace'
 import ActivityBarLeft from './activity-bar-left/ActivityBarLeft.vue'
-import ActivityBarRight from './activity-bar-right/ActivityBarRight.vue'
 import CommandPaletteHost from './overlays/CommandPaletteHost.vue'
 import ContextMenuHost from './overlays/ContextMenuHost.vue'
 import DialogHost from './overlays/DialogHost.vue'
