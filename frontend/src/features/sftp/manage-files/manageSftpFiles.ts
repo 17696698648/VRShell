@@ -1,13 +1,15 @@
 import {open, save} from '@tauri-apps/plugin-dialog'
-import {openSessionEditorFile} from '../../../entities/editor'
+import {openSessionEditorFile, patchSessionEditorFile, type SessionEditorFile} from '../../../entities/editor'
 import {getActiveSession, sessionState} from '../../../entities/session'
 import {createRemoteFilePath, deleteRemotePath, downloadRemoteFile, mkdirRemoteDirectory, readRemoteFile, renameRemotePath, uploadRemoteDirectory, uploadRemoteFile} from '../../../entities/sftp/api/sftpRepository'
 import {addTask, patchTask} from '../../../entities/task'
 import {sftpState, type SftpItem} from '../../../entities/sftp'
+import {workspaceState} from '../../../entities/workspace'
+import {openTasksPanel} from '../../workspace/open-logs-panel'
 import {messages} from '../../../shared/copy'
 import {getErrorMessage} from '../../../shared/error/getErrorMessage'
 import {notifyFeedback, notifySftpFailure} from '../../../shared/feedback'
-import {decodeTextBase64} from '../../../shared/lib/base64'
+import {decodeTextBase64, encodeTextBase64} from '../../../shared/lib/base64'
 import {createId} from '../../../shared/lib/createId'
 
 export async function createRemoteDirectory(name: string, parentPath = sftpState.path) {
@@ -15,10 +17,16 @@ export async function createRemoteDirectory(name: string, parentPath = sftpState
   const trimmedName = name.trim()
   if (!trimmedName) return null
   const path = joinRemotePath(parentPath, trimmedName)
-  await mkdirRemoteDirectory(session, path)
-  const item: SftpItem = {id: path, name: trimmedName, path, type: 'directory', size: '-', modifiedAt: 'Now'}
-  if (parentPath === sftpState.path) sftpState.items.unshift(item)
-  return item
+  try {
+    await mkdirRemoteDirectory(session, path)
+    const item: SftpItem = {id: path, name: trimmedName, path, type: 'directory', size: '-', modifiedAt: 'Now'}
+    if (parentPath === sftpState.path) sftpState.items.unshift(item)
+    notifyFeedback({level: 'success', title: messages.sftp.success.createDirectory(trimmedName), detail: path})
+    return item
+  } catch (error) {
+    notifySftpFailure({action: 'create-directory-failed', path, title: messages.sftp.failures.createDirectory(trimmedName), error})
+    throw error
+  }
 }
 
 export async function createRemoteFile(name: string, parentPath = sftpState.path) {
@@ -26,26 +34,45 @@ export async function createRemoteFile(name: string, parentPath = sftpState.path
   const trimmedName = name.trim()
   if (!trimmedName) return null
   const path = joinRemotePath(parentPath, trimmedName)
-  await createRemoteFilePath(session, path)
-  const item: SftpItem = {id: path, name: trimmedName, path, type: 'file', size: '0 B', modifiedAt: 'Now'}
-  if (parentPath === sftpState.path) sftpState.items.unshift(item)
-  return item
+  try {
+    await createRemoteFilePath(session, path)
+    const item: SftpItem = {id: path, name: trimmedName, path, type: 'file', size: '0 B', modifiedAt: 'Now'}
+    if (parentPath === sftpState.path) sftpState.items.unshift(item)
+    notifyFeedback({level: 'success', title: messages.sftp.success.createFile(trimmedName), detail: path})
+    return item
+  } catch (error) {
+    notifySftpFailure({action: 'create-file-failed', path, title: messages.sftp.failures.createFile(trimmedName), error})
+    throw error
+  }
 }
 
 export async function deleteRemoteItem(item: SftpItem) {
   const session = requireActiveSession()
-  await deleteRemotePath(session, item.path, item.type === 'directory')
-  sftpState.items = sftpState.items.filter((candidate) => candidate.id !== item.id)
+  try {
+    await deleteRemotePath(session, item.path, item.type === 'directory')
+    sftpState.items = sftpState.items.filter((candidate) => candidate.id !== item.id)
+    notifyFeedback({level: 'success', title: messages.sftp.success.deleteItem(item.name), detail: item.path})
+  } catch (error) {
+    notifySftpFailure({action: 'delete-failed', path: item.path, title: messages.sftp.failures.deleteItem(item.name), error})
+    throw error
+  }
 }
 
 export async function renameRemoteItem(item: SftpItem, name: string) {
   const session = requireActiveSession()
   const trimmedName = name.trim()
   if (!trimmedName) return null
+  const originalName = item.name
   const nextPath = joinRemotePath(parentRemotePath(item.path), trimmedName)
-  await renameRemotePath(session, item.path, nextPath)
-  Object.assign(item, {id: nextPath, name: trimmedName, path: nextPath, modifiedAt: 'Now'})
-  return item
+  try {
+    await renameRemotePath(session, item.path, nextPath)
+    Object.assign(item, {id: nextPath, name: trimmedName, path: nextPath, modifiedAt: 'Now'})
+    notifyFeedback({level: 'success', title: messages.sftp.success.renameItem(trimmedName), detail: nextPath})
+    return item
+  } catch (error) {
+    notifySftpFailure({action: 'rename-failed', path: item.path, title: messages.sftp.failures.renameItem(originalName), error})
+    throw error
+  }
 }
 
 export async function openRemoteFileInSessionEditor(item: SftpItem) {
@@ -60,6 +87,7 @@ export async function openRemoteFileInSessionEditor(item: SftpItem) {
       title: item.name,
       content: decodeTextBase64(contentBase64),
     })
+    workspaceState.activeMainView = 'editor'
   } catch (error) {
     notifySftpFailure({action: 'open-failed', path: item.path, title: messages.sftp.failures.openFile(item.name), error})
     throw error
@@ -103,6 +131,20 @@ export async function downloadRemoteItem(item: SftpItem) {
   })
 }
 
+export async function saveRemoteEditorFile(file: SessionEditorFile) {
+  patchSessionEditorFile(file.id, {saving: true, error: undefined})
+  try {
+    await runTransferTask('upload', file.path, async (session, taskId) => {
+      await uploadRemoteFile(session, file.path, taskId, {dataBase64: encodeTextBase64(file.content)})
+    })
+    patchSessionEditorFile(file.id, {dirty: false, saving: false, error: undefined})
+  } catch (error) {
+    const message = getErrorMessage(error)
+    patchSessionEditorFile(file.id, {saving: false, error: message})
+    throw error
+  }
+}
+
 export async function createTransferTask(kind: 'upload' | 'download', detail: string) {
   if (kind === 'upload') return uploadFileToRemoteDirectory(detail)
   const item: SftpItem = {id: detail, name: detail.split('/').filter(Boolean).pop() ?? detail, path: detail, type: 'file', size: '-', modifiedAt: '-'}
@@ -112,6 +154,7 @@ export async function createTransferTask(kind: 'upload' | 'download', detail: st
 async function runTransferTask(kind: 'upload' | 'download', detail: string, run: (session: ReturnType<typeof requireActiveSession>, taskId: string) => Promise<void>) {
   const session = requireActiveSession()
   const taskId = createId(`sftp-${kind}`)
+  openTasksPanel()
   addTask({id: taskId, title: `${capitalize(kind)} file`, detail, progress: 0, status: 'running'})
   try {
     await run(session, taskId)
@@ -122,7 +165,7 @@ async function runTransferTask(kind: 'upload' | 'download', detail: string, run:
     throw error
   }
   patchTask(taskId, {error: undefined, progress: 100, status: 'done'})
-  notifyFeedback({level: 'success', title: `${capitalize(kind)} queued`, detail})
+  notifyFeedback({level: 'success', title: `${capitalize(kind)} completed`, detail})
   return taskId
 }
 

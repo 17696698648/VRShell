@@ -1,13 +1,16 @@
+/* Overlay Base */
 .overlay {
+  --overlay-backdrop-bg: rgba(0, 0, 0, 0.28);
   position: fixed;
   inset: 0;
   z-index: 100;
   display: grid;
   place-items: center;
-  background: rgba(0, 0, 0, 0.28);
+  background: var(--overlay-backdrop-bg);
   backdrop-filter: blur(2px);
 }
 
+/* Command Palette */
 .command-palette {
   display: grid;
   gap: var(--space-3);
@@ -17,23 +20,6 @@
   border-radius: var(--radius-2xl);
   background: var(--color-bg-tool-window-raised);
   box-shadow: var(--shadow-popover);
-}
-
-.overlay--quick-open {
-  align-items: start;
-  padding-top: 38px;
-  background: transparent;
-  backdrop-filter: none;
-}
-
-.overlay--quick-open .quick-open {
-  width: min(520px, calc(100vw - 96px));
-  margin-inline: auto;
-  border-radius: 9px;
-  background: #1a1d20;
-  box-shadow:
-    0 18px 44px rgba(0, 0, 0, 0.34),
-    0 0 0 1px rgba(160, 170, 185, 0.2);
 }
 
 .command-palette__input {
@@ -115,7 +101,7 @@
 .command-palette__list button {
   position: relative;
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) auto auto auto auto;
+  grid-template-columns: 28px minmax(0, 1fr) auto auto auto auto auto;
   gap: 10px;
   align-items: center;
   text-align: left;
@@ -159,7 +145,8 @@
 .command-palette__icon,
 .command-palette__category,
 .command-palette__scope,
-.command-palette__recent {
+.command-palette__recent,
+.command-palette__conflict {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -177,7 +164,8 @@
 
 .command-palette__category,
 .command-palette__scope,
-.command-palette__recent {
+.command-palette__recent,
+.command-palette__conflict {
   min-height: 22px;
   padding: 0 7px;
 }
@@ -185,6 +173,15 @@
 .command-palette__recent {
   background: color-mix(in srgb, var(--color-info) 14%, transparent);
   color: var(--color-info);
+}
+
+.command-palette__conflict {
+  background: color-mix(in srgb, var(--color-warning) 14%, transparent);
+  color: var(--color-warning-strong-text);
+}
+
+.command-palette__list button.conflict {
+  background: color-mix(in srgb, var(--color-warning) 7%, transparent);
 }
 
 .command-palette__list button > span:not(.command-palette__icon) {
@@ -211,14 +208,7 @@
   background: color-mix(in srgb, var(--color-bg-panel) 70%, transparent);
 }
 
-/* Quick Open match highlight */
-mark.quick-open__match {
-  padding: 0 1px;
-  border-radius: 3px;
-  background: color-mix(in srgb, var(--color-accent) 24%, transparent);
-  color: var(--color-accent-strong);
-}
-
+/* Context Menu */
 .context-menu {
   position: fixed;
   display: grid;
@@ -268,7 +258,6 @@ mark.quick-open__match {
   color: var(--color-danger-strong-text) !important;
 }
 
-/* Context menu enter/leave transitions */
 .ctx-menu-enter-active {
   transition: opacity var(--duration-fast) var(--ease-standard);
 }
@@ -297,6 +286,7 @@ mark.quick-open__match {
   }
 }
 
+/* Dialog */
 .dialog-backdrop {
   position: fixed;
   inset: 0;
@@ -341,6 +331,20 @@ mark.quick-open__match {
   font-size: 12px;
 }
 
+.dialog__status {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  background: var(--color-success-soft);
+  color: var(--color-success-strong-text);
+  font-size: 12px;
+}
+
+.dialog__status.danger {
+  background: var(--color-danger-soft);
+  color: var(--color-danger-strong-text);
+}
+
 .dialog__field input {
   padding: 8px 10px;
   border: 1px solid var(--tool-window-border);
@@ -370,6 +374,7 @@ mark.quick-open__match {
   color: var(--color-danger-strong-text) !important;
 }
 
+/* Toast */
 .toast {
   position: relative;
   display: grid;
@@ -440,7 +445,6 @@ mark.quick-open__match {
   border-left-color: var(--color-danger);
 }
 
-/* Toast enter/leave animations */
 .toast-enter-active {
   animation: toast-in 0.3s var(--ease-standard);
 }
@@ -475,7 +479,7 @@ mark.quick-open__match {
   }
 }
 
-/* Overlay backdrop enter/leave transitions */
+/* Overlay Transitions */
 .overlay-fade-enter-active {
   transition: opacity var(--duration-normal) var(--ease-standard);
 }

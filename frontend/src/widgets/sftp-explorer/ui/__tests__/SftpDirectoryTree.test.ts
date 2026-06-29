@@ -4,7 +4,7 @@ import source from '../SftpDirectoryTree.vue?raw'
 describe('SftpDirectoryTree error contract', () => {
   it('uses the shared error state with retry and dismiss actions', () => {
     expect(source).toContain('<UiErrorState v-if="treeError" compact')
-    expect(source).toContain('import {UiButton, UiErrorState, UiScrollArea, UiTree}')
+    expect(source).toContain('import {UiButton, UiErrorState, UiTree}')
     expect(source).toContain('@click="retryTreeError"')
     expect(source).toContain('@click="clearTreeError"')
     expect(source).toContain('treeErrorPath')

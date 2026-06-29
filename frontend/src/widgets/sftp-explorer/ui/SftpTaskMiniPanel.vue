@@ -19,7 +19,7 @@
       </div>
       <div class="task-mini-panel__actions">
         <button v-if="task.status === 'running'" type="button" @click="cancelTask(task)">{{ messages.task.actions.cancel }}</button>
-        <button v-if="task.status === 'failed' || task.status === 'cancelled'" type="button" @click="retryTask(task)">{{ messages.task.actions.retry }}</button>
+        <span v-if="task.status === 'failed' || task.status === 'cancelled'">{{ messages.task.actions.retryUnavailable }}</span>
       </div>
     </article>
   </div>
@@ -28,7 +28,7 @@
 <script setup lang="ts">
 import {computed} from 'vue'
 import {taskItems} from '../../../entities/task'
-import {cancelTask, retryTask} from '../../../features/task/manage-task/manageTask'
+import {cancelTask} from '../../../features/task/manage-task/manageTask'
 import {executeCommand} from '../../../shared/command'
 import {messages} from '../../../shared/copy'
 

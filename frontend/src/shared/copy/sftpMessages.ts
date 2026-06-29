@@ -81,8 +81,18 @@ export const sftpMessages = {
     deleteMessage: (path: string) => `Delete ${path}? This action cannot be undone.`,
     delete: 'Delete',
   },
+  success: {
+    createDirectory: (name: string) => `Created folder ${name}`,
+    createFile: (name: string) => `Created file ${name}`,
+    deleteItem: (name: string) => `Deleted ${name}`,
+    renameItem: (name: string) => `Renamed to ${name}`,
+  },
   failures: {
+    createDirectory: (name: string) => `Create folder ${name} failed`,
+    createFile: (name: string) => `Create file ${name} failed`,
+    deleteItem: (name: string) => `Delete ${name} failed`,
     openFile: (name: string) => `Open ${name} failed`,
+    renameItem: (name: string) => `Rename ${name} failed`,
     transfer: (kind: string) => `${capitalize(kind)} failed`,
   },
 }

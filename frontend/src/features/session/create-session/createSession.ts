@@ -7,6 +7,7 @@ export interface CreateSessionInput {
   port: number
   username: string
   auth: SessionAuth
+  tags?: string[]
 }
 
 export function createSession(input: string | CreateSessionInput, groupId = 'all') {
@@ -21,7 +22,7 @@ export function createSession(input: string | CreateSessionInput, groupId = 'all
     username: sessionInput.username.trim(),
     protocol: 'ssh',
     groupId,
-    tags: ['new'],
+    tags: sessionInput.tags ?? ['new'],
     status: 'idle',
     auth: sessionInput.auth,
   }

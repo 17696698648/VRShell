@@ -7,8 +7,10 @@
         :loading="sftpState.loading"
         :view-mode="viewMode"
         @mkdir="handleMkdir"
+        @new-file="handleNewFile"
         @refresh="refresh()"
         @upload="handleUpload"
+        @upload-folder="handleUploadFolder"
         @update:view-mode="viewMode = $event"
       />
     </template>
@@ -55,7 +57,7 @@
 
 <script setup lang="ts">
 import {computed, ref, watch} from 'vue'
-import {createRemoteDirectory, uploadFileToRemoteDirectory} from '../../../features/sftp/manage-files/manageSftpFiles'
+import {createRemoteDirectory, createRemoteFile, uploadFileToRemoteDirectory, uploadFolderToRemoteDirectory} from '../../../features/sftp/manage-files/manageSftpFiles'
 import {messages} from '../../../shared/copy'
 import {requestPrompt} from '../../../shared/dialog'
 import {EmptyState, UiButton, UiErrorState, UiWorkbenchPanel} from '../../../shared/ui'
@@ -97,10 +99,29 @@ async function handleMkdir() {
     label: messages.sftp.explorer.directoryName,
     confirmLabel: messages.sftp.dialogs.create
   })
-  if (name) await createRemoteDirectory(name)
+  if (!name) return
+  await createRemoteDirectory(name)
+  await refresh()
+}
+
+async function handleNewFile() {
+  const name = await requestPrompt({
+    title: messages.sftp.dialogs.newRemoteFileTitle,
+    label: messages.sftp.dialogs.fileName,
+    confirmLabel: messages.sftp.dialogs.create
+  })
+  if (!name) return
+  await createRemoteFile(name)
+  await refresh()
 }
 
 async function handleUpload() {
-  await uploadFileToRemoteDirectory(sftpState.path)
+  const item = await uploadFileToRemoteDirectory(sftpState.path)
+  if (item) await refresh()
+}
+
+async function handleUploadFolder() {
+  const item = await uploadFolderToRemoteDirectory(sftpState.path)
+  if (item) await refresh()
 }
 </script>

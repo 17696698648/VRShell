@@ -29,9 +29,9 @@
             :key="entry.command.id"
             :ref="(el) => setButtonRef(entry.command.id, el as HTMLElement)"
             :data-command-id="commandTestId(entry.command.id)"
-            :class="{disabled: !entry.availability.enabled, danger: entry.command.dangerous, selected: isSelected(entry.command.id)}"
+            :class="{disabled: !entry.availability.enabled, danger: entry.command.dangerous, conflict: entry.conflict, selected: isSelected(entry.command.id)}"
             :disabled="!entry.availability.enabled"
-            :title="entry.availability.disabledReason ?? entry.command.description"
+            :title="entryTitle(entry)"
             type="button"
             role="option"
             :aria-selected="isSelected(entry.command.id)"
@@ -41,11 +41,12 @@
             <span class="command-palette__icon" aria-hidden="true">{{ entry.command.icon ?? categoryIcon(entry.command.category ?? entry.command.group) }}</span>
             <span>
               <strong>{{ entry.command.title }}</strong>
-              <small>{{ entry.availability.disabledReason ?? entry.command.description ?? entry.command.id }}</small>
+              <small>{{ entrySubtitle(entry) }}</small>
             </span>
             <small class="command-palette__category">{{ entry.command.category ?? entry.command.group }}</small>
             <small class="command-palette__scope">{{ entry.command.scope ?? entry.command.group }}</small>
             <small v-if="recentCommandIds.includes(entry.command.id)" class="command-palette__recent">Recent</small>
+            <small v-if="entry.conflict" class="command-palette__conflict">Conflict</small>
             <UiKbd v-if="entry.command.shortcut" :label="entry.command.shortcut" />
           </button>
           </template>
@@ -61,7 +62,7 @@
 import {computed, nextTick, ref, watch} from 'vue'
 import {workspaceState} from '../../entities/workspace'
 import {closeCommandPalette} from '../../features/workspace/open-command-palette/commandPalette'
-import {executeCommand, getCommandAvailability, getRecentCommandIds, searchCommands} from '../../shared/command'
+import {executeCommand, getCommandAvailability, getRecentCommandIds, searchCommands, type AppCommand} from '../../shared/command'
 import {requestConfirm} from '../../shared/dialog'
 import {EmptyState, UiKbd} from '../../shared/ui'
 
@@ -72,8 +73,28 @@ const selectedIndex = ref(0)
 const buttonRefs = new Map<string, HTMLElement>()
 const collapsedGroups = ref(new Set<string>())
 
+type CommandConflict = {
+  titles: string[]
+}
+
 const recentCommandIds = computed(() => getRecentCommandIds())
-const filteredCommands = computed(() => searchCommands(query.value).map((command) => ({command, availability: getCommandAvailability(command)})))
+const allCommands = computed(() => searchCommands('', {includeHidden: true}))
+const conflictByCommandId = computed(() => {
+  const groups = new Map<string, AppCommand[]>()
+  for (const command of allCommands.value) {
+    if (!command.shortcut) continue
+    const key = `${command.scope ?? command.group}:${command.shortcut}`
+    groups.set(key, [...(groups.get(key) ?? []), command])
+  }
+  const conflicts = new Map<string, CommandConflict>()
+  for (const commands of groups.values()) {
+    if (commands.length <= 1) continue
+    const conflict = {titles: commands.map((command) => command.title)}
+    commands.forEach((command) => conflicts.set(command.id, conflict))
+  }
+  return conflicts
+})
+const filteredCommands = computed(() => searchCommands(query.value).map((command) => ({command, availability: getCommandAvailability(command), conflict: conflictByCommandId.value.get(command.id) ?? null})))
 const flatList = computed(() => {
   const collapsed = collapsedGroups.value
   return filteredCommands.value.filter((entry) => {
@@ -144,6 +165,15 @@ async function runCommand(commandId: string) {
 async function runSelectedCommand() {
   const selected = flatList.value[selectedIndex.value]
   if (selected) await runCommand(selected.command.id)
+}
+
+function entrySubtitle(entry: (typeof filteredCommands.value)[number]) {
+  if (entry.conflict) return `Conflicts with ${entry.conflict.titles.filter((title) => title !== entry.command.title).join(', ')}`
+  return entry.availability.disabledReason ?? entry.command.description ?? entry.command.id
+}
+
+function entryTitle(entry: (typeof filteredCommands.value)[number]) {
+  return entrySubtitle(entry)
 }
 
 function categoryIcon(category: string) {
