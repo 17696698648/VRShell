@@ -58,7 +58,7 @@ const rootRef = ref<HTMLElement | null>(null)
 const layoutHeight = ref(820)
 const responsivePanel = ref<ResponsivePanel>('primary')
 const hasSecondary = computed(() => Boolean(slots.secondary) && props.mode !== 'single')
-const hasDock = computed(() => props.visible && props.dockPlacement === 'bottom')
+const hasDock = computed(() => Boolean(slots.dock) && props.visible && props.dockPlacement === 'bottom')
 const showResponsiveSwitcher = computed(() => hasSecondary.value || hasDock.value)
 const mainSplitDirection = computed(() => (props.mode === 'vertical-split' ? 'horizontal' : 'vertical'))
 const dockSplitDirection = 'vertical' as const

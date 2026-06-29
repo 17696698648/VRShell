@@ -21,9 +21,14 @@
 .workbench-shell__stage {
   display: grid;
   grid-template-columns: auto var(--size-splitter-hit-area) minmax(0, 1fr) var(--size-splitter-hit-area) auto;
+  grid-template-rows: minmax(0, 1fr);
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+}
+
+.workbench-shell__stage--has-dock {
+  grid-template-rows: minmax(0, 1fr) var(--size-splitter-hit-area) auto;
 }
 
 .workbench-shell__workspace--no-sidebar-left .workbench-shell__stage {
@@ -43,6 +48,16 @@
 .workbench-shell__main { grid-column: 3; }
 .workbench-shell__sidebar-right-handle { grid-column: 4; }
 .workbench-shell__sidebar-right-resize { grid-column: 5; }
+.workbench-shell__dock-handle { grid-column: 1 / -1; grid-row: 2; }
+.workbench-shell__dock { grid-column: 1 / -1; grid-row: 3; min-width: 0; min-height: 0; }
+
+.workbench-shell__sidebar-left-resize,
+.workbench-shell__sidebar-left-handle,
+.workbench-shell__main,
+.workbench-shell__sidebar-right-handle,
+.workbench-shell__sidebar-right-resize {
+  grid-row: 1;
+}
 
 .workbench-shell__workspace--no-sidebar-left .workbench-shell__main { grid-column: 1; }
 .workbench-shell__workspace--no-sidebar-left .workbench-shell__sidebar-right-handle { grid-column: 2; }
@@ -75,6 +90,7 @@
 .workbench-shell__sidebar-left-backdrop { display: none; }
 
 .workbench-shell__sidebar-left-handle,
+.workbench-shell__dock-handle,
 .workbench-shell__sidebar-right-handle {
   position: relative;
   z-index: 5;
@@ -87,8 +103,19 @@
   cursor: ew-resize;
 }
 
+.workbench-shell__dock-handle {
+  height: 100%;
+  min-height: var(--size-splitter-hit-area);
+  cursor: row-resize;
+}
+
 body.is-resizing {
   cursor: ew-resize !important;
+  user-select: none;
+}
+
+body.is-resizing-dock {
+  cursor: row-resize !important;
   user-select: none;
 }
 
@@ -139,6 +166,12 @@ body.is-resizing {
 
 .activity-bar-left__primary,
 .activity-bar-right__primary { display: grid; align-content: start; }
+.activity-bar-right__secondary {
+  display: grid;
+  justify-items: center;
+  align-content: end;
+  align-self: end;
+}
 .activity-bar-left__settings { align-self: end; }
 
 .activity-bar-left__item,
@@ -196,13 +229,12 @@ body.is-resizing {
   overflow: auto;
 }
 
-.status-bar {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+.status-bar__connection {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-
-.status-bar__group--center { justify-content: center; }
-.status-bar__group--right { justify-content: flex-end; }
 
 @media (max-width: 900px) {
   .workbench-shell__workspace {

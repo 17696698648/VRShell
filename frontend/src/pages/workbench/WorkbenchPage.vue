@@ -1,5 +1,5 @@
 <template>
-  <WorkbenchShell class="workbench-shell--main-flush">
+  <WorkbenchShell class="workbench-shell--main-flush" :dock-visible="Boolean(activeBottomDockPanel)">
     <template #sidebar-left>
       <SidebarLeftPanelHost/>
     </template>
@@ -9,25 +9,24 @@
     </template>
 
     <template #main>
+      <WelcomePage v-if="terminalState.tabs.length === 0" />
       <WorkbenchLayout
+        v-else
         :mode="mainLayoutMode"
         :preset="workspaceState.layoutPreset"
-        :dock-placement="'bottom'"
         :main-split-ratio="workspaceState.mainSplitRatio"
-        :bottom-panel-height="workspaceState.bottomPanelHeight"
-        :visible="Boolean(activeBottomDockPanel)"
       >
         <template #primary>
-          <WelcomePage v-if="terminalState.tabs.length === 0" />
-          <SessionWorkbench v-else />
+          <SessionWorkbench />
         </template>
         <template v-if="showEditorWorkbench" #secondary>
           <EditorWorkbench/>
         </template>
-        <template v-if="activeBottomDockPanel" #dock>
-          <DockHost />
-        </template>
       </WorkbenchLayout>
+    </template>
+
+    <template v-if="activeBottomDockPanel" #dock>
+      <DockHost />
     </template>
   </WorkbenchShell>
 </template>

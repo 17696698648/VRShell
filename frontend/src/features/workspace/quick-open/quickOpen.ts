@@ -17,8 +17,8 @@ export function closeQuickOpen() {
 
 export function getQuickOpenItems(sessions: SessionHost[], terminals: TerminalTab[]): QuickOpenItem[] {
   return [
-    ...terminals.map((tab) => ({id: `terminal:${tab.id}`, kind: 'terminal' as const, label: tab.title, detail: `${tab.cwd} · ${tab.sessionId}`, status: tab.status, tab})),
-    ...sessions.map((session) => ({id: `session:${session.id}`, kind: 'session' as const, label: session.name, detail: `${session.username}@${session.host} · ${session.tags.join(', ') || 'untagged'}`, status: session.status, session})),
+    ...terminals.map((tab) => ({id: `terminal:${tab.id}`, kind: 'terminal' as const, label: tab.title, detail: `${tab.cwd} - ${tab.sessionId}`, status: tab.status, tab})),
+    ...sessions.map((session) => ({id: `session:${session.id}`, kind: 'session' as const, label: session.name, detail: `${session.username}@${session.host} - ${session.tags.join(', ') || 'untagged'}`, status: session.status, session})),
   ]
 }
 

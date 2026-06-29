@@ -4,23 +4,27 @@
     <div class="workbench-shell__workspace" :class="bodyClasses">
       <ActivityBarLeft/>
       <button v-if="workspaceState.sidebarVisible" class="workbench-shell__sidebar-left-backdrop" type="button" aria-label="Close sidebar" @click="workspaceState.sidebarVisible = false" />
-      <section class="workbench-shell__stage">
-        <div v-if="workspaceState.sidebarVisible" class="workbench-shell__sidebar-left-resize" :style="sidebarLeftStyle">
-          <SidebarLeft :width="workspaceState.sidebarWidth">
+      <section class="workbench-shell__stage" :class="{'workbench-shell__stage--has-dock': dockVisible}">
+        <div ref="sidebarLeftRef" v-if="workspaceState.sidebarVisible" class="workbench-shell__sidebar-left-resize" :style="sidebarLeftStyle" @focusin.capture="workspaceState.activePanelRegion = 'left'" @pointerdown.capture="workspaceState.activePanelRegion = 'left'">
+          <SidebarLeft>
             <slot name="sidebar-left"/>
           </SidebarLeft>
         </div>
         <button v-if="workspaceState.sidebarVisible" class="workbench-shell__sidebar-left-handle" type="button" aria-label="Resize sidebar" @pointerdown="startSidebarLeftResize" />
-        <main class="workbench-shell__main">
+        <main class="workbench-shell__main" @focusin.capture="workspaceState.activePanelRegion = 'main'" @pointerdown.capture="workspaceState.activePanelRegion = 'main'">
           <slot name="main">
             <slot/>
           </slot>
         </main>
         <button v-if="workspaceState.rightPanelVisible" class="workbench-shell__sidebar-right-handle" type="button" aria-label="Resize sidebar" @pointerdown="startSidebarRightResize" />
-        <div v-if="workspaceState.rightPanelVisible" class="workbench-shell__sidebar-right-resize" :style="sidebarRightStyle">
-          <SidebarRight :width="workspaceState.rightPanelWidth">
+        <div ref="sidebarRightRef" v-if="workspaceState.rightPanelVisible" class="workbench-shell__sidebar-right-resize" :style="sidebarRightStyle" @focusin.capture="workspaceState.activePanelRegion = 'right'" @pointerdown.capture="workspaceState.activePanelRegion = 'right'">
+          <SidebarRight>
             <slot name="sidebar-right"/>
           </SidebarRight>
+        </div>
+        <button v-if="dockVisible && $slots.dock" class="workbench-shell__dock-handle" type="button" aria-label="Resize dock" @pointerdown="startDockResize" />
+        <div v-if="dockVisible && $slots.dock" class="workbench-shell__dock" @focusin.capture="workspaceState.activePanelRegion = 'main'" @pointerdown.capture="workspaceState.activePanelRegion = 'main'">
+          <slot name="dock"/>
         </div>
       </section>
       <ActivityBarRight/>
@@ -38,7 +42,7 @@
 
 <script setup lang="ts">
 import {computed, onMounted, onUnmounted, ref} from 'vue'
-import {setRightPanelWidth, setSidebarWidth, workspaceState} from '../entities/workspace'
+import {setBottomPanelHeight, setRightPanelWidth, setSidebarWidth, workspaceState} from '../entities/workspace'
 import ActivityBarLeft from './activity-bar-left/ActivityBarLeft.vue'
 import ActivityBarRight from './activity-bar-right/ActivityBarRight.vue'
 import CommandPaletteHost from './overlays/CommandPaletteHost.vue'
@@ -53,11 +57,13 @@ import SidebarRight from './sidebar-right/SidebarRight.vue'
 import StatusBar from './status-bar/StatusBar.vue'
 import AppTitlebar from './titlebar/AppTitlebar.vue'
 
-const resizingSidebarLeftWidth = ref<number | null>(null)
-const resizingSidebarRightWidth = ref<number | null>(null)
+defineProps<{dockVisible?: boolean}>()
 
-const sidebarLeftStyle = computed(() => ({width: `${resizingSidebarLeftWidth.value ?? workspaceState.sidebarWidth}px`}))
-const sidebarRightStyle = computed(() => ({width: `${resizingSidebarRightWidth.value ?? workspaceState.rightPanelWidth}px`}))
+const sidebarLeftRef = ref<HTMLElement | null>(null)
+const sidebarRightRef = ref<HTMLElement | null>(null)
+
+const sidebarLeftStyle = computed(() => ({width: `${workspaceState.sidebarWidth}px`}))
+const sidebarRightStyle = computed(() => ({width: `${workspaceState.rightPanelWidth}px`}))
 
 const bodyClasses = computed(() => ({
   'workbench-shell__workspace--no-sidebar-left': !workspaceState.sidebarVisible,
@@ -72,16 +78,18 @@ function startSidebarLeftResize(event: PointerEvent) {
   const startX = event.clientX
   const startWidth = workspaceState.sidebarWidth
   document.body.classList.add('is-resizing')
+  let nextWidth = startWidth
 
   function move(pointerEvent: PointerEvent) {
-    resizingSidebarLeftWidth.value = clampSidebarWidth(startWidth + pointerEvent.clientX - startX)
+    nextWidth = clampSidebarWidth(startWidth + pointerEvent.clientX - startX)
+    if (sidebarLeftRef.value) sidebarLeftRef.value.style.width = `${nextWidth}px`
     document.body.style.setProperty('--resize-guide-x', `${pointerEvent.clientX}px`)
   }
 
   function end(pointerEvent: PointerEvent) {
     move(pointerEvent)
-    if (resizingSidebarLeftWidth.value !== null) setSidebarWidth(resizingSidebarLeftWidth.value)
-    resizingSidebarLeftWidth.value = null
+    setSidebarWidth(nextWidth)
+    if (sidebarLeftRef.value) sidebarLeftRef.value.style.removeProperty('width')
     document.body.classList.remove('is-resizing')
     document.body.style.removeProperty('--resize-guide-x')
     window.removeEventListener('pointermove', move)
@@ -97,18 +105,43 @@ function startSidebarRightResize(event: PointerEvent) {
   const startX = event.clientX
   const startWidth = workspaceState.rightPanelWidth
   document.body.classList.add('is-resizing')
+  let nextWidth = startWidth
 
   function move(pointerEvent: PointerEvent) {
-    resizingSidebarRightWidth.value = clampSidebarWidth(startWidth - (pointerEvent.clientX - startX))
+    nextWidth = clampSidebarWidth(startWidth - (pointerEvent.clientX - startX))
+    if (sidebarRightRef.value) sidebarRightRef.value.style.width = `${nextWidth}px`
     document.body.style.setProperty('--resize-guide-x', `${pointerEvent.clientX}px`)
   }
 
   function end(pointerEvent: PointerEvent) {
     move(pointerEvent)
-    if (resizingSidebarRightWidth.value !== null) setRightPanelWidth(resizingSidebarRightWidth.value)
-    resizingSidebarRightWidth.value = null
+    setRightPanelWidth(nextWidth)
+    if (sidebarRightRef.value) sidebarRightRef.value.style.removeProperty('width')
     document.body.classList.remove('is-resizing')
     document.body.style.removeProperty('--resize-guide-x')
+    window.removeEventListener('pointermove', move)
+    window.removeEventListener('pointerup', end)
+  }
+
+  window.addEventListener('pointermove', move)
+  window.addEventListener('pointerup', end)
+}
+
+function startDockResize(event: PointerEvent) {
+  event.preventDefault()
+  const startY = event.clientY
+  const startHeight = workspaceState.bottomPanelHeight
+  document.body.classList.add('is-resizing-dock')
+
+  function move(pointerEvent: PointerEvent) {
+    setBottomPanelHeight(startHeight - (pointerEvent.clientY - startY))
+    document.body.style.setProperty('--resize-guide-y', `${pointerEvent.clientY}px`)
+  }
+
+  function end(pointerEvent: PointerEvent) {
+    move(pointerEvent)
+    document.body.classList.remove('is-resizing-dock')
+    document.body.style.removeProperty('--resize-guide-y')
     window.removeEventListener('pointermove', move)
     window.removeEventListener('pointerup', end)
   }

@@ -1,9 +1,9 @@
 <template>
   <Transition name="overlay-fade">
-    <div v-if="workspaceState.quickOpenOpen" class="overlay" @click.self="closeQuickOpen">
+    <div v-if="workspaceState.quickOpenOpen" class="overlay overlay--quick-open" @click.self="closeQuickOpen">
     <section class="command-palette quick-open" role="dialog" aria-label="Quick switcher">
       <label class="command-palette__input">
-        <span aria-hidden="true">⌕</span>
+        <span aria-hidden="true">Search</span>
         <input v-model="query" autofocus placeholder="Switch session or terminal by name, host, tag, or cwd" @keydown.enter.prevent="openSelectedItem" @keydown.escape="closeQuickOpen" @keydown.up.prevent="navigateUp" @keydown.down.prevent="navigateDown" />
       </label>
       <div v-if="groups.length > 0" ref="listRef" class="command-palette__list quick-open__list">
@@ -28,7 +28,7 @@
           </button>
         </section>
       </div>
-      <EmptyState v-else compact icon="⌕" title="No sessions or terminals found" description="Try searching by host, tag, terminal title, or current directory." />
+      <EmptyState v-else compact icon="Search" title="No sessions or terminals found" description="Try searching by host, tag, terminal title, or current directory." />
     </section>
   </div>
   </Transition>

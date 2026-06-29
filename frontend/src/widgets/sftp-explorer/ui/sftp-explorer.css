@@ -7,57 +7,51 @@
   gap: 0;
 }
 
-.sftp-explorer .ui-workbench-panel__toolbar {
-  border-bottom: 0;
-  background: color-mix(in srgb, var(--color-bg-tool-window-raised) 56%, var(--color-bg-tool-window));
+.sftp-explorer .ui-workbench-panel__header {
+  grid-template-columns: auto auto minmax(0, 1fr);
+  justify-content: start;
 }
 
-.sftp-explorer .ui-workbench-panel__toolbar .ui-toolbar {
-  grid-template-columns: minmax(0, 1fr);
-  justify-items: start;
-  min-width: 0;
-  min-height: 36px;
-  padding: 6px var(--explorer-edge) 4px;
-  border-radius: 0;
+.sftp-explorer .ui-workbench-panel__actions {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-fast) var(--ease-standard);
+}
+
+.sftp-explorer:hover .ui-workbench-panel__actions,
+.sftp-explorer:focus-within .ui-workbench-panel__actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.sftp-explorer .ui-toolbar {
+  border: 0;
+  padding: 0;
+  background: transparent;
 }
 
 .sftp-toolbar .ui-toolbar__group.align-end {
   justify-content: flex-start;
-  gap: 5px;
+  gap: var(--space-2);
   min-width: 0;
   max-width: 100%;
-  padding: 2px;
   overflow: visible;
-  border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--color-bg-panel) 58%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-border-subtle) 46%, transparent);
 }
 
 .sftp-toolbar .ui-toolbar-button-group {
-  gap: 2px;
-  padding: 2px;
   border: 0;
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--color-bg-elevated) 62%, transparent);
+  background: transparent;
 }
 
 .sftp-toolbar .ui-toolbar-button-group__item,
 .sftp-toolbar .ui-icon-button {
   display: inline-grid;
   place-items: center;
-  width: calc(var(--size-toolbar-height) - 10px);
-  min-width: calc(var(--size-toolbar-height) - 10px);
-  height: calc(var(--size-toolbar-height) - 10px);
-  min-height: calc(var(--size-toolbar-height) - 10px);
+  width: 26px;
+  min-width: 26px;
+  height: 26px;
+  min-height: 26px;
   padding: 0;
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
-  color: var(--color-text-secondary);
-  transition:
-    background var(--duration-fast) var(--ease-standard),
-    border-color var(--duration-fast) var(--ease-standard),
-    color var(--duration-fast) var(--ease-standard),
-    transform var(--duration-fast) var(--ease-standard);
 }
 
 .sftp-toolbar .ui-toolbar-button-group__item span {
@@ -79,35 +73,24 @@
   margin-left: 3px;
 }
 
-.sftp-toolbar .ui-toolbar-button-group__item.active,
-.sftp-toolbar .ui-toolbar-button-group__item:hover:not(:disabled),
-.sftp-toolbar .ui-icon-button:hover:not(:disabled),
-.sftp-toolbar .ui-icon-button:focus-visible:not(:disabled) {
-  border-color: color-mix(in srgb, var(--color-border-active) 70%, transparent);
-  background: color-mix(in srgb, var(--color-bg-selected) 86%, transparent);
-  color: var(--color-text-primary);
-}
-
-.sftp-toolbar .ui-toolbar-button-group__item:hover:not(:disabled),
-.sftp-toolbar .ui-icon-button:hover:not(:disabled) {
-  transform: translateY(-1px);
-}
-
-.sftp-toolbar .ui-toolbar-button-group__item.active {
-  color: var(--color-accent-strong);
-}
-
 .sftp-toolbar .ui-icon-button:disabled,
 .sftp-toolbar .ui-toolbar-button-group__item:disabled {
   opacity: 0.45;
-  transform: none;
+}
+
+.sftp-toolbar .ui-toolbar-button-group__item.active,
+.sftp-toolbar .ui-toolbar-button-group__item:hover:not(:disabled),
+.sftp-toolbar .ui-toolbar-button-group__item:focus-visible {
+  background: var(--list-row-hover-bg);
+  border-color: var(--color-border-subtle);
+  color: var(--color-text-primary);
 }
 
 .sftp-pathbar {
   display: grid;
-  padding: 3px var(--explorer-edge) 7px;
-  border-bottom: 1px solid color-mix(in srgb, var(--tool-window-border) 82%, transparent);
-  background: color-mix(in srgb, var(--color-bg-tool-window-raised) 56%, var(--color-bg-tool-window));
+  padding: 4px var(--explorer-edge) 6px;
+  border-bottom: 1px solid var(--tool-window-border);
+  background: color-mix(in srgb, var(--color-bg-tool-window-raised) 54%, var(--color-bg-tool-window));
 }
 
 .sftp-explorer .breadcrumbs {
@@ -118,12 +101,8 @@
   padding: 3px 30px 3px 6px;
   border: 0;
   border-radius: var(--radius-lg);
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--color-bg-selected) 36%, transparent), transparent 44%),
-    color-mix(in srgb, var(--color-bg-panel) 92%, var(--color-bg-elevated));
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--color-border-subtle) 72%, transparent),
-    0 1px 1px color-mix(in srgb, var(--color-shadow-soft) 26%, transparent);
+  background: color-mix(in srgb, var(--color-bg-tool-window-raised) 72%, transparent);
+  box-shadow: inset 0 0 0 1px var(--color-border-subtle);
   color: var(--color-text-muted);
 }
 
@@ -133,7 +112,7 @@
 
 .sftp-explorer .breadcrumbs .ui-path-breadcrumb__trail > span {
   padding-inline: 1px;
-  color: color-mix(in srgb, var(--color-text-muted) 62%, transparent);
+  color: var(--color-text-muted);
   font-size: 11px;
 }
 
@@ -142,30 +121,26 @@
   padding: 0 7px;
   border: 1px solid transparent;
   border-radius: var(--radius-md);
-  color: var(--color-text-secondary);
+  background: transparent;
+  color: var(--color-text-muted);
   transition:
     background var(--duration-fast) var(--ease-standard),
     border-color var(--duration-fast) var(--ease-standard),
-    color var(--duration-fast) var(--ease-standard),
-    transform var(--duration-fast) var(--ease-standard);
+    color var(--duration-fast) var(--ease-standard);
 }
 
 .sftp-explorer .breadcrumbs button:first-child {
   min-width: 24px;
-  background: color-mix(in srgb, var(--color-bg-elevated) 74%, transparent);
-  color: var(--color-accent-strong);
+  background: transparent;
+  color: var(--color-text-muted);
   font-weight: 700;
 }
 
 .sftp-explorer .breadcrumbs button:hover,
 .sftp-explorer .breadcrumbs button:focus-visible {
-  border-color: color-mix(in srgb, var(--color-border-active) 72%, transparent);
-  background: color-mix(in srgb, var(--color-bg-selected) 82%, transparent);
+  border-color: var(--color-border-subtle);
+  background: var(--list-row-hover-bg);
   color: var(--color-text-primary);
-}
-
-.sftp-explorer .breadcrumbs button:hover {
-  transform: translateY(-1px);
 }
 
 .sftp-explorer .breadcrumbs .ui-path-breadcrumb__action {
@@ -176,7 +151,9 @@
 
 .sftp-explorer .breadcrumbs .ui-path-breadcrumb__action:hover,
 .sftp-explorer .breadcrumbs .ui-path-breadcrumb__action:focus-visible {
-  color: var(--color-accent-strong);
+  border-color: var(--color-border-subtle);
+  background: var(--list-row-hover-bg);
+  color: var(--color-text-primary);
 }
 
 .sftp-explorer__body,
@@ -241,7 +218,7 @@
   display: grid;
   grid-template-columns: 14px 16px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 7px;
+  gap: 5px;
   width: 100%;
   min-width: 0;
   min-height: var(--sftp-tree-row-height);
@@ -490,7 +467,7 @@
 .sftp-file-row__name {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 5px;
   line-height: 16px;
 }
 

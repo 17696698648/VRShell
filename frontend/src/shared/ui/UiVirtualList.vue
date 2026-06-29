@@ -11,6 +11,7 @@
     </div>
     <div
       v-if="customScrollbar && canScrollY"
+      ref="scrollbarRef"
       class="ui-virtual-list__scrollbar ui-virtual-list__scrollbar--y"
       aria-hidden="true"
       @pointerdown.prevent="onScrollbarPointerDown"
@@ -36,13 +37,17 @@ const props = withDefaults(
 )
 
 const rootRef = ref<HTMLElement | null>(null)
+const scrollbarRef = ref<HTMLElement | null>(null)
 const scrollTop = ref(0)
+const scrollHeight = ref(0)
 const viewportHeight = ref(0)
+const scrollbarHeight = ref(0)
 const dragState = ref<{pointerStart: number; scrollStart: number} | null>(null)
 let resizeObserver: ResizeObserver | null = null
 
 const totalHeight = computed(() => props.items.length * props.itemHeight)
-const maxScrollTop = computed(() => Math.max(0, totalHeight.value - viewportHeight.value))
+const measuredScrollHeight = computed(() => scrollHeight.value || totalHeight.value)
+const maxScrollTop = computed(() => Math.max(0, measuredScrollHeight.value - viewportHeight.value))
 const canScrollY = computed(() => maxScrollTop.value > 1)
 const startIndex = computed(() => Math.max(0, Math.floor(scrollTop.value / props.itemHeight) - props.overscan))
 const visibleCount = computed(() => Math.ceil(viewportHeight.value / props.itemHeight) + props.overscan * 2)
@@ -51,13 +56,14 @@ const visibleItems = computed(() =>
 )
 const offsetY = computed(() => startIndex.value * props.itemHeight)
 const thumbHeight = computed(() => {
-  if (!canScrollY.value || totalHeight.value <= 0) return 0
-  return Math.max(24, (viewportHeight.value / totalHeight.value) * viewportHeight.value)
+  if (!canScrollY.value || measuredScrollHeight.value <= 0) return 0
+  return Math.max(24, (viewportHeight.value / measuredScrollHeight.value) * trackHeight.value)
 })
 const thumbTop = computed(() => {
   if (!canScrollY.value || maxScrollTop.value <= 0) return 0
-  return (scrollTop.value / maxScrollTop.value) * Math.max(0, viewportHeight.value - thumbHeight.value)
+  return (scrollTop.value / maxScrollTop.value) * Math.max(0, trackHeight.value - thumbHeight.value)
 })
+const trackHeight = computed(() => scrollbarHeight.value || viewportHeight.value)
 const thumbStyle = computed(() => ({height: `${thumbHeight.value}px`, transform: `translateY(${thumbTop.value}px)`}))
 
 onMounted(() => {
@@ -78,8 +84,12 @@ watch(
   () => void nextTick(updateViewportMetrics),
 )
 
+watch(canScrollY, () => void nextTick(updateViewportMetrics))
+
 function onScroll(event: Event) {
-  scrollTop.value = (event.target as HTMLElement).scrollTop
+  const root = event.target as HTMLElement
+  scrollTop.value = root.scrollTop
+  updateScrollMetrics(root)
 }
 
 function onScrollbarPointerDown(event: PointerEvent) {
@@ -87,7 +97,7 @@ function onScrollbarPointerDown(event: PointerEvent) {
   if (!root || !canScrollY.value) return
   const trackRect = (event.currentTarget as HTMLElement).getBoundingClientRect()
   const targetTop = event.clientY - trackRect.top - thumbHeight.value / 2
-  const scrollRatio = targetTop / Math.max(1, viewportHeight.value - thumbHeight.value)
+  const scrollRatio = targetTop / Math.max(1, trackHeight.value - thumbHeight.value)
   root.scrollTop = clamp(scrollRatio * maxScrollTop.value, 0, maxScrollTop.value)
 }
 
@@ -102,7 +112,7 @@ function onWindowPointerMove(event: PointerEvent) {
   const root = rootRef.value
   const state = dragState.value
   if (!root || !state || !canScrollY.value) return
-  const trackDistance = Math.max(1, viewportHeight.value - thumbHeight.value)
+  const trackDistance = Math.max(1, trackHeight.value - thumbHeight.value)
   const scrollDistance = maxScrollTop.value / trackDistance
   root.scrollTop = clamp(state.scrollStart + (event.clientY - state.pointerStart) * scrollDistance, 0, maxScrollTop.value)
 }
@@ -113,8 +123,19 @@ function onWindowPointerUp() {
 }
 
 function updateViewportMetrics() {
-  viewportHeight.value = rootRef.value?.clientHeight ?? 0
-  scrollTop.value = rootRef.value?.scrollTop ?? 0
+  const root = rootRef.value
+  updateScrollMetrics(root)
+  scrollTop.value = root?.scrollTop ?? 0
+}
+
+function updateScrollMetrics(root = rootRef.value) {
+  viewportHeight.value = root?.clientHeight ?? 0
+  scrollHeight.value = root?.scrollHeight ?? totalHeight.value
+  updateScrollbarMetrics()
+}
+
+function updateScrollbarMetrics() {
+  scrollbarHeight.value = scrollbarRef.value?.clientHeight ?? viewportHeight.value
 }
 
 function clamp(value: number, min: number, max: number) {

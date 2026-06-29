@@ -1,5 +1,5 @@
 import {markRaw} from 'vue'
-import {FolderTree, Wifi} from '@lucide/vue'
+import {FolderKanban, Gauge} from '@lucide/vue'
 import {sftpState} from '../../entities/sftp'
 import {registerRightSidebarPanel} from '../../features/workspace/right-sidebar-panel-registry'
 import SessionConnectionInfo from '../../widgets/session-connection-info/ui/SessionConnectionInfo.vue'
@@ -10,7 +10,7 @@ export function registerDefaultRightSidebarPanels() {
     registerRightSidebarPanel({
       id: 'connection-info',
       title: 'Connection Info',
-      icon: markRaw(Wifi),
+      icon: markRaw(Gauge),
       order: 10,
       tooltip: 'Session connection information',
       component: markRaw(SessionConnectionInfo),
@@ -18,7 +18,7 @@ export function registerDefaultRightSidebarPanels() {
     registerRightSidebarPanel({
       id: 'sftp',
       title: 'SFTP',
-      icon: markRaw(FolderTree),
+      icon: markRaw(FolderKanban),
       order: 20,
       tooltip: 'Remote file browser',
       commandId: 'sftp.openPanel',

@@ -1,13 +1,11 @@
 ﻿<template>
   <UiWorkbenchPanel compact class="explorer-panel session-explorer" title="Sessions" subtitle="SSH inventory">
     <template #actions>
+      <SessionToolbar :form-open="formOpen" @create="openCreateDialog()" @create-group="handleCreateGroup"/>
       <button :class="['session-search-toggle', {active: searchOpen || query}]" type="button"
               aria-label="Toggle session search" @click="searchOpen = !searchOpen">
         <Search :size="14" aria-hidden="true"/>
       </button>
-    </template>
-    <template #toolbar>
-      <SessionToolbar :form-open="formOpen" @create="openCreateDialog()" @create-group="handleCreateGroup"/>
     </template>
     <div
       :class="['explorer-layout', 'session-explorer__layout', {'session-explorer__layout--search-open': searchOpen || query}]">

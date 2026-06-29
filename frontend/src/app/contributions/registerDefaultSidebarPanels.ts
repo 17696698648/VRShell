@@ -1,12 +1,12 @@
 import {markRaw} from 'vue'
-import {Server} from '@lucide/vue'
+import {Terminal} from '@lucide/vue'
 import {sessionState} from '../../entities/session'
 import {registerSidebarPanel} from '../../features/workspace/sidebar-panel-registry'
 import SessionExplorer from '../../widgets/session-explorer/ui/SessionExplorer.vue'
 
 export function registerDefaultSidebarPanels() {
   const disposables = [
-    registerSidebarPanel({id: 'sessions', title: 'Sessions', icon: markRaw(Server), order: 10, commandId: 'workspace.openSessionsPanel', component: markRaw(SessionExplorer), badge: () => getFailedSessionBadge()}),
+    registerSidebarPanel({id: 'sessions', title: 'Sessions', icon: markRaw(Terminal), order: 10, commandId: 'workspace.openSessionsPanel', component: markRaw(SessionExplorer), badge: () => getFailedSessionBadge()}),
   ]
   return () => disposables.forEach((dispose) => dispose())
 }

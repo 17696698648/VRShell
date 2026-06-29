@@ -4,7 +4,10 @@
       <button
         v-for="item in items"
         :key="item.id"
-        :class="['activity-bar-left__item', {active: workspaceState.sidebarVisible && workspaceState.activePanel === item.id}]"
+        :class="['activity-bar-left__item', {
+          'is-expanded': workspaceState.sidebarVisible && workspaceState.activePanel === item.id,
+          'is-current': workspaceState.sidebarVisible && workspaceState.activePanel === item.id && workspaceState.activePanelRegion === 'left',
+        }]"
         :data-testid="`activity-${item.id}`"
         :title="item.shortcut ? `${item.title} (${item.shortcut})` : item.tooltip ?? item.title"
         :aria-label="item.title"
@@ -33,6 +36,7 @@ import {Settings} from '@lucide/vue'
 const items = useSidebarPanels()
 
 async function runItem(item: SidebarPanelRegistration) {
+  workspaceState.activePanelRegion = 'left'
   if (item.commandId) await executeCommand(item.commandId)
   else workspaceState.activePanel = item.id
 }

@@ -1,3 +1,13 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(2px);
+}
+
 .command-palette {
   display: grid;
   gap: var(--space-3);
@@ -7,6 +17,23 @@
   border-radius: var(--radius-2xl);
   background: var(--color-bg-tool-window-raised);
   box-shadow: var(--shadow-popover);
+}
+
+.overlay--quick-open {
+  align-items: start;
+  padding-top: 38px;
+  background: transparent;
+  backdrop-filter: none;
+}
+
+.overlay--quick-open .quick-open {
+  width: min(520px, calc(100vw - 96px));
+  margin-inline: auto;
+  border-radius: 9px;
+  background: #1a1d20;
+  box-shadow:
+    0 18px 44px rgba(0, 0, 0, 0.34),
+    0 0 0 1px rgba(160, 170, 185, 0.2);
 }
 
 .command-palette__input {

@@ -1,5 +1,5 @@
 <template>
-  <aside class="sidebar-right" :style="{width: `${width}px`}">
+  <aside class="sidebar-right" :style="width ? {width: `${width}px`} : undefined">
     <div class="sidebar-right__content">
       <slot>
         <SidebarRightPanelHost/>
@@ -11,8 +11,6 @@
 <script setup lang="ts">
 import SidebarRightPanelHost from './SidebarRightPanelHost.vue'
 
-defineProps<{
-  width: number
-}>()
+defineProps<{width?: number}>()
 
 </script>

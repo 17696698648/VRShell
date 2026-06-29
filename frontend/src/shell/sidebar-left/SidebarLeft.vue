@@ -1,5 +1,5 @@
 <template>
-  <aside class="sidebar-left" :style="{width: `${width}px`}">
+  <aside class="sidebar-left" :style="width ? {width: `${width}px`} : undefined">
     <slot>
       <SidebarLeftPanelHost/>
     </slot>
@@ -9,8 +9,6 @@
 <script setup lang="ts">
 import SidebarLeftPanelHost from './SidebarLeftPanelHost.vue'
 
-defineProps<{
-  width: number
-}>()
+defineProps<{width?: number}>()
 
 </script>

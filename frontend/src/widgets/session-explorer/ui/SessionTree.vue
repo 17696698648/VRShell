@@ -11,7 +11,7 @@
       :items="visibleNodes"
       custom-scrollbar
       :active-index="activeNodeIndex"
-      :item-height="26"
+      :item-height="22"
       :get-key="(node) => node.id"
       :get-level="getNodeLevel"
       :get-parent-key="getParentKey"
@@ -36,7 +36,7 @@
             <template #title>
               <span class="session-group__title">
                 <span class="session-group__icon" aria-hidden="true">
-                  <component :is="expandedKeys.includes(node.id) ? FolderOpen : Folder" :size="15"/>
+                  <Folder :size="15"/>
                 </span>
                 <strong>{{ node.group.name }}</strong>
               </span>
@@ -60,7 +60,7 @@
 </template>
 
 <script setup lang="ts">
-import {Folder, FolderOpen} from '@lucide/vue'
+import {Folder} from '@lucide/vue'
 import {computed, nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue'
 import {moveGroup, moveSession, sessionState, type SessionGroup, type SessionHost} from '../../../entities/session'
 import {createSessionGroup, deleteSessionGroup} from '../../../features/session/manage-groups/manageSessionGroups'

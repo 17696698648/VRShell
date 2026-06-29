@@ -1,14 +1,13 @@
 ﻿<template>
   <UiWorkbenchPanel :compact="compact" :class="panelClasses" :title="messages.sftp.explorer.title"
                     :subtitle="sftpSubtitle">
-    <template #toolbar>
+    <template #actions>
       <SftpToolbar
         :disabled="!hasConnectedTerminal"
         :loading="sftpState.loading"
         :view-mode="viewMode"
         @mkdir="handleMkdir"
         @refresh="refresh()"
-        @up="openParentDirectory"
         @upload="handleUpload"
         @update:view-mode="viewMode = $event"
       />
@@ -69,7 +68,7 @@ import SftpToolbar from './SftpToolbar.vue'
 import SftpFileList from './SftpFileList.vue'
 
 defineProps<{ compact?: boolean }>()
-const {sftpState, activeSession, hasConnectedTerminal, refresh, openParentDirectory} = useSftpExplorer()
+const {sftpState, activeSession, hasConnectedTerminal, refresh} = useSftpExplorer()
 const {viewMode} = useSftpViewMode()
 const selectedTreePath = ref<string | null>(null)
 const panelClasses = computed(() => ['explorer-panel', 'sftp-explorer', `sftp-explorer--${viewMode.value}`])
