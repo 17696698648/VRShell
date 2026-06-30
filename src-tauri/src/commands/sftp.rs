@@ -58,8 +58,8 @@ pub fn sftp_rename(
 }
 
 #[tauri::command]
-pub fn sftp_delete(
-    state: State<'_, BackendState>,
+pub async fn sftp_delete(
+    window: tauri::WebviewWindow,
     connection: SftpConnectionDto,
     remote_path: String,
     is_directory: Option<bool>,
@@ -69,12 +69,21 @@ pub fn sftp_delete(
         remote_path,
         is_directory,
     };
-    sftp_service::delete(
-        Some(&state),
-        request.connection.into(),
-        request.remote_path,
-        request.is_directory,
-    )
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = window.state::<BackendState>();
+        sftp_service::delete(
+            Some(&state),
+            request.connection.into(),
+            request.remote_path,
+            request.is_directory,
+        )
+    })
+    .await
+    .map_err(|error| crate::ipc::IpcError {
+        code: "sftpError".to_string(),
+        message: format!("failed to join SFTP delete task: {error}"),
+        recoverable: true,
+    })?
     .map_err(Into::into)
 }
 
