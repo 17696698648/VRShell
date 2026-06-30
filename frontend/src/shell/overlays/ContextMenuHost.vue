@@ -1,6 +1,6 @@
 <template>
   <Transition name="ctx-menu">
-    <div v-if="contextMenuState.menu" class="context-menu-layer" @click="closeContextMenu" @contextmenu.prevent="closeContextMenu">
+    <div v-if="contextMenuState.menu" class="context-menu-layer" @pointerdown.self="closeContextMenu" @contextmenu.prevent="closeContextMenu">
     <div ref="menuRef" class="context-menu" :style="menuStyle" role="menu" @click.stop @keydown.up.prevent="navigateUp" @keydown.down.prevent="navigateDown" @keydown.enter.prevent="runSelected" @keydown.escape="closeContextMenu">
       <template v-for="(item, index) in contextMenuState.menu.items" :key="item.id">
         <div v-if="item.type === 'separator'" class="context-menu__separator" role="separator" />
@@ -23,17 +23,32 @@
 </template>
 
 <script setup lang="ts">
-import {computed, nextTick, ref, watch} from 'vue'
+import {computed, nextTick, onMounted, onUnmounted, ref, watch} from 'vue'
 import {closeContextMenu, contextMenuState, executeContextMenuItem, type ContextMenuItem} from '../../shared/context-menu'
+import {getContextMenuPosition} from '../../shared/context-menu/contextMenuPosition'
 
 const menuRef = ref<HTMLElement | null>(null)
 const selectedIndex = ref(-1)
 const buttonRefs = new Map<number, HTMLElement>()
+const viewportSize = ref({width: typeof window === 'undefined' ? 0 : window.innerWidth, height: typeof window === 'undefined' ? 0 : window.innerHeight})
+const menuSize = ref({width: 0, height: 0})
+const viewportMargin = 8
 
-const menuStyle = computed(() => ({
-  left: `${contextMenuState.menu?.x ?? 0}px`,
-  top: `${contextMenuState.menu?.y ?? 0}px`,
-}))
+const menuStyle = computed(() => {
+  const position = getContextMenuPosition({
+    menuHeight: menuSize.value.height,
+    menuWidth: menuSize.value.width,
+    requestedX: contextMenuState.menu?.x ?? 0,
+    requestedY: contextMenuState.menu?.y ?? 0,
+    viewportHeight: viewportSize.value.height,
+    viewportMargin,
+    viewportWidth: viewportSize.value.width,
+  })
+  return {
+    left: `${position.left}px`,
+    top: `${position.top}px`,
+  }
+})
 
 const actionableItems = computed(() =>
   contextMenuState.menu?.items.filter((item) => item.type !== 'separator' && !item.disabled) ?? [],
@@ -42,6 +57,7 @@ const actionableItems = computed(() =>
 watch(() => contextMenuState.menu, () => {
   selectedIndex.value = -1
   void nextTick(() => {
+    measureMenu()
     const first = actionableItems.value[0]
     if (first) {
       const idx = contextMenuState.menu?.items.indexOf(first) ?? -1
@@ -51,6 +67,9 @@ watch(() => contextMenuState.menu, () => {
     firstBtn?.focus()
   })
 }, {immediate: true})
+
+onMounted(() => window.addEventListener('resize', updateViewportSize))
+onUnmounted(() => window.removeEventListener('resize', updateViewportSize))
 
 function setButtonRef(index: number, el: HTMLElement | null) {
   if (el) buttonRefs.set(index, el)
@@ -90,4 +109,16 @@ async function runSelected() {
     await executeContextMenuItem(item)
   }
 }
+
+function updateViewportSize() {
+  viewportSize.value = {width: window.innerWidth, height: window.innerHeight}
+  void nextTick(measureMenu)
+}
+
+function measureMenu() {
+  const rect = menuRef.value?.getBoundingClientRect()
+  if (!rect) return
+  menuSize.value = {width: rect.width, height: rect.height}
+}
+
 </script>

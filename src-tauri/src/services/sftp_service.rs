@@ -118,6 +118,17 @@ pub(crate) fn prune_idle_sftp_sessions(state: &BackendState) -> usize {
     prune_idle_sftp_sessions_with_ttl(state, SFTP_SESSION_IDLE_TTL)
 }
 
+pub(crate) fn drop_cached_sftp_sessions_for_terminal(
+    state: &BackendState,
+    host: &str,
+    username: &str,
+) -> usize {
+    let mut sessions = state.sftp_sessions.lock();
+    let before = sessions.len();
+    sessions.retain(|key, _| key.host != host || key.username != username);
+    before - sessions.len()
+}
+
 fn prune_idle_sftp_sessions_with_ttl(state: &BackendState, idle_ttl: Duration) -> usize {
     let now = Instant::now();
     let mut sessions = state.sftp_sessions.lock();

@@ -209,8 +209,14 @@
 }
 
 /* Context Menu */
-.context-menu {
+.context-menu-layer {
   position: fixed;
+  inset: 0;
+  z-index: 70;
+}
+
+.context-menu {
+  position: absolute;
   display: grid;
   min-width: 160px;
   padding: 6px;
@@ -375,6 +381,22 @@
 }
 
 /* Toast */
+.toast-host {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: calc(var(--size-statusbar-height) + max(16px, env(safe-area-inset-bottom)));
+  z-index: 80;
+  display: grid;
+  width: min(420px, calc(100vw - 32px));
+  max-height: calc(100vh - var(--size-titlebar-height) - var(--size-statusbar-height) - 32px);
+  gap: 10px;
+  pointer-events: none;
+}
+
+.toast-host--above-dock {
+  bottom: calc(var(--size-statusbar-height) + var(--toast-dock-offset, 0px) + var(--size-splitter-hit-area) + max(16px, env(safe-area-inset-bottom)));
+}
+
 .toast {
   position: relative;
   display: grid;
@@ -390,6 +412,7 @@
   box-shadow: var(--shadow-panel);
   font-size: 12px;
   overflow: hidden;
+  pointer-events: auto;
 }
 
 .toast strong,

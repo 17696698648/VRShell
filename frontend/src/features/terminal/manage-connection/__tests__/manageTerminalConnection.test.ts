@@ -60,4 +60,22 @@ describe('manageTerminalConnection', () => {
 
     expect(terminalState.tabs.find((item) => item.id === `term-${tab.sessionId}`)?.status).toBe('connected')
   })
+
+  it('marks terminal failed when reconnect cannot establish a session', async () => {
+    const tab = terminalState.tabs[0]
+    const session = sessionState.sessions[0]
+    tab.status = 'disconnected'
+    session.status = 'idle'
+    session.backendSessionId = undefined
+    setIpcMock(async (command) => {
+      if (command === 'connect_ssh') throw new Error('network down')
+      return undefined
+    })
+
+    await expect(reconnectTerminalTab(tab)).rejects.toThrow('connect_ssh failed: network down')
+
+    expect(tab.status).toBe('failed')
+    expect(session.status).toBe('failed')
+    expect(session.backendSessionId).toBeUndefined()
+  })
 })

@@ -15,7 +15,7 @@ vi.mock('@tauri-apps/plugin-dialog', () => ({
   save: vi.fn(async () => '/tmp/app.log'),
 }))
 
-const activeSession: SessionHost = {id: 'sftp-session', name: 'SFTP Session', host: 'example.com', port: 22, username: 'deploy', protocol: 'ssh', groupId: 'all', tags: [], status: 'connected'}
+const activeSession: SessionHost = {id: 'sftp-session', name: 'SFTP Session', host: 'example.com', port: 22, username: 'deploy', protocol: 'ssh', groupId: 'all', tags: [], status: 'connected', backendSessionId: 'backend-sftp-session'}
 const item: SftpItem = {id: '/srv/app/app.log', name: 'app.log', path: '/srv/app/app.log', type: 'file', size: '2 KB', modifiedAt: 'Now'}
 const defaultSessions = JSON.parse(JSON.stringify(sessionState.sessions)) as typeof sessionState.sessions
 const defaultActiveSessionId = sessionState.activeSessionId
@@ -88,6 +88,15 @@ describe('manageSftpFiles', () => {
 
     expect(sftpState.items.some((candidate) => candidate.id === item.id)).toBe(false)
     expect(feedbackState.toasts.at(-1)).toMatchObject({level: 'success', title: 'Deleted app.log'})
+  })
+
+  it('blocks SFTP actions when the session is disconnected', async () => {
+    sessionState.sessions[0].status = 'failed'
+    sessionState.sessions[0].backendSessionId = undefined
+
+    await expect(deleteRemoteItem(sftpState.items[0])).rejects.toThrow('Session is disconnected')
+
+    expect(feedbackState.toasts.at(-1)).toMatchObject({level: 'warning', title: 'SFTP session disconnected'})
   })
 
   it('reports file operation failures with actionable toasts', async () => {

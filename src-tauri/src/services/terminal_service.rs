@@ -11,6 +11,7 @@ use crate::{
         known_hosts_store::{HostKeyVerification, KnownHostsStore},
         ssh_client::{SshClient, SshRuntime},
     },
+    services::sftp_service,
     state::{prune_expired_pending_host_key_sessions, BackendState, PendingHostKeySession},
 };
 use base64::{engine::general_purpose::STANDARD, Engine as _};
@@ -366,8 +367,11 @@ fn start_keepalive(window: &tauri::WebviewWindow, session_id: &str) {
                 break;
             };
 
-            if runtime.keepalive().is_err() {
-                tracing::warn!(session_id = %session_id, "keepalive failed, connection may be dead");
+            if let Err(error) = runtime.keepalive() {
+                let message = format!("Terminal connection lost: {}", error.message);
+                tracing::warn!(session_id = %session_id, error = %message, "keepalive failed, closing terminal session");
+                emit_terminal_error(&window, &session_id, message);
+                close_terminal_session(&window, &session_id);
                 break;
             }
 
@@ -436,21 +440,44 @@ fn output_reader_loop(window: &tauri::WebviewWindow, session_id: &str) -> String
 }
 
 fn cleanup_after_output_exit(window: &tauri::WebviewWindow, session_id: &str, reason: &str) {
-    let state = window.state::<BackendState>();
     tracing::info!(session_id, reason, "terminal output reader exited");
+    close_terminal_session(window, session_id);
+}
+
+fn close_terminal_session(window: &tauri::WebviewWindow, session_id: &str) {
+    let state = window.state::<BackendState>();
+    let mut should_emit_closed = false;
 
     if let Some(runtime) = state.terminal_runtimes.lock().remove(session_id) {
         let _ = runtime.close();
+        should_emit_closed = true;
     }
 
     {
         let mut terminals = state.terminals.lock();
         if let Some(session) = terminals.get_mut(session_id) {
-            session.status = TerminalStatus::Disconnected;
+            let dropped_sftp_sessions = sftp_service::drop_cached_sftp_sessions_for_terminal(
+                &state,
+                &session.host,
+                &session.username,
+            );
+            if dropped_sftp_sessions > 0 {
+                tracing::debug!(
+                    session_id,
+                    count = dropped_sftp_sessions,
+                    "dropped cached SFTP sessions after terminal close"
+                );
+            }
+            if session.status != TerminalStatus::Disconnected {
+                session.status = TerminalStatus::Disconnected;
+                should_emit_closed = true;
+            }
         }
     }
 
-    emit_terminal_closed(window, session_id);
+    if should_emit_closed {
+        emit_terminal_closed(window, session_id);
+    }
 }
 
 pub(crate) fn send_input(

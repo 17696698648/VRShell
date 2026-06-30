@@ -22,6 +22,12 @@ export async function reconnectTerminalTab(tab: TerminalTab) {
   const session = sessionState.sessions.find((item) => item.id === tab.sessionId)
   if (!session) throw new Error(`Session not found: ${tab.sessionId}`)
   patchTerminal(tab.id, {status: 'connecting'})
-  await connectSession(session)
-  await flushTerminalInputQueue(tab)
+  try {
+    await connectSession(session)
+    await flushTerminalInputQueue(tab)
+  } catch (error) {
+    patchTerminal(tab.id, {status: 'failed'})
+    patchSession(tab.sessionId, {status: 'failed', backendSessionId: undefined})
+    throw error
+  }
 }

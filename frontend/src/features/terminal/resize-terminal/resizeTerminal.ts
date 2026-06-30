@@ -1,4 +1,5 @@
 ﻿import type {TerminalTab} from '../../../entities/terminal'
+import {terminalState} from '../../../entities/terminal'
 import {resizeTerminalPty} from '../../../entities/terminal/api/terminalRepository'
 import {messages} from '../../../shared/copy'
 import {notifyTerminalFailure, notifyWarning} from '../../../shared/feedback'
@@ -20,7 +21,7 @@ export interface TerminalViewportSize {
 }
 
 export function scheduleTerminalResize(tab: TerminalTab, size: TerminalViewportSize) {
-  if (!tab.backendSessionId || typeof window === 'undefined') return
+  if (!canResizeTerminal(tab) || typeof window === 'undefined') return
   const dimensions = getTerminalDimensions(size)
   if (isSameDimensions(dimensions, lastSentDimensions.get(tab.id))) return
   pendingDimensions.set(tab.id, dimensions)
@@ -30,17 +31,19 @@ export function scheduleTerminalResize(tab: TerminalTab, size: TerminalViewportS
     timers.delete(tab.id)
     const latestDimensions = pendingDimensions.get(tab.id)
     pendingDimensions.delete(tab.id)
-    if (latestDimensions) void resizeTerminal(tab, latestDimensions)
+    if (latestDimensions && canResizeTerminal(tab)) void resizeTerminal(tab, latestDimensions)
   }, debounceMs))
 }
 
 export async function resizeTerminal(tab: TerminalTab, size: TerminalViewportSize) {
+  if (!canResizeTerminal(tab)) return
   const dimensions = getTerminalDimensions(size)
   if (isSameDimensions(dimensions, lastSentDimensions.get(tab.id))) return
   try {
     await resizeTerminalPty(tab.backendSessionId, dimensions.cols, dimensions.rows)
     lastSentDimensions.set(tab.id, dimensions)
   } catch (error) {
+    if (isStaleResizeFailure(tab, error)) return
     notifyTerminalFailure({action: 'resize-failed', terminalId: tab.id, title: messages.terminal.failures.resize(tab.title), error})
   }
 }
@@ -67,4 +70,17 @@ export function clearTerminalResizeTimers() {
 
 function isSameDimensions(left: {cols: number; rows: number}, right?: {cols: number; rows: number}) {
   return left.cols === right?.cols && left.rows === right.rows
+}
+
+function canResizeTerminal(tab: TerminalTab) {
+  const latestTab = terminalState.tabs.find((item) => item.id === tab.id)
+  const status = latestTab?.status ?? tab.status
+  const backendSessionId = latestTab?.backendSessionId ?? tab.backendSessionId
+  return status === 'connected' && Boolean(backendSessionId)
+}
+
+function isStaleResizeFailure(tab: TerminalTab, error: unknown) {
+  if (!canResizeTerminal(tab)) return true
+  const message = error instanceof Error ? error.message : String(error)
+  return /unable to send window-change packet|session\(-7\)|terminal runtime is not available|terminal is (closing|closed|not ready)/i.test(message)
 }

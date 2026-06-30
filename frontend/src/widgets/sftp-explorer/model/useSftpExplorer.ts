@@ -1,9 +1,10 @@
 import {computed, watch} from 'vue'
-import {sessionState, setActiveSession} from '../../../entities/session'
+import {sessionState, setActiveSession, type SessionHost} from '../../../entities/session'
 import {activateSftpSessionState, clearSftpState, getSftpSessionState, persistActiveSftpState, sftpState, type SftpItem} from '../../../entities/sftp'
 import {listRemoteDirectory} from '../../../entities/sftp/api/sftpRepository'
 import {terminalState} from '../../../entities/terminal'
 import {getErrorMessage} from '../../../shared/error/getErrorMessage'
+import {notifyFeedback} from '../../../shared/feedback'
 
 const refreshVersions = new Map<string, number>()
 
@@ -40,6 +41,14 @@ export function useSftpExplorer() {
   async function refresh(path = sftpState.path, options: {automatic?: boolean} = {}) {
     const session = activeSession.value
     if (!session) return
+    if (!isSessionReadyForSftp(session)) {
+      const message = 'Session is disconnected. Reconnect before loading SFTP directories.'
+      applyDirectoryError(session.id, message)
+      Object.assign(sftpState, {error: message, initialized: true, loading: false})
+      notifyFeedback({level: 'warning', title: 'Reconnect required for SFTP', detail: message, dedupeKey: `sftp:${session.id}:reconnect-required`})
+      persistActiveSftpState()
+      return
+    }
     const sessionState = getSftpSessionState(session.id)
     if (options.automatic && sessionState.loading) return
     const version = (refreshVersions.get(session.id) ?? 0) + 1
@@ -72,6 +81,10 @@ export function useSftpExplorer() {
   }
 
   return {sftpState, activeSession, hasConnectedTerminal, refresh, openParentDirectory}
+}
+
+function isSessionReadyForSftp(session: SessionHost) {
+  return session.status === 'connected' && Boolean(session.backendSessionId) && terminalState.tabs.some((tab) => tab.sessionId === session.id && tab.status === 'connected')
 }
 
 function applyDirectoryState(sessionId: string, path: string, items: SftpItem[]) {

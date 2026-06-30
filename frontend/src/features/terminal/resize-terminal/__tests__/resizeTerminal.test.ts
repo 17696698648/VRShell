@@ -9,6 +9,8 @@ const terminalTab = {id: 'term-test', sessionId: 'session-test', backendSessionI
 describe('resizeTerminal', () => {
   afterEach(() => {
     clearTerminalResizeTimers()
+    terminalState.tabs.splice(0)
+    terminalState.activeTerminalId = ''
     setIpcMock(null)
     clearToasts()
     vi.useRealTimers()
@@ -75,5 +77,54 @@ describe('resizeTerminal', () => {
     await expect(resizeTerminal(tab, {width: 900, height: 440})).resolves.toBeUndefined()
 
     expect(feedbackState.toasts.at(-1)).toMatchObject({level: 'error', title: `Failed to resize ${tab.title}`})
+  })
+
+  it('skips resize when terminal is already disconnected', async () => {
+    const tab = {...terminalTab, status: 'disconnected'} as typeof terminalTab
+    let calls = 0
+    setIpcMock(async (command) => {
+      if (command === 'resize_pty') calls += 1
+      return undefined
+    })
+
+    await resizeTerminal(tab, {width: 900, height: 440})
+
+    expect(calls).toBe(0)
+    expect(feedbackState.toasts).toHaveLength(0)
+  })
+
+  it('does not report stale resize failures after terminal disconnects', async () => {
+    const tab = {...terminalTab}
+    terminalState.tabs.push(tab)
+    setIpcMock(async (command) => {
+      if (command === 'resize_pty') {
+        tab.status = 'disconnected'
+        throw new Error('failed to resize pty: [Session(-7)] Unable to send window-change packet')
+      }
+      return undefined
+    })
+
+    await resizeTerminal(tab, {width: 900, height: 440})
+
+    expect(feedbackState.toasts).toHaveLength(0)
+  })
+
+  it('cancels scheduled resize when terminal disconnects before debounce flush', async () => {
+    vi.useFakeTimers()
+    vi.stubGlobal('window', {setTimeout, clearTimeout})
+    const tab = {...terminalTab}
+    terminalState.tabs.push(tab)
+    let calls = 0
+    setIpcMock(async (command) => {
+      if (command === 'resize_pty') calls += 1
+      return undefined
+    })
+
+    scheduleTerminalResize(tab, {cols: 100, rows: 30})
+    tab.status = 'disconnected'
+    await vi.runAllTimersAsync()
+
+    expect(calls).toBe(0)
+    expect(feedbackState.toasts).toHaveLength(0)
   })
 })

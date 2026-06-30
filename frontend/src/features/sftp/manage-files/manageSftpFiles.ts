@@ -173,6 +173,11 @@ async function runTransferTask(kind: 'upload' | 'download', detail: string, run:
 function requireActiveSession() {
   const session = sessionState.sessions.find((item) => item.id === sftpState.connectedSessionId) ?? getActiveSession()
   if (!session) throw new Error('No active session')
+  if (session.status !== 'connected' || !session.backendSessionId) {
+    const message = 'Session is disconnected. Reconnect before using SFTP.'
+    notifyFeedback({level: 'warning', title: 'SFTP session disconnected', detail: message, dedupeKey: `sftp:${session.id}:disconnected`})
+    throw new Error(message)
+  }
   return session
 }
 

@@ -7,8 +7,8 @@ import {clearToasts, feedbackState} from '../../../../shared/feedback'
 import {setIpcMock} from '../../../../shared/ipc/ipcClient'
 import {useSftpExplorer} from '../useSftpExplorer'
 
-const activeSession: SessionHost = {id: 'sftp-explorer-session', name: 'SFTP Explorer Session', host: 'example.com', port: 22, username: 'deploy', protocol: 'ssh', groupId: 'all', tags: [], status: 'connected'}
-const secondarySession: SessionHost = {id: 'sftp-explorer-session-2', name: 'SFTP Explorer Session 2', host: 'example.org', port: 22, username: 'deploy', protocol: 'ssh', groupId: 'all', tags: [], status: 'connected'}
+const activeSession: SessionHost = {id: 'sftp-explorer-session', name: 'SFTP Explorer Session', host: 'example.com', port: 22, username: 'deploy', protocol: 'ssh', groupId: 'all', tags: [], status: 'connected', backendSessionId: 'backend-sftp-explorer-session'}
+const secondarySession: SessionHost = {id: 'sftp-explorer-session-2', name: 'SFTP Explorer Session 2', host: 'example.org', port: 22, username: 'deploy', protocol: 'ssh', groupId: 'all', tags: [], status: 'connected', backendSessionId: 'backend-sftp-explorer-session-2'}
 const defaultSessions = JSON.parse(JSON.stringify(sessionState.sessions)) as typeof sessionState.sessions
 const defaultActiveSessionId = sessionState.activeSessionId
 const defaultPath = sftpState.path
@@ -46,6 +46,7 @@ describe('useSftpExplorer', () => {
   })
 
   it('refreshes directory items through mock repository', async () => {
+    terminalState.tabs.push(connectedTerminal(activeSession.id))
     const {refresh} = useSftpExplorer()
 
     await refresh('/tmp')
@@ -56,6 +57,7 @@ describe('useSftpExplorer', () => {
   })
 
   it('reports directory listing failures', async () => {
+    terminalState.tabs.push(connectedTerminal(activeSession.id))
     const {refresh} = useSftpExplorer()
     setIpcMock(async (command) => {
       if (command === 'sftp_list') throw new Error('permission denied')
@@ -67,6 +69,22 @@ describe('useSftpExplorer', () => {
     expect(sftpState.loading).toBe(false)
     expect(sftpState.error).toBe('permission denied')
     expect(feedbackState.toasts).toHaveLength(0)
+  })
+
+  it('does not start directory loading when reconnect is required', async () => {
+    let listCalls = 0
+    setIpcMock(async (command) => {
+      if (command === 'sftp_list') listCalls += 1
+      return undefined
+    })
+    const {refresh} = useSftpExplorer()
+
+    await refresh('/srv/app')
+
+    expect(listCalls).toBe(0)
+    expect(sftpState.loading).toBe(false)
+    expect(sftpState.error).toContain('Reconnect before loading SFTP directories')
+    expect(feedbackState.toasts.at(-1)).toMatchObject({level: 'warning', title: 'Reconnect required for SFTP'})
   })
 
   it('shows disconnected state until the active session has a connected terminal', async () => {

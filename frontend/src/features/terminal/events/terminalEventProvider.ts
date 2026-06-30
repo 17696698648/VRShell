@@ -1,4 +1,5 @@
 import {appendTerminalLines, patchTerminal, terminalState, type TerminalTab} from '../../../entities/terminal'
+import {patchSession} from '../../../entities/session'
 import {pollTerminalOutput} from '../../../entities/terminal/api/terminalRepository'
 import {messages} from '../../../shared/copy'
 import {getErrorMessage} from '../../../shared/error/getErrorMessage'
@@ -166,6 +167,7 @@ function handleTerminalClosed(event: {sessionId: string}) {
   const tab = findTerminalByBackendSessionId(event.sessionId)
   if (!tab) return
   patchTerminal(tab.id, {status: 'disconnected'})
+  patchSession(tab.sessionId, {status: 'idle', backendSessionId: undefined})
   // 如果关闭的是当前活跃终端，自动切换到第一个可用终端
   if (terminalState.activeTerminalId === tab.id) {
     const fallback = terminalState.tabs.find((t) => t.id !== tab!.id && t.status === 'connected')
@@ -173,7 +175,7 @@ function handleTerminalClosed(event: {sessionId: string}) {
   }
 }
 
-function handleTerminalError(event: TerminalErrorEvent) {
+export function handleTerminalError(event: TerminalErrorEvent) {
   const tab = findTerminalByBackendSessionId(event.sessionId)
   if (!tab) return
   markTerminalOutputFailed(tab, `Terminal output failed: ${event.error}`, event.error)
@@ -185,10 +187,15 @@ function findTerminalByBackendSessionId(sessionId: string) {
 
 function markTerminalOutputFailed(tab: TerminalTab, line: string, detail: string) {
   patchTerminal(tab.id, {status: 'failed'})
+  patchSession(tab.sessionId, {status: 'failed', backendSessionId: undefined})
   appendTerminalLines(tab.id, [line])
-  if (terminalState.activeTerminalId !== tab.id) {
+  if (terminalState.activeTerminalId !== tab.id || isConnectionLostMessage(detail)) {
     notifyTerminalFailure({action: 'output-failed', terminalId: tab.id, title: messages.terminal.failures.outputStopped(tab.title), detail})
   }
+}
+
+function isConnectionLostMessage(message: string) {
+  return /connection lost|keepalive failed|unable to send window-change packet|session\(-7\)/i.test(message)
 }
 
 function decodeEvent(event: TerminalOutputEventPayload) {

@@ -1,16 +1,21 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
+import {sessionState} from '../../../../entities/session'
 import {clearTerminalBuffers, getTerminalBufferLines, initializeTerminalBuffer, terminalState, type TerminalTab} from '../../../../entities/terminal'
 import {clearToasts, feedbackState} from '../../../../shared/feedback'
 import {encodeTextBase64} from '../../../../shared/lib/base64'
 import {setIpcMock} from '../../../../shared/ipc/ipcClient'
-import {createTerminalEventProvider, createTerminalOutputBatcher} from '../terminalEventProvider'
+import {createTerminalEventProvider, createTerminalOutputBatcher, handleTerminalError} from '../terminalEventProvider'
 
 const terminal: TerminalTab = {id: 'event-terminal', sessionId: 'event-session', backendSessionId: 'backend-event-terminal', title: 'Event Terminal', status: 'connected', cwd: '/', lines: []}
+const session = {id: 'event-session', name: 'Event Session', host: 'example.com', port: 22, username: 'deploy', protocol: 'ssh', groupId: 'all', tags: [], status: 'connected', backendSessionId: terminal.backendSessionId} as typeof sessionState.sessions[number]
+const defaultSessions = JSON.parse(JSON.stringify(sessionState.sessions)) as typeof sessionState.sessions
 const defaultTerminals = JSON.parse(JSON.stringify(terminalState.tabs)) as typeof terminalState.tabs
 const defaultActiveTerminalId = terminalState.activeTerminalId
 
 describe('terminal event provider', () => {
   beforeEach(() => {
+    sessionState.sessions.splice(0, sessionState.sessions.length, JSON.parse(JSON.stringify(session)))
+    sessionState.activeSessionId = session.id
     terminalState.tabs.splice(0, terminalState.tabs.length, JSON.parse(JSON.stringify(terminal)))
     terminalState.activeTerminalId = terminal.id
     initializeTerminalBuffer(terminal.id, [])
@@ -20,6 +25,8 @@ describe('terminal event provider', () => {
     setIpcMock(null)
     clearToasts()
     clearTerminalBuffers()
+    sessionState.sessions.splice(0, sessionState.sessions.length, ...JSON.parse(JSON.stringify(defaultSessions)))
+    sessionState.activeSessionId = ''
     terminalState.tabs.splice(0, terminalState.tabs.length, ...JSON.parse(JSON.stringify(defaultTerminals)))
     terminalState.activeTerminalId = defaultActiveTerminalId
   })
@@ -82,6 +89,15 @@ describe('terminal event provider', () => {
     expect(terminalState.tabs[0].status).toBe('failed')
     expect(getTerminalBufferLines(terminal.id).at(-1)).toContain('Output polling failed')
     expect(feedbackState.toasts).toHaveLength(0)
+  })
+
+  it('reports connection lost errors even for the active terminal', () => {
+    handleTerminalError({sessionId: terminal.backendSessionId, error: 'Terminal connection lost: keepalive failed: [Session(-7)] Unable to send window-change packet'})
+
+    expect(terminalState.tabs[0].status).toBe('failed')
+    expect(sessionState.sessions[0]).toMatchObject({status: 'failed', backendSessionId: undefined})
+    expect(getTerminalBufferLines(terminal.id).at(-1)).toContain('Terminal output failed')
+    expect(feedbackState.toasts.at(-1)).toMatchObject({level: 'error', title: 'Terminal output stopped for Event Terminal'})
   })
 
   it('batches terminal output until scheduled flush', () => {
