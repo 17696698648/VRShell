@@ -90,7 +90,7 @@ function sourceForIpcError(command: keyof IpcCommandMap, error: IpcErrorDetail):
   if (error.kind === 'sftp') return 'sftp'
   if (error.kind === 'terminal') return 'terminal'
   if (error.kind === 'network' || error.kind === 'authentication' || error.kind === 'security') return 'ssh'
-  if (command.toString().startsWith('sftp_') || command === 'list_sftp_tasks' || command === 'cancel_sftp_task') return 'sftp'
+  if (command.toString().startsWith('sftp_') || command === 'list_sftp_tasks' || command === 'list_background_tasks' || command === 'cancel_sftp_task' || command === 'cancel_background_task') return 'sftp'
   if (['connect_ssh', 'send_input', 'resize_pty', 'poll_events', 'disconnect_session'].includes(command.toString())) return 'terminal'
   return 'ipc'
 }

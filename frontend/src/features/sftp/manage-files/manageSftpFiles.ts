@@ -11,6 +11,7 @@ import {getErrorMessage} from '../../../shared/error/getErrorMessage'
 import {notifyFeedback, notifySftpFailure} from '../../../shared/feedback'
 import {decodeTextBase64, encodeTextBase64} from '../../../shared/lib/base64'
 import {createId} from '../../../shared/lib/createId'
+import type {SftpTransferOptions} from '../../../shared/ipc/ipcFacade'
 
 export async function createRemoteDirectory(name: string, parentPath = sftpState.path) {
   const session = requireActiveSession()
@@ -94,7 +95,7 @@ export async function openRemoteFileInSessionEditor(item: SftpItem) {
   }
 }
 
-export async function uploadFileToRemoteDirectory(remoteDirectory: string) {
+export async function uploadFileToRemoteDirectory(remoteDirectory: string, options?: SftpTransferOptions) {
   const selected = await open({multiple: false, directory: false})
   if (!selected) return null
   const localPath = Array.isArray(selected) ? selected[0] : selected
@@ -102,7 +103,7 @@ export async function uploadFileToRemoteDirectory(remoteDirectory: string) {
   const remotePath = joinRemotePath(remoteDirectory, fileName)
   const item: SftpItem = {id: remotePath, name: fileName, path: remotePath, type: 'file', size: '-', modifiedAt: 'Now'}
   await runTransferTask('upload', remotePath, async (session, taskId) => {
-    await uploadRemoteFile(session, remotePath, taskId, {localPath})
+    await uploadRemoteFile(session, remotePath, taskId, {localPath}, options)
     if (isCurrentRemoteDirectory(remoteDirectory)) addOrReplaceItem(item)
   })
   return item
@@ -135,7 +136,7 @@ export async function saveRemoteEditorFile(file: SessionEditorFile) {
   patchSessionEditorFile(file.id, {saving: true, error: undefined})
   try {
     await runTransferTask('upload', file.path, async (session, taskId) => {
-      await uploadRemoteFile(session, file.path, taskId, {dataBase64: encodeTextBase64(file.content)})
+      await uploadRemoteFile(session, file.path, taskId, {dataBase64: encodeTextBase64(file.content)}, {conflict: 'overwrite'})
     })
     patchSessionEditorFile(file.id, {dirty: false, saving: false, error: undefined})
   } catch (error) {
@@ -161,7 +162,7 @@ async function runTransferTask(kind: 'upload' | 'download', detail: string, run:
   } catch (error) {
     const message = getErrorMessage(error)
     patchTask(taskId, {error: message, status: 'failed'})
-    notifySftpFailure({action: `${kind}-failed`, taskId, title: messages.sftp.failures.transfer(kind), error})
+    notifySftpFailure({action: `${kind}-failed`, taskId, title: messages.sftp.failures.transfer(kind), error, traceId: `task:${taskId}`})
     throw error
   }
   patchTask(taskId, {error: undefined, progress: 100, status: 'done'})

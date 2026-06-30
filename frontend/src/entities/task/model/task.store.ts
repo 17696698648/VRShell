@@ -7,6 +7,7 @@ export interface TaskItem {
   error?: string
   progress: number
   status: 'running' | 'done' | 'failed' | 'cancelled'
+  traceId?: string
 }
 
 export const taskItems = reactive<TaskItem[]>([])

@@ -11,7 +11,7 @@ use crate::{
         known_hosts_store::{HostKeyVerification, KnownHostsStore},
         ssh_client::{SshClient, SshRuntime},
     },
-    state::{BackendState, PendingHostKeySession},
+    state::{prune_expired_pending_host_key_sessions, BackendState, PendingHostKeySession},
 };
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use events::{
@@ -21,7 +21,7 @@ use events::{
 use std::{
     sync::mpsc,
     thread,
-    time::{Duration, Instant},
+    time::{Duration, Instant, SystemTime},
 };
 use tauri::Manager;
 use uuid::Uuid;
@@ -37,6 +37,19 @@ enum TerminalRuntimeCommand {
     Resize(u16, u16, mpsc::Sender<BackendResult<()>>),
     Keepalive(mpsc::Sender<BackendResult<()>>),
     Close(mpsc::Sender<BackendResult<()>>),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum TerminalRuntimeState {
+    Ready,
+    Closing,
+    Closed,
+}
+
+impl TerminalRuntimeState {
+    fn allows_io(self) -> bool {
+        matches!(self, Self::Ready)
+    }
 }
 
 impl TerminalRuntime {
@@ -94,43 +107,69 @@ fn terminal_runtime_loop(
     mut ssh_runtime: SshRuntime,
     command_receiver: mpsc::Receiver<TerminalRuntimeCommand>,
 ) {
+    let mut runtime_state = TerminalRuntimeState::Ready;
     for command in command_receiver {
         match command {
             TerminalRuntimeCommand::Read(response) => {
                 let started = Instant::now();
-                let result = read_runtime_output(&mut ssh_runtime).map(|output| {
-                    let closed = SshClient::is_channel_eof(&ssh_runtime);
-                    (output, closed)
-                });
+                let result = if runtime_state.allows_io() {
+                    read_runtime_output(&mut ssh_runtime).map(|output| {
+                        let closed = SshClient::is_channel_eof(&ssh_runtime);
+                        if closed {
+                            runtime_state = TerminalRuntimeState::Closed;
+                        }
+                        (output, closed)
+                    })
+                } else {
+                    Err(runtime_not_ready_error(runtime_state))
+                };
                 trace_terminal_command(&session_id, "read", started);
                 let _ = response.send(result);
             }
             TerminalRuntimeCommand::Write(input, response) => {
                 let started = Instant::now();
-                let result = read_runtime_output(&mut ssh_runtime).and_then(|pending_output| {
-                    write_all_nonblocking(&mut ssh_runtime, &input).map(|_| pending_output)
-                });
+                let result = if runtime_state.allows_io() {
+                    read_runtime_output(&mut ssh_runtime).and_then(|pending_output| {
+                        write_all_nonblocking(&mut ssh_runtime, &input).map(|_| pending_output)
+                    })
+                } else {
+                    Err(runtime_not_ready_error(runtime_state))
+                };
                 trace_terminal_command(&session_id, "write", started);
                 let _ = response.send(result);
             }
             TerminalRuntimeCommand::Resize(cols, rows, response) => {
                 let started = Instant::now();
-                let result = SshClient::resize_pty(&mut ssh_runtime, cols, rows);
+                let result = if runtime_state.allows_io() {
+                    SshClient::resize_pty(&mut ssh_runtime, cols, rows)
+                } else {
+                    Err(runtime_not_ready_error(runtime_state))
+                };
                 trace_terminal_command(&session_id, "resize", started);
                 let _ = response.send(result);
             }
             TerminalRuntimeCommand::Keepalive(response) => {
                 let started = Instant::now();
-                let result = ssh_runtime
-                    .channel
-                    .request_pty_size(80, 24, None, None)
-                    .map_err(|error| BackendError::terminal(format!("keepalive failed: {error}")));
+                let result = if runtime_state.allows_io() {
+                    ssh_runtime
+                        .channel
+                        .request_pty_size(80, 24, None, None)
+                        .map_err(|error| {
+                            BackendError::terminal(format!("keepalive failed: {error}"))
+                        })
+                } else {
+                    Err(runtime_not_ready_error(runtime_state))
+                };
                 trace_terminal_command(&session_id, "keepalive", started);
                 let _ = response.send(result);
             }
             TerminalRuntimeCommand::Close(response) => {
                 let started = Instant::now();
+                runtime_state = TerminalRuntimeState::Closing;
+                trace_terminal_state(&session_id, runtime_state);
                 SshClient::close_channel(&mut ssh_runtime);
+                runtime_state = TerminalRuntimeState::Closed;
+                trace_terminal_state(&session_id, runtime_state);
                 trace_terminal_command(&session_id, "close", started);
                 let _ = response.send(Ok(()));
                 break;
@@ -140,6 +179,10 @@ fn terminal_runtime_loop(
     tracing::debug!(session_id, "terminal runtime actor stopped");
 }
 
+fn runtime_not_ready_error(state: TerminalRuntimeState) -> BackendError {
+    BackendError::terminal(format!("terminal runtime is {state:?}"))
+}
+
 fn trace_terminal_command(session_id: &str, command: &str, started: Instant) {
     tracing::trace!(
         session_id,
@@ -147,6 +190,10 @@ fn trace_terminal_command(session_id: &str, command: &str, started: Instant) {
         elapsed_ms = started.elapsed().as_millis() as u64,
         "terminal runtime command handled"
     );
+}
+
+fn trace_terminal_state(session_id: &str, state: TerminalRuntimeState) {
+    tracing::trace!(session_id, state = ?state, "terminal runtime state changed");
 }
 
 pub(crate) fn connect(
@@ -211,6 +258,7 @@ pub(crate) fn connect(
                     session,
                     fingerprint: host_key_info.fingerprint.clone(),
                     key_type: host_key_info.key_type.clone(),
+                    created_at: SystemTime::now(),
                     raw_key: host_key_info.raw_key,
                 },
             );
@@ -244,6 +292,7 @@ pub(crate) fn accept_host_key(
     pending_id: &str,
     request: ConnectTerminalRequest,
 ) -> BackendResult<TerminalSession> {
+    prune_expired_pending_host_key_sessions(state);
     let pending = state
         .pending_host_key_sessions
         .lock()
@@ -266,6 +315,7 @@ pub(crate) fn accept_host_key(
 
 /// Reject a pending host key
 pub(crate) fn reject_host_key(state: &BackendState, pending_id: &str) -> BackendResult<()> {
+    prune_expired_pending_host_key_sessions(state);
     state.pending_host_key_sessions.lock().remove(pending_id);
     Ok(())
 }
@@ -510,7 +560,7 @@ fn validate_terminal_request(request: &ConnectTerminalRequest) -> BackendResult<
 
 #[cfg(test)]
 mod tests {
-    use super::HostKeyRequestedPayload;
+    use super::{runtime_not_ready_error, HostKeyRequestedPayload, TerminalRuntimeState};
     use serde_json::json;
 
     #[test]
@@ -539,5 +589,20 @@ mod tests {
                 "knownFingerprint": "SHA256:old-key"
             })
         );
+    }
+
+    #[test]
+    fn terminal_runtime_state_only_allows_io_when_ready() {
+        assert!(TerminalRuntimeState::Ready.allows_io());
+        assert!(!TerminalRuntimeState::Closing.allows_io());
+        assert!(!TerminalRuntimeState::Closed.allows_io());
+    }
+
+    #[test]
+    fn terminal_runtime_not_ready_error_is_terminal_error() {
+        let error = runtime_not_ready_error(TerminalRuntimeState::Closed);
+
+        assert_eq!(error.code, "terminalError");
+        assert_eq!(error.message, "terminal runtime is Closed");
     }
 }

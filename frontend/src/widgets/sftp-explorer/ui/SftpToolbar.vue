@@ -17,7 +17,9 @@ import {UiIconButton, UiToolbar, UiToolbarButtonGroup, type UiToolbarButtonGroup
 import type {SftpViewMode} from '../model/sftpViewMode'
 
 defineProps<{disabled?: boolean; loading?: boolean; viewMode: SftpViewMode}>()
-const emit = defineEmits<{mkdir: []; newFile: []; refresh: []; upload: []; uploadFolder: []; 'update:viewMode': [mode: SftpViewMode]}>()
+type SftpUploadConflictStrategy = 'overwrite' | 'skip' | 'rename'
+
+const emit = defineEmits<{mkdir: []; newFile: []; refresh: []; upload: [conflict: SftpUploadConflictStrategy]; uploadFolder: []; 'update:viewMode': [mode: SftpViewMode]}>()
 
 const viewModeItems: UiToolbarButtonGroupItem[] = [
   {id: 'tree', icon: FolderTree, label: messages.sftp.toolbar.tree, tooltip: messages.sftp.toolbar.treeTooltip},
@@ -40,7 +42,9 @@ function openUploadMenu(event: MouseEvent) {
     x: event.clientX,
     y: event.clientY,
     items: [
-      {id: 'upload-file', label: messages.sftp.contextMenu.uploadFile, run: () => emit('upload')},
+      {id: 'upload-file-overwrite', label: `${messages.sftp.contextMenu.uploadFile} · overwrite`, run: () => emit('upload', 'overwrite')},
+      {id: 'upload-file-skip', label: `${messages.sftp.contextMenu.uploadFile} · skip existing`, run: () => emit('upload', 'skip')},
+      {id: 'upload-file-rename', label: `${messages.sftp.contextMenu.uploadFile} · auto rename`, run: () => emit('upload', 'rename')},
       {id: 'upload-folder', label: messages.sftp.contextMenu.uploadFolder, run: () => emit('uploadFolder')},
     ],
   })

@@ -57,12 +57,29 @@ pub(crate) struct SftpDeleteRequest {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub(crate) struct SftpTransferOptionsDto {
+    pub conflict: Option<SftpTransferConflictStrategyDto>,
+    pub overwrite: Option<bool>,
+    pub resume: Option<bool>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum SftpTransferConflictStrategyDto {
+    Overwrite,
+    Skip,
+    Rename,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct SftpTransferRequest {
     pub connection: SftpConnectionDto,
     pub remote_path: String,
     pub task_id: String,
     pub data_base64: Option<String>,
     pub local_path: Option<String>,
+    pub options: Option<SftpTransferOptionsDto>,
 }
 
 #[cfg(test)]

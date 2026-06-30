@@ -12,7 +12,9 @@
         <span v-if="activeFile.error" class="session-editor-area__status danger">{{ activeFile.error }}</span>
         <span v-else-if="activeFile.dirty" class="session-editor-area__status">Unsaved changes</span>
         <span v-else class="session-editor-area__status success">Saved</span>
-        <UiButton size="sm" variant="primary" :loading="activeFile.saving" :disabled="!activeFile.dirty" @click="saveActiveFile">Save</UiButton>
+        <UiButton size="sm" variant="primary" :loading="activeFile.saving" :disabled="!activeFile.dirty || activeFile.saving" @click="saveActiveFile">
+          {{ activeFile.error ? 'Retry save' : 'Save' }}
+        </UiButton>
       </div>
     </header>
     <textarea v-if="activeFile" class="session-editor-area__pane" spellcheck="false" :value="activeFile.content" @input="updateActiveFileContent" @keydown="handleEditorKeydown" />

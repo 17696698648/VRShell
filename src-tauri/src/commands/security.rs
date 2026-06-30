@@ -3,7 +3,7 @@ use crate::{
     infrastructure::known_hosts_store::KnownHostsStore,
     ipc::{dto::ConnectSshRequest, IpcResult},
     services::terminal_service,
-    state::BackendState,
+    state::{prune_expired_pending_host_key_sessions, BackendState},
 };
 use tauri::State;
 
@@ -19,6 +19,7 @@ pub fn accept_host_key(
     auth_method: Option<String>,
     credential_ref: Option<CredentialRef>,
 ) -> IpcResult<String> {
+    prune_expired_pending_host_key_sessions(&state);
     // Retrieve pending session info to build the request
     let (host, port, username) = {
         let pending = state.pending_host_key_sessions.lock();

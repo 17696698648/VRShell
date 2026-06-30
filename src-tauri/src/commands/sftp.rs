@@ -79,6 +79,7 @@ pub fn sftp_delete(
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub fn sftp_upload(
     window: tauri::WebviewWindow,
     state: State<'_, BackendState>,
@@ -87,6 +88,7 @@ pub fn sftp_upload(
     data_base64: Option<String>,
     task_id: String,
     local_path: Option<String>,
+    options: Option<crate::ipc::dto::SftpTransferOptionsDto>,
 ) -> IpcResult<()> {
     let request = SftpTransferRequest {
         connection,
@@ -94,6 +96,7 @@ pub fn sftp_upload(
         task_id,
         data_base64,
         local_path,
+        options,
     };
     clear_cancelled_sftp_task(&state, &request.task_id)?;
     sftp_service::register_sftp_task(
@@ -106,16 +109,11 @@ pub fn sftp_upload(
     .map_err(crate::ipc::IpcError::from)?;
     std::thread::spawn(move || {
         let state = window.state::<BackendState>();
-        if let Err(error) = sftp_service::upload_file_with_progress(
-            Some(&window),
-            Some(&state),
-            Some(&request.task_id),
-            request.connection.into(),
-            request.remote_path,
-            request.data_base64,
-            request.local_path,
-        ) {
-            sftp_service::emit_sftp_failed(Some(&state), &window, &request.task_id, error.message);
+        let task_id = request.task_id.clone();
+        if let Err(error) =
+            sftp_service::upload_file_with_progress(Some(&window), Some(&state), request)
+        {
+            sftp_service::emit_sftp_failed(Some(&state), &window, &task_id, error.message);
         }
     });
     Ok(())
@@ -164,6 +162,7 @@ pub fn sftp_download(
         task_id,
         data_base64: None,
         local_path,
+        options: None,
     };
     clear_cancelled_sftp_task(&state, &request.task_id)?;
     sftp_service::register_sftp_task(

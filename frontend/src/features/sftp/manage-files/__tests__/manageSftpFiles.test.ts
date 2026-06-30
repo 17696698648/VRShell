@@ -1,4 +1,5 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
+import {open} from '@tauri-apps/plugin-dialog'
 import {openSessionEditorFile, sessionEditorState} from '../../../../entities/editor'
 import {sessionState, type SessionHost} from '../../../../entities/session'
 import {sftpState, type SftpItem} from '../../../../entities/sftp'
@@ -7,7 +8,7 @@ import {workspaceState} from '../../../../entities/workspace'
 import {clearToasts, feedbackState} from '../../../../shared/feedback'
 import {setIpcMock} from '../../../../shared/ipc/ipcClient'
 import {encodeTextBase64} from '../../../../shared/lib/base64'
-import {createRemoteDirectory, createTransferTask, deleteRemoteItem, openRemoteFileInSessionEditor, renameRemoteItem, saveRemoteEditorFile} from '../manageSftpFiles'
+import {createRemoteDirectory, createTransferTask, deleteRemoteItem, openRemoteFileInSessionEditor, renameRemoteItem, saveRemoteEditorFile, uploadFileToRemoteDirectory} from '../manageSftpFiles'
 
 vi.mock('@tauri-apps/plugin-dialog', () => ({
   open: vi.fn(),
@@ -115,6 +116,11 @@ describe('manageSftpFiles', () => {
   })
 
   it('saves dirty editor files back to the remote path', async () => {
+    let uploadArgs: unknown = null
+    setIpcMock(async (command, args) => {
+      if (command === 'sftp_upload') uploadArgs = args
+      return undefined
+    })
     openSessionEditorFile({
       id: `sftp:${activeSession.id}:${item.path}`,
       sessionId: activeSession.id,
@@ -128,6 +134,7 @@ describe('manageSftpFiles', () => {
 
     expect(taskItems[0]).toMatchObject({progress: 100, status: 'done'})
     expect(sessionEditorState.files[0]).toMatchObject({dirty: false, saving: false, error: undefined})
+    expect(uploadArgs).toMatchObject({options: {conflict: 'overwrite'}})
   })
 
   it('creates completed transfer tasks', async () => {
@@ -137,6 +144,23 @@ describe('manageSftpFiles', () => {
     expect(workspaceState.activeBottomDockPanel).toBe('tasks')
     expect(workspaceState.bottomPanelVisible).toBe(true)
     expect(feedbackState.toasts.at(-1)).toMatchObject({level: 'success', title: 'Download completed'})
+  })
+
+  it('passes upload conflict strategy to IPC', async () => {
+    vi.mocked(open).mockResolvedValueOnce('/tmp/app.env')
+    let uploadArgs: unknown = null
+    setIpcMock(async (command, args) => {
+      if (command === 'sftp_upload') uploadArgs = args
+      return undefined
+    })
+
+    await uploadFileToRemoteDirectory('/srv/app', {conflict: 'rename'})
+
+    expect(uploadArgs).toMatchObject({
+      remotePath: '/srv/app/app.env',
+      localPath: '/tmp/app.env',
+      options: {conflict: 'rename'},
+    })
   })
 
   it('marks transfer tasks failed when IPC fails', async () => {

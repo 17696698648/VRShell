@@ -3,6 +3,7 @@ pub(crate) mod devtools;
 pub(crate) mod security;
 pub(crate) mod session;
 pub(crate) mod sftp;
+pub(crate) mod task;
 pub(crate) mod terminal;
 
 pub(crate) fn handler() -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Send + Sync + 'static {
@@ -31,6 +32,8 @@ pub(crate) fn handler() -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Sen
         sftp::sftp_read_file,
         sftp::list_sftp_tasks,
         sftp::cancel_sftp_task,
+        task::list_background_tasks,
+        task::cancel_background_task,
         credential::keyring_store,
         credential::keyring_get,
         credential::keyring_delete,

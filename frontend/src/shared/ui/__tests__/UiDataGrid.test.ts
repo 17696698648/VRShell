@@ -23,4 +23,12 @@ describe('UiDataGrid contracts', () => {
     expect(source).toContain("role: 'gridcell'")
     expect(source).toContain("'aria-colindex': columnIndex + 1")
   })
+
+  it('keeps large datasets virtualized through UiVirtualList', () => {
+    expect(source).toContain('import UiVirtualList')
+    expect(source).toContain('<UiVirtualList v-else')
+    expect(source).toContain(':items="items"')
+    expect(source).toContain(':item-height="itemHeight"')
+    expect(source).toContain(':get-key="getKey"')
+  })
 })

@@ -69,22 +69,96 @@ impl BackendError {
 }
 
 fn scrub_sensitive_message(message: String) -> String {
-    message
-        .split_whitespace()
-        .map(|part| {
-            let lower = part.to_ascii_lowercase();
-            if lower.starts_with("password=")
-                || lower.starts_with("passphrase=")
-                || lower.starts_with("secret=")
-                || lower.starts_with("token=")
-            {
-                "[redacted]".to_string()
-            } else {
-                part.to_string()
+    let mut parts = Vec::new();
+    let mut skip_parts = 0;
+
+    for part in message.split_whitespace() {
+        if skip_parts > 0 {
+            skip_parts -= 1;
+            continue;
+        }
+
+        let lower = part.to_ascii_lowercase();
+        if lower == "authorization:" || lower == "authorization" {
+            skip_parts = 2;
+            parts.push(part.to_string());
+            continue;
+        }
+        parts.push(scrub_sensitive_part(part));
+    }
+
+    parts.join(" ")
+}
+
+fn scrub_sensitive_part(part: &str) -> String {
+    const SENSITIVE_KEYS: &[&str] = &[
+        "authorization",
+        "password",
+        "passphrase",
+        "secret",
+        "token",
+        "access_token",
+        "refresh_token",
+        "private_key",
+    ];
+
+    let mut scrubbed = part.to_string();
+    let lower = part.to_ascii_lowercase();
+    if lower == "bearer" || lower.starts_with("bearer ") {
+        return "[redacted]".to_string();
+    }
+
+    if is_sensitive_assignment(&lower) {
+        return "[redacted]".to_string();
+    }
+
+    for key in SENSITIVE_KEYS {
+        for separator in ["=", ":"] {
+            let pattern = format!("{key}{separator}");
+            let mut search_from = 0;
+            while let Some(offset) = scrubbed[search_from..].to_ascii_lowercase().find(&pattern) {
+                let start = search_from + offset;
+                let value_start = start + pattern.len();
+                scrubbed = redact_value(&scrubbed, value_start);
+                search_from = value_start + "[redacted]".len();
+                if search_from >= scrubbed.len() {
+                    break;
+                }
             }
-        })
-        .collect::<Vec<_>>()
-        .join(" ")
+        }
+    }
+
+    scrubbed
+}
+
+fn is_sensitive_assignment(lower: &str) -> bool {
+    [
+        "password=",
+        "password:",
+        "passphrase=",
+        "passphrase:",
+        "secret=",
+        "secret:",
+        "token=",
+        "token:",
+        "access_token=",
+        "access_token:",
+        "refresh_token=",
+        "refresh_token:",
+        "private_key=",
+        "private_key:",
+    ]
+    .iter()
+    .any(|pattern| lower.starts_with(pattern))
+}
+
+fn redact_value(part: &str, value_start: usize) -> String {
+    let value_end = part[value_start..]
+        .find(['&', ',', ';'])
+        .map(|offset| value_start + offset)
+        .unwrap_or(part.len());
+
+    format!("{}[redacted]{}", &part[..value_start], &part[value_end..])
 }
 
 impl fmt::Display for BackendError {
@@ -121,6 +195,25 @@ mod tests {
         let error = BackendError::credential("failed password=secret token=abc".to_string());
 
         assert_eq!(error.message, "failed [redacted] [redacted]");
+    }
+
+    #[test]
+    fn backend_error_scrubs_sensitive_query_values() {
+        let error = BackendError::network(
+            "request failed url=https://example.test?token=abc&host=srv&password=secret",
+        );
+
+        assert_eq!(
+            error.message,
+            "request failed url=https://example.test?token=[redacted]&host=srv&password=[redacted]"
+        );
+    }
+
+    #[test]
+    fn backend_error_scrubs_sensitive_header_values() {
+        let error = BackendError::authentication("Authorization: Bearer abc refresh_token=xyz");
+
+        assert_eq!(error.message, "Authorization: [redacted]");
     }
 
     #[test]

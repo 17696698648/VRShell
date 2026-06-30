@@ -8,6 +8,7 @@
         </div>
       </template>
       <template #trailing>
+        <button class="task-center__clear" type="button" @click="copyDiagnostics">Copy diagnostics</button>
         <button class="task-center__clear" type="button" :disabled="settledCount === 0" @click="clearSettledTasks">Clear completed</button>
       </template>
     </UiToolbar>
@@ -22,7 +23,10 @@
 </template>
 
 <script setup lang="ts">
-import {clearSettledTasks} from '../../../entities/task'
+import {sessionState} from '../../../entities/session'
+import {clearSettledTasks, taskItems} from '../../../entities/task'
+import {notifyFeedback} from '../../../shared/feedback'
+import {exportDiagnosticBundle} from '../../../shared/diagnostics'
 import {UiPanel, UiToolbar} from '../../../shared/ui'
 import {useTaskCenter} from '../model/useTaskCenter'
 import {useTaskCenterSummary} from '../model/useTaskCenterSummary'
@@ -31,4 +35,9 @@ import TaskList from './TaskList.vue'
 defineProps<{compact?: boolean}>()
 const {tasks} = useTaskCenter()
 const {settledCount, summaryLabel} = useTaskCenterSummary(tasks)
+
+async function copyDiagnostics() {
+  await navigator.clipboard?.writeText(exportDiagnosticBundle({sessions: sessionState.sessions, tasks: taskItems}))
+  notifyFeedback({level: 'success', title: 'Copied diagnostics', detail: 'Diagnostic bundle copied to clipboard'})
+}
 </script>

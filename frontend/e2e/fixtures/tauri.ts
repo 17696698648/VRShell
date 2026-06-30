@@ -63,6 +63,14 @@ export async function installTauriMock(page: Page, sessionTree = emptySessionTre
           ])
         }
 
+        if (command === 'list_background_tasks') {
+          return Promise.resolve([
+            {taskId: 'sftp-upload-app', kind: 'sftp.upload', title: 'Upload app.tar.gz', detail: '/srv/releases/app.tar.gz', status: 'running', progress: {transferredBytes: 62, totalBytes: 100}, error: null, updatedAtMs: 3},
+            {taskId: 'sftp-download-log', kind: 'sftp.download', title: 'Download app.log', detail: '/var/log/app.log', status: 'failed', progress: {transferredBytes: 20, totalBytes: 100}, error: 'Connection reset by peer', updatedAtMs: 2},
+            {taskId: 'sftp-upload-env', kind: 'sftp.upload', title: 'Upload .env', detail: '/srv/app/.env', status: 'done', progress: {transferredBytes: 100, totalBytes: 100}, error: null, updatedAtMs: 1}
+          ])
+        }
+
         if (command === 'sftp_list') {
           return Promise.resolve([
             {name: 'logs', path: '/srv/logs', is_dir: true, size: 0, modified: Date.now()},
@@ -75,7 +83,7 @@ export async function installTauriMock(page: Page, sessionTree = emptySessionTre
           return Promise.resolve(btoa('KEY=value\n'))
         }
 
-        if (command === 'sftp_create_file' || command === 'sftp_mkdir' || command === 'sftp_rename' || command === 'sftp_delete' || command === 'sftp_upload' || command === 'sftp_upload_directory' || command === 'sftp_download') {
+        if (command === 'sftp_create_file' || command === 'sftp_mkdir' || command === 'sftp_rename' || command === 'sftp_delete' || command === 'sftp_upload' || command === 'sftp_upload_directory' || command === 'sftp_download' || command === 'cancel_background_task') {
           return Promise.resolve()
         }
 

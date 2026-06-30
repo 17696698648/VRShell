@@ -16,12 +16,15 @@ export interface TerminalEventProviderOptions {
   pollIntervalMs?: number
   setInterval?: typeof window.setInterval
   clearInterval?: typeof window.clearInterval
+  scheduleOutputFlush?: (callback: () => void) => number
+  cancelOutputFlush?: (handle: number) => void
 }
 
 export interface TerminalEventProvider {
   start: () => void
   stop: () => void
   pollOnce: () => Promise<void>
+  flushOutput: () => void
 }
 
 export function createTerminalEventProvider(options: TerminalEventProviderOptions = {}): TerminalEventProvider {
@@ -29,6 +32,7 @@ export function createTerminalEventProvider(options: TerminalEventProviderOption
   let pollTimer: ReturnType<typeof window.setInterval> | null = null
   let eventDisposer: EventDisposer | null = null
   let eventRegistration: Promise<EventDisposer> | null = null
+  const outputBatcher = createTerminalOutputBatcher(options)
 
   async function pollOnce() {
     await Promise.all(terminalState.tabs.map(pollTerminal))
@@ -37,7 +41,7 @@ export function createTerminalEventProvider(options: TerminalEventProviderOption
   function start() {
     if (eventDisposer || eventRegistration || pollTimer !== null) return
     if (isTauriRuntime()) {
-      eventRegistration = registerTerminalEvents().then((dispose) => {
+      eventRegistration = registerTerminalEvents(outputBatcher).then((dispose) => {
         eventDisposer = dispose
         eventRegistration = null
         return dispose
@@ -55,6 +59,7 @@ export function createTerminalEventProvider(options: TerminalEventProviderOption
       eventRegistration = null
     }
     stopPollingFallback()
+    outputBatcher.cancel()
   }
 
   function startPollingFallback() {
@@ -71,12 +76,12 @@ export function createTerminalEventProvider(options: TerminalEventProviderOption
     pollTimer = null
   }
 
-  return {pollOnce, start, stop}
+  return {flushOutput: outputBatcher.flush, pollOnce, start, stop}
 }
 
-async function registerTerminalEvents() {
+async function registerTerminalEvents(outputBatcher: TerminalOutputBatcher) {
   const disposers = await Promise.all([
-    listenTypedEvent('terminal-output', handleTerminalOutput),
+    listenTypedEvent('terminal-output', (event) => handleTerminalOutput(event, outputBatcher)),
     listenTypedEvent('terminal-closed', handleTerminalClosed),
     listenTypedEvent('terminal-error', handleTerminalError),
   ])
@@ -94,11 +99,67 @@ async function pollTerminal(tab: TerminalTab) {
   }
 }
 
-function handleTerminalOutput(event: TerminalOutputEvent) {
+function handleTerminalOutput(event: TerminalOutputEvent, outputBatcher: TerminalOutputBatcher) {
   const tab = findTerminalByBackendSessionId(event.sessionId)
   if (!tab) return
   const line = decodeEvent(event)
-  if (line) appendTerminalLines(tab.id, [line])
+  if (line) outputBatcher.enqueue(tab.id, line)
+}
+
+interface TerminalOutputBatcher {
+  enqueue: (tabId: string, line: string) => void
+  flush: () => void
+  cancel: () => void
+}
+
+export function createTerminalOutputBatcher(options: TerminalEventProviderOptions = {}): TerminalOutputBatcher {
+  const pendingLines = new Map<string, string[]>()
+  const scheduleFlush = options.scheduleOutputFlush ?? defaultScheduleOutputFlush
+  const cancelFlush = options.cancelOutputFlush ?? defaultCancelOutputFlush
+  let scheduledHandle: number | null = null
+
+  function enqueue(tabId: string, line: string) {
+    const lines = pendingLines.get(tabId) ?? []
+    lines.push(line)
+    pendingLines.set(tabId, lines)
+    schedule()
+  }
+
+  function schedule() {
+    if (scheduledHandle !== null) return
+    scheduledHandle = scheduleFlush(flush)
+  }
+
+  function flush() {
+    scheduledHandle = null
+    for (const [tabId, lines] of pendingLines) {
+      appendTerminalLines(tabId, lines)
+    }
+    pendingLines.clear()
+  }
+
+  function cancel() {
+    if (scheduledHandle !== null) cancelFlush(scheduledHandle)
+    scheduledHandle = null
+    pendingLines.clear()
+  }
+
+  return {cancel, enqueue, flush}
+}
+
+function defaultScheduleOutputFlush(callback: () => void) {
+  if (typeof window !== 'undefined' && 'requestAnimationFrame' in window) {
+    return window.requestAnimationFrame(callback)
+  }
+  return setTimeout(callback, 16) as unknown as number
+}
+
+function defaultCancelOutputFlush(handle: number) {
+  if (typeof window !== 'undefined' && 'cancelAnimationFrame' in window) {
+    window.cancelAnimationFrame(handle)
+    return
+  }
+  clearTimeout(handle)
 }
 
 function handleTerminalClosed(event: {sessionId: string}) {

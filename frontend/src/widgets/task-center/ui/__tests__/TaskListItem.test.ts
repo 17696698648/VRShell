@@ -20,4 +20,9 @@ describe('TaskListItem contract', () => {
     expect(source).toContain('messages.task.actions.retryUnavailable')
     expect(source).not.toContain('retryTask')
   })
+
+  it('surfaces trace ids with expanded task errors', () => {
+    expect(source).toContain('task.traceId')
+    expect(source).toContain('Trace ID:')
+  })
 })

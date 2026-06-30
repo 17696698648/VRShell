@@ -20,4 +20,11 @@ describe('TaskCenter contract', () => {
     expect(source).toContain("import {useTaskCenterSummary} from '../model/useTaskCenterSummary'")
     expect(source).toContain('const {settledCount, summaryLabel} = useTaskCenterSummary(tasks)')
   })
+
+  it('exposes a copy diagnostics action', () => {
+    expect(source).toContain('Copy diagnostics')
+    expect(source).toContain('exportDiagnosticBundle')
+    expect(source).toContain('navigator.clipboard?.writeText')
+    expect(source).toContain('Copied diagnostics')
+  })
 })

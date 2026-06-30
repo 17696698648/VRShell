@@ -15,7 +15,10 @@
       <button v-if="task.error" type="button" @click="copyError">{{ messages.task.actions.copyError }}</button>
       <button v-if="task.error" type="button" @click="openLogsPanel">{{ messages.task.actions.openLogs }}</button>
     </div>
-    <p v-if="task.error && errorExpanded" class="task-item__error">{{ task.error }}</p>
+    <p v-if="task.error && errorExpanded" class="task-item__error">
+      {{ task.error }}
+      <small v-if="task.traceId">Trace ID: {{ task.traceId }}</small>
+    </p>
   </article>
 </template>
 
@@ -33,7 +36,7 @@ const errorExpanded = ref(false)
 
 async function copyError() {
   if (!props.task.error) return
-  await navigator.clipboard?.writeText(props.task.error)
+  await navigator.clipboard?.writeText(props.task.traceId ? `${props.task.error}\nTrace ID: ${props.task.traceId}` : props.task.error)
   notifyFeedback({level: 'success', title: 'Copied task error', detail: props.task.title})
 }
 </script>

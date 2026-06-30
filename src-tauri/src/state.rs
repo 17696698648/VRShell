@@ -10,7 +10,10 @@ use std::path::PathBuf;
 use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
+    time::{Duration, SystemTime},
 };
+
+pub(crate) const PENDING_HOST_KEY_SESSION_TTL: Duration = Duration::from_secs(5 * 60);
 
 pub(crate) struct BackendState {
     pub paths: AppPaths,
@@ -20,6 +23,7 @@ pub(crate) struct BackendState {
     pub cancelled_sftp_tasks: Mutex<HashSet<String>>,
     pub sftp_tasks: Mutex<HashMap<String, SftpTaskSnapshot>>,
     pub sftp_sessions: Mutex<HashMap<SftpConnectionKey, Arc<SftpSessionRuntime>>>,
+    pub active_sftp_transfers: Mutex<SftpTransferCounters>,
     /// Pending SSH sessions waiting for host key acceptance
     /// Key: pending_id, Value: (host, port, username, ssh_session)
     pub pending_host_key_sessions: Mutex<HashMap<String, PendingHostKeySession>>,
@@ -33,8 +37,25 @@ pub(crate) struct PendingHostKeySession {
     pub session: ssh2::Session,
     pub fingerprint: String,
     pub key_type: String,
+    pub created_at: SystemTime,
     #[allow(dead_code)]
     pub raw_key: Vec<u8>,
+}
+
+impl PendingHostKeySession {
+    pub(crate) fn is_expired(&self, now: SystemTime) -> bool {
+        now.duration_since(self.created_at)
+            .map(|age| age > PENDING_HOST_KEY_SESSION_TTL)
+            .unwrap_or(true)
+    }
+}
+
+pub(crate) fn prune_expired_pending_host_key_sessions(state: &BackendState) -> usize {
+    let now = SystemTime::now();
+    let mut pending = state.pending_host_key_sessions.lock();
+    let before = pending.len();
+    pending.retain(|_, session| !session.is_expired(now));
+    before - pending.len()
 }
 
 impl BackendState {
@@ -58,21 +79,28 @@ impl BackendState {
             cancelled_sftp_tasks: Mutex::new(HashSet::new()),
             sftp_tasks: Mutex::new(sftp_tasks),
             sftp_sessions: Mutex::new(HashMap::new()),
+            active_sftp_transfers: Mutex::new(SftpTransferCounters::default()),
             pending_host_key_sessions: Mutex::new(HashMap::new()),
         }
     }
 }
 
+#[derive(Default)]
+pub(crate) struct SftpTransferCounters {
+    pub total: usize,
+    pub by_connection: HashMap<SftpConnectionKey, usize>,
+}
+
 #[cfg(test)]
 mod tests {
-    use super::BackendState;
+    use super::{BackendState, PENDING_HOST_KEY_SESSION_TTL};
     use crate::{
         domain::sftp::{SftpTaskSnapshot, SftpTaskStatus},
         infrastructure::file_store::FileStore,
     };
     use std::{
         fs,
-        time::{SystemTime, UNIX_EPOCH},
+        time::{Duration, SystemTime, UNIX_EPOCH},
     };
 
     #[test]
@@ -89,6 +117,7 @@ mod tests {
                 transferred_bytes: 50,
                 total_bytes: Some(100),
                 error: None,
+                trace_id: Some("task:task".to_string()),
                 updated_at_ms: 42,
                 started_at_ms: Some(0),
             }])
@@ -100,6 +129,11 @@ mod tests {
         assert_eq!(tasks.len(), 1);
         assert_eq!(tasks.get("task").expect("task").detail, "/srv/app.log");
         let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn pending_host_key_session_ttl_is_five_minutes() {
+        assert_eq!(PENDING_HOST_KEY_SESSION_TTL, Duration::from_secs(300));
     }
 
     fn temp_dir() -> std::path::PathBuf {

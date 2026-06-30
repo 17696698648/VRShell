@@ -1,11 +1,11 @@
 /**
  * IPC Facade - 语义化 API 层
- * 
+ *
  * 职责：
  * - 提供领域语义 API（session/terminal/sftp/credential）
  * - 隐藏底层 Tauri command 名称
  * - 作为 repository 与 typedInvoke 之间的适配层
- * 
+ *
  * 约束：
  * - 业务代码（features/widgets/pages/shell）只调用 facade，不直接调用 typedInvoke
  * - Repository 只调用 facade，不出现旧式 command name
@@ -15,6 +15,7 @@ import {typedInvoke} from './ipcClient'
 import type {
   BackendSessionGroup,
   BackendSessionHost,
+  BackgroundTaskSnapshot,
   ConnectSshArgs,
   CredentialRef,
   SessionTreeActionPayload,
@@ -31,6 +32,7 @@ import type {
 export type {
   BackendSessionGroup,
   BackendSessionHost,
+  BackgroundTaskSnapshot,
   ConnectSshArgs,
   CredentialRef,
   SessionTreeActionName,
@@ -229,17 +231,17 @@ export const securityApi = {
 
 // ==================== Task API ====================
 
-export type TaskSnapshot = SftpTaskSnapshot
+export type TaskSnapshot = BackgroundTaskSnapshot
 
 export const taskApi = {
   /** 列出所有后台任务（当前聚合 SFTP 任务） */
   list(): Promise<TaskSnapshot[]> {
-    return sftpTaskApi.list()
+    return typedInvoke('list_background_tasks')
   },
 
   /** 取消后台任务 */
   cancel(taskId: string): Promise<void> {
-    return sftpTaskApi.cancel(taskId)
+    return typedInvoke('cancel_background_task', {taskId})
   },
 
   /** 任务重试尚未由后端提供 */

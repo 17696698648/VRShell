@@ -98,32 +98,40 @@ export const backendCommandRecords = [
     "index": 23
   },
   {
-    "name": "keyring_store",
+    "name": "list_background_tasks",
     "index": 24
   },
   {
-    "name": "keyring_get",
+    "name": "cancel_background_task",
     "index": 25
   },
   {
-    "name": "keyring_delete",
+    "name": "keyring_store",
     "index": 26
   },
   {
-    "name": "accept_host_key",
+    "name": "keyring_get",
     "index": 27
   },
   {
-    "name": "reject_host_key",
+    "name": "keyring_delete",
     "index": 28
   },
   {
-    "name": "known_hosts_path",
+    "name": "accept_host_key",
     "index": 29
   },
   {
-    "name": "open_known_hosts",
+    "name": "reject_host_key",
     "index": 30
+  },
+  {
+    "name": "known_hosts_path",
+    "index": 31
+  },
+  {
+    "name": "open_known_hosts",
+    "index": 32
   }
 ] as const
 
@@ -152,6 +160,8 @@ export const backendCommandNames = [
   "sftp_read_file",
   "list_sftp_tasks",
   "cancel_sftp_task",
+  "list_background_tasks",
+  "cancel_background_task",
   "keyring_store",
   "keyring_get",
   "keyring_delete",

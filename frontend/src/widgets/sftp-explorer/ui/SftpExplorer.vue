@@ -60,6 +60,7 @@ import {computed, ref, watch} from 'vue'
 import {createRemoteDirectory, createRemoteFile, uploadFileToRemoteDirectory, uploadFolderToRemoteDirectory} from '../../../features/sftp/manage-files/manageSftpFiles'
 import {messages} from '../../../shared/copy'
 import {requestPrompt} from '../../../shared/dialog'
+import type {SftpTransferOptions} from '../../../shared/ipc/ipcFacade'
 import {EmptyState, UiButton, UiErrorState, UiWorkbenchPanel} from '../../../shared/ui'
 import {getSftpBodyState} from '../model/sftpBodyState'
 import {useSftpExplorer} from '../model/useSftpExplorer'
@@ -68,6 +69,8 @@ import SftpBreadcrumbs from './SftpBreadcrumbs.vue'
 import SftpDirectoryTree from './SftpDirectoryTree.vue'
 import SftpToolbar from './SftpToolbar.vue'
 import SftpFileList from './SftpFileList.vue'
+
+type SftpUploadConflictStrategy = NonNullable<SftpTransferOptions['conflict']>
 
 defineProps<{ compact?: boolean }>()
 const {sftpState, activeSession, hasConnectedTerminal, refresh} = useSftpExplorer()
@@ -115,8 +118,8 @@ async function handleNewFile() {
   await refresh()
 }
 
-async function handleUpload() {
-  const item = await uploadFileToRemoteDirectory(sftpState.path)
+async function handleUpload(conflict: SftpUploadConflictStrategy) {
+  const item = await uploadFileToRemoteDirectory(sftpState.path, {conflict})
   if (item) await refresh()
 }
 

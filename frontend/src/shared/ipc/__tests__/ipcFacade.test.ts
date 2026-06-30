@@ -12,6 +12,7 @@ beforeEach(() => {
     if (command === 'parse_ssh_config') return []
     if (command === 'connect_ssh') return 'mock-session-id'
     if (command === 'list_sftp_tasks') return []
+    if (command === 'list_background_tasks') return []
     return undefined
   })
 })
@@ -114,14 +115,14 @@ describe('sftpTaskApi', () => {
 })
 
 describe('taskApi', () => {
-  it('list aggregates SFTP tasks', async () => {
+  it('list maps to list_background_tasks', async () => {
     await taskApi.list()
-    expect(invokeLog[0].command).toBe('list_sftp_tasks')
+    expect(invokeLog[0].command).toBe('list_background_tasks')
   })
 
-  it('cancel delegates to SFTP task cancellation', async () => {
+  it('cancel maps to cancel_background_task', async () => {
     await taskApi.cancel('task-1')
-    expect(invokeLog[0].command).toBe('cancel_sftp_task')
+    expect(invokeLog[0].command).toBe('cancel_background_task')
     expect(invokeLog[0].args).toEqual({taskId: 'task-1'})
   })
 
