@@ -65,7 +65,9 @@ test.describe('smoke', () => {
     await expect(page.getByRole('menu')).toBeHidden()
 
     await page.getByLabel('Upload to current directory').click({force: true})
-    await expect(page.getByRole('menuitem', {name: 'Upload file'})).toBeVisible()
+    await expect(page.getByRole('menuitem', {name: 'Upload file · overwrite'})).toBeVisible()
+    await expect(page.getByRole('menuitem', {name: 'Upload file · skip existing'})).toBeVisible()
+    await expect(page.getByRole('menuitem', {name: 'Upload file · auto rename'})).toBeVisible()
     await expect(page.getByRole('menuitem', {name: 'Upload folder'})).toBeVisible()
   })
 
