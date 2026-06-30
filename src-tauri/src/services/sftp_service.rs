@@ -334,15 +334,46 @@ pub(crate) fn delete(
         };
 
         if is_directory {
-            sftp.rmdir(Path::new(&remote_path)).map_err(|error| {
-                BackendError::sftp(format!("failed to delete remote directory: {error}"))
-            })
+            delete_remote_directory_recursive(sftp, Path::new(&remote_path))
         } else {
-            sftp.unlink(Path::new(&remote_path)).map_err(|error| {
-                BackendError::sftp(format!("failed to delete remote file: {error}"))
-            })
+            delete_remote_file(sftp, Path::new(&remote_path))
         }
     })
+}
+
+fn delete_remote_directory_recursive(sftp: &ssh2::Sftp, remote_path: &Path) -> BackendResult<()> {
+    let entries = sftp.readdir(remote_path).map_err(|error| {
+        BackendError::sftp(format!(
+            "failed to list remote directory before deletion: {error}"
+        ))
+    })?;
+
+    for (entry_path, stat) in entries {
+        let Some(name) = entry_path.file_name().and_then(|name| name.to_str()) else {
+            continue;
+        };
+        if is_special_directory_entry(name) {
+            continue;
+        }
+
+        if stat.is_dir() {
+            delete_remote_directory_recursive(sftp, &entry_path)?;
+        } else {
+            delete_remote_file(sftp, &entry_path)?;
+        }
+    }
+
+    sftp.rmdir(remote_path)
+        .map_err(|error| BackendError::sftp(format!("failed to delete remote directory: {error}")))
+}
+
+fn delete_remote_file(sftp: &ssh2::Sftp, remote_path: &Path) -> BackendResult<()> {
+    sftp.unlink(remote_path)
+        .map_err(|error| BackendError::sftp(format!("failed to delete remote file: {error}")))
+}
+
+fn is_special_directory_entry(name: &str) -> bool {
+    name == "." || name == ".."
 }
 
 pub(crate) fn upload_file_with_progress(
@@ -692,9 +723,9 @@ fn join_remote_path(parent_path: &str, name: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        is_sftp_session_idle_expired, renamed_remote_path, SftpTransferConflictStrategy,
-        SftpTransferOptions, SftpTransferPermit, MAX_ACTIVE_SFTP_TRANSFERS,
-        MAX_ACTIVE_SFTP_TRANSFERS_PER_CONNECTION, SFTP_SESSION_IDLE_TTL,
+        is_sftp_session_idle_expired, is_special_directory_entry, renamed_remote_path,
+        SftpTransferConflictStrategy, SftpTransferOptions, SftpTransferPermit,
+        MAX_ACTIVE_SFTP_TRANSFERS, MAX_ACTIVE_SFTP_TRANSFERS_PER_CONNECTION, SFTP_SESSION_IDLE_TTL,
     };
     use crate::ipc::dto::{SftpTransferConflictStrategyDto, SftpTransferOptionsDto};
     use crate::{domain::sftp::SftpConnectionRequest, state::BackendState};
@@ -702,6 +733,13 @@ mod tests {
         fs,
         time::{Duration, Instant, SystemTime, UNIX_EPOCH},
     };
+
+    #[test]
+    fn recursive_delete_skips_special_directory_entries() {
+        assert!(is_special_directory_entry("."));
+        assert!(is_special_directory_entry(".."));
+        assert!(!is_special_directory_entry("nested"));
+    }
 
     #[test]
     fn sftp_session_idle_ttl_is_ten_minutes() {
