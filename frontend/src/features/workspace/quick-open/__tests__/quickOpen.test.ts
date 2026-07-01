@@ -4,7 +4,7 @@ import {terminalState, type TerminalTab} from '../../../../entities/terminal'
 import {workspaceState} from '../../../../entities/workspace'
 import {activateQuickOpenItem, closeQuickOpen, getQuickOpenItems, openQuickOpen} from '../quickOpen'
 
-const session: SessionHost = {id: 'quick-session', name: 'Quick Session', host: 'example.com', port: 22, username: 'deploy', protocol: 'ssh', groupId: 'all', tags: [], status: 'connected'}
+const session: SessionHost = {id: 'quick-session', name: 'Quick Session', host: 'example.com', port: 22, username: 'deploy', protocol: 'ssh', groupId: 'all', tags: ['favorite', 'api'], status: 'connected'}
 const terminal: TerminalTab = {id: 'quick-terminal', sessionId: session.id, backendSessionId: 'backend-quick-terminal', title: 'Quick Terminal', status: 'connected', cwd: '/', lines: []}
 const defaultSessions = JSON.parse(JSON.stringify(sessionState.sessions)) as typeof sessionState.sessions
 const defaultActiveSessionId = sessionState.activeSessionId
@@ -40,6 +40,7 @@ describe('quickOpen', () => {
 
     expect(items.some((item) => item.kind === 'terminal')).toBe(true)
     expect(items.some((item) => item.kind === 'session')).toBe(true)
+    expect(items.find((item) => item.kind === 'session')?.detail).toBe('favorite · deploy@example.com:22 · #api')
   })
 
   it('activates terminal items', () => {

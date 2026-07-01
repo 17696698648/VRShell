@@ -76,6 +76,7 @@ pub(crate) struct SftpTaskSnapshot {
     pub transferred_bytes: u64,
     pub total_bytes: Option<u64>,
     pub error: Option<String>,
+    pub trace_id: Option<String>,
     pub updated_at_ms: u128,
     pub started_at_ms: Option<u128>,
 }

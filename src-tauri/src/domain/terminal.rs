@@ -47,7 +47,7 @@ pub(crate) struct TerminalSession {
 }
 
 #[allow(dead_code)]
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) enum TerminalStatus {
     Connecting,

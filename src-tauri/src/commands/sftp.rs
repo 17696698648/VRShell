@@ -58,8 +58,8 @@ pub fn sftp_rename(
 }
 
 #[tauri::command]
-pub fn sftp_delete(
-    state: State<'_, BackendState>,
+pub async fn sftp_delete(
+    window: tauri::WebviewWindow,
     connection: SftpConnectionDto,
     remote_path: String,
     is_directory: Option<bool>,
@@ -69,16 +69,26 @@ pub fn sftp_delete(
         remote_path,
         is_directory,
     };
-    sftp_service::delete(
-        Some(&state),
-        request.connection.into(),
-        request.remote_path,
-        request.is_directory,
-    )
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = window.state::<BackendState>();
+        sftp_service::delete(
+            Some(&state),
+            request.connection.into(),
+            request.remote_path,
+            request.is_directory,
+        )
+    })
+    .await
+    .map_err(|error| crate::ipc::IpcError {
+        code: "sftpError".to_string(),
+        message: format!("failed to join SFTP delete task: {error}"),
+        recoverable: true,
+    })?
     .map_err(Into::into)
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub fn sftp_upload(
     window: tauri::WebviewWindow,
     state: State<'_, BackendState>,
@@ -87,6 +97,7 @@ pub fn sftp_upload(
     data_base64: Option<String>,
     task_id: String,
     local_path: Option<String>,
+    options: Option<crate::ipc::dto::SftpTransferOptionsDto>,
 ) -> IpcResult<()> {
     let request = SftpTransferRequest {
         connection,
@@ -94,6 +105,7 @@ pub fn sftp_upload(
         task_id,
         data_base64,
         local_path,
+        options,
     };
     clear_cancelled_sftp_task(&state, &request.task_id)?;
     sftp_service::register_sftp_task(
@@ -106,16 +118,11 @@ pub fn sftp_upload(
     .map_err(crate::ipc::IpcError::from)?;
     std::thread::spawn(move || {
         let state = window.state::<BackendState>();
-        if let Err(error) = sftp_service::upload_file_with_progress(
-            Some(&window),
-            Some(&state),
-            Some(&request.task_id),
-            request.connection.into(),
-            request.remote_path,
-            request.data_base64,
-            request.local_path,
-        ) {
-            sftp_service::emit_sftp_failed(Some(&state), &window, &request.task_id, error.message);
+        let task_id = request.task_id.clone();
+        if let Err(error) =
+            sftp_service::upload_file_with_progress(Some(&window), Some(&state), request)
+        {
+            sftp_service::emit_sftp_failed(Some(&state), &window, &task_id, error.message);
         }
     });
     Ok(())
@@ -164,6 +171,7 @@ pub fn sftp_download(
         task_id,
         data_base64: None,
         local_path,
+        options: None,
     };
     clear_cancelled_sftp_task(&state, &request.task_id)?;
     sftp_service::register_sftp_task(

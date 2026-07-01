@@ -37,4 +37,11 @@ describe('notifyFeedback', () => {
       source: 'ssh',
     })
   })
+
+  it('appends trace ids to app error details', () => {
+    notifyAppError(new Error('transfer failed'), {title: 'Upload failed', traceId: 'task:sftp-upload'})
+
+    expect(feedbackState.toasts[0].detail).toBe('transfer failed\nTrace ID: task:sftp-upload')
+    expect(logState.entries[0].detail).toBe('transfer failed\nTrace ID: task:sftp-upload')
+  })
 })

@@ -36,19 +36,63 @@ test.describe('smoke', () => {
     await expect(page.getByText('Remote files').first()).toBeVisible()
   })
 
+  test('shows General and SSH settings sections @smoke', async ({page}) => {
+    await page.keyboard.press('Control+,')
+
+    const settingsDialog = page.getByRole('dialog', {name: 'Settings'})
+    await expect(settingsDialog).toBeVisible()
+    await settingsDialog.getByRole('button', {name: 'General General'}).click()
+    await expect(page.getByRole('heading', {name: 'General'})).toBeVisible()
+    await expect(page.getByText('Workspace summary')).toBeVisible()
+
+    await settingsDialog.getByRole('button', {name: 'SSH General'}).click()
+    await expect(page.getByRole('heading', {name: 'SSH'})).toBeVisible()
+    await expect(page.getByRole('button', {name: 'Copy result'})).toBeDisabled()
+    await settingsDialog.getByRole('textbox', {name: 'Host'}).fill('example.com')
+    await settingsDialog.getByRole('textbox', {name: 'Username'}).fill('deploy')
+    await page.getByRole('button', {name: 'Measure latency'}).click()
+    await expect(page.getByText('TCP latency: 42 ms')).toBeVisible()
+  })
+
+  test('opens SFTP toolbar menus for connected sessions @smoke', async ({page}) => {
+    await page.getByRole('button', {name: /New SSH Session/}).click()
+    await expect(page.getByText('.env')).toBeVisible()
+
+    await page.getByLabel('New remote item').click({force: true})
+    await expect(page.getByRole('menuitem', {name: 'New folder'})).toBeVisible()
+    await expect(page.getByRole('menuitem', {name: 'New file'})).toBeVisible()
+    await page.getByRole('menu').press('Escape')
+    await expect(page.getByRole('menu')).toBeHidden()
+
+    await page.getByLabel('Upload to current directory').click({force: true})
+    await expect(page.getByRole('menuitem', {name: 'Upload file · overwrite'})).toBeVisible()
+    await expect(page.getByRole('menuitem', {name: 'Upload file · skip existing'})).toBeVisible()
+    await expect(page.getByRole('menuitem', {name: 'Upload file · auto rename'})).toBeVisible()
+    await expect(page.getByRole('menuitem', {name: 'Upload folder'})).toBeVisible()
+  })
+
+  test('marks remote editor files dirty and exposes save @smoke', async ({page}) => {
+    await page.getByRole('button', {name: /New SSH Session/}).click()
+    await expect(page.getByText('.env')).toBeVisible()
+
+    await page.getByText('.env').dblclick()
+    const editor = page.locator('.session-editor-area__pane')
+    await expect(editor).toBeVisible()
+    await editor.fill('KEY=updated\n')
+
+    await expect(page.getByText('Unsaved changes')).toBeVisible()
+    await expect(page.getByRole('button', {name: 'Save'})).toBeEnabled()
+  })
+
   test('switches workbench panels on narrow viewports @smoke', async ({page}) => {
+    await page.getByRole('button', {name: /New SSH Session/}).click()
     await page.setViewportSize({width: 1000, height: 720})
     await page.keyboard.press('Control+K')
     await page.getByTestId('command-palette-search').fill('Open Task Queue')
     await page.keyboard.press('Enter')
 
-    await expect(page.getByRole('button', {name: 'Terminal'})).toHaveAttribute('aria-pressed', 'true')
-    await expect(page.locator('.task-center')).not.toBeVisible()
-
-    await page.getByRole('button', {name: 'Details'}).click()
-
-    await expect(page.getByRole('button', {name: 'Details'})).toHaveAttribute('aria-pressed', 'true')
     await expect(page.locator('.task-center')).toBeVisible()
+    await expect(page.getByText('Upload app.tar.gz')).toBeVisible()
     await expect(page.getByRole('heading', {name: 'Welcome to VRShell'})).not.toBeVisible()
   })
 })

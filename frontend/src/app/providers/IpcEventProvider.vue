@@ -4,7 +4,7 @@
 import {onBeforeUnmount, onMounted} from 'vue'
 import {handleHostKeyRequested} from '../../features/session/connect-session/hostKeyEvents'
 import {registerSftpProgressEvents} from '../../features/sftp/progress-events/sftpProgressEvents'
-import {restoreSftpTasks} from '../../features/task/manage-task/manageTask'
+import {restoreBackgroundTasks} from '../../features/task/manage-task/manageTask'
 import {createTerminalEventProvider} from '../../features/terminal/events/terminalEventProvider'
 import {listenTypedEvent} from '../../shared/ipc/ipcEvents'
 
@@ -14,7 +14,7 @@ let disposeHostKeyListener: (() => void) | null = null
 
 onMounted(() => {
   terminalEventProvider.start()
-  void restoreSftpTasks()
+  void restoreBackgroundTasks()
   void registerSftpProgressEvents().then((dispose) => {
     disposeSftpProgressEvents = dispose
   })

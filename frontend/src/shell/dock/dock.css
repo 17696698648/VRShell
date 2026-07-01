@@ -1,4 +1,20 @@
+/* Dock Host */
 .dock-host {
+  --dock-surface: #101214;
+  --dock-toolbar-bg: #15181b;
+  --dock-control-bg: #202327;
+  --dock-control-active-bg: #30343a;
+  --dock-text: #b7bdc6;
+  --dock-text-strong: #d3d7dd;
+  --dock-muted: var(--jb-muted, #8d949e);
+  --dock-link: #6aa7ff;
+  --dock-caret-border: #87909c;
+  --dock-divider: rgba(160, 170, 185, 0.1);
+  --dock-row-divider: rgba(160, 170, 185, 0.08);
+  --dock-row-hover-bg: rgba(255, 255, 255, 0.055);
+  --dock-scrollbar-thumb: #4b535d;
+  --dock-scrollbar-thumb-hover: #69727d;
+  --dock-edge-highlight: rgba(255, 255, 255, 0.025);
   position: relative;
   display: grid;
   grid-template-rows: minmax(0, 1fr);
@@ -12,7 +28,7 @@
   border: 0;
   border-radius: var(--jb-radius, var(--radius));
   background: var(--jb-panel, var(--dock-panel-bg));
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.025);
+  box-shadow: 0 0 0 1px var(--dock-edge-highlight);
 }
 
 .dock-host--right {
@@ -20,6 +36,11 @@
   grid-template-rows: minmax(0, 1fr);
   border-left: 1px solid var(--tool-window-border);
   background: var(--color-bg-tool-window);
+}
+
+.dock-host--right .dock-host__content {
+  grid-column: 1;
+  grid-row: 1;
 }
 
 .dock-host__content {
@@ -31,7 +52,7 @@
 
 .dock-host--bottom .dock-host__content {
   grid-row: 1;
-  background: #101214;
+  background: var(--dock-surface);
 }
 
 .dock-host__panel,
@@ -42,14 +63,7 @@
   min-height: 0;
 }
 
-.terminal-console {
-  padding: 0;
-  overflow: hidden;
-  background: #101214;
-  color: #b7bdc6;
-  font: 12px/1.7 var(--font-mono);
-}
-
+/* Shared Panel Chrome */
 .dock-host .ui-workbench-panel,
 .dock-host .ui-panel,
 .dock-host .logs-panel,
@@ -68,26 +82,26 @@
 
 .dock-host .ui-workbench-panel__header,
 .dock-host .ui-panel__header,
-.dock-host .task-center > .ui-toolbar {
+.dock-host .task-center .ui-toolbar {
   min-height: 30px;
   padding: 0 12px;
   border: 0;
-  border-bottom: 1px solid rgba(160, 170, 185, 0.1);
-  background: #101214;
-  color: #b7bdc6;
+  border-bottom: 1px solid var(--dock-divider);
+  background: var(--dock-toolbar-bg);
+  color: var(--dock-text);
 }
 
 .dock-host .ui-workbench-panel__title strong,
 .dock-host .ui-panel__title strong,
 .dock-host .task-center__title strong {
-  color: #d3d7dd;
+  color: var(--dock-text-strong);
   font-size: 12px;
 }
 
 .dock-host .ui-workbench-panel__title small,
 .dock-host .ui-panel__title small,
 .dock-host .task-center__title small {
-  color: var(--jb-muted, #8d949e);
+  color: var(--dock-muted);
   font-size: 11px;
 }
 
@@ -98,6 +112,21 @@
   padding: 0;
 }
 
+.dock-host .logs-panel__list,
+.dock-host .ui-data-grid,
+.dock-host .logs-panel__output,
+.dock-host .task-center__list {
+  background: var(--dock-surface);
+}
+
+.dock-host .ui-data-grid__header {
+  min-height: 26px;
+  border-bottom-color: var(--dock-divider);
+  background: var(--dock-surface);
+  color: var(--dock-muted);
+}
+
+/* Logs Panel */
 .dock-host .logs-panel__filters,
 .dock-host .logs-panel__view-switch,
 .dock-host .logs-panel__level-filter,
@@ -108,105 +137,126 @@
 .dock-host .logs-panel__view-switch,
 .dock-host .logs-panel__level-filter,
 .dock-host .logs-panel__channel-filter {
-  background: #202327;
+  background: var(--dock-control-bg);
 }
 
 .dock-host .logs-panel__view-btn,
 .dock-host .logs-panel__level-btn,
-.dock-host .logs-panel__channel-btn,
+.dock-host .logs-panel__channel-btn {
+  min-height: 22px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--dock-text);
+  font-size: 11px;
+}
+
+.dock-host .logs-panel__view-btn.active,
+.dock-host .logs-panel__level-btn.active,
+.dock-host .logs-panel__channel-btn.active {
+  background: var(--dock-control-active-bg);
+  color: var(--dock-text-strong);
+  box-shadow: none;
+}
+
+.dock-host .logs-panel__entry {
+  min-height: 34px;
+  border-radius: 5px;
+  color: var(--dock-text);
+}
+
+.dock-host .logs-panel__entry:hover {
+  background: var(--dock-row-hover-bg);
+}
+
+/* Task Center */
+.dock-host .task-center .ui-toolbar {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
 .dock-host .task-center__clear {
   min-height: 22px;
   padding: 0 8px;
   border: 0;
   border-radius: 5px;
   background: transparent;
-  color: #b7bdc6;
+  color: var(--dock-text);
   font-size: 11px;
 }
 
-.dock-host .logs-panel__view-btn.active,
-.dock-host .logs-panel__level-btn.active,
-.dock-host .logs-panel__channel-btn.active,
 .dock-host .task-center__clear:hover:not(:disabled) {
-  background: #30343a;
-  color: #d3d7dd;
+  background: var(--dock-control-active-bg);
+  color: var(--dock-text-strong);
   box-shadow: none;
 }
 
-.dock-host .logs-panel__list,
-.dock-host .ui-data-grid,
-.dock-host .logs-panel__output,
-.dock-host .task-center__groups {
-  background: #101214;
+.dock-host .task-center__list {
+  min-height: 0;
+  padding: 0;
+  overflow: auto;
+  scrollbar-color: var(--dock-scrollbar-thumb) var(--dock-surface);
+  scrollbar-width: thin;
 }
 
-.dock-host .ui-data-grid__header {
-  min-height: 26px;
-  border-bottom-color: rgba(160, 170, 185, 0.1);
-  background: #101214;
-  color: var(--jb-muted, #8d949e);
+.dock-host .task-center__list::-webkit-scrollbar {
+  width: 10px;
 }
 
-.dock-host .logs-panel__entry {
-  min-height: 34px;
-  border-radius: 5px;
-  color: #b7bdc6;
+.dock-host .task-center__list::-webkit-scrollbar-thumb {
+  border: 2px solid var(--dock-surface);
+  border-radius: 999px;
+  background: var(--dock-scrollbar-thumb);
 }
 
-.dock-host .logs-panel__entry:hover,
-.dock-host .task-item:hover {
-  background: rgba(255, 255, 255, 0.055);
-}
-
-.dock-host .task-center {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-}
-
-.dock-host .task-center__groups {
-  grid-template-columns: repeat(3, minmax(180px, 1fr));
-  gap: var(--jb-gap, 3px);
-  padding: var(--jb-gap, 3px);
-  overflow: hidden;
+.dock-host .task-center__list::-webkit-scrollbar-thumb:hover {
+  background: var(--dock-scrollbar-thumb-hover);
 }
 
 .dock-host .task-list {
-  border-color: rgba(160, 170, 185, 0.12);
+  border: 0;
   background: transparent;
 }
 
 .dock-host .task-list__header {
-  min-height: 26px;
-  border-bottom-color: rgba(160, 170, 185, 0.1);
-  color: var(--jb-muted, #8d949e);
+  border-bottom-color: var(--dock-row-divider);
+  background: var(--dock-surface);
+  color: var(--dock-muted);
 }
 
 .dock-host .task-item {
-  min-height: 58px;
+  min-height: 34px;
   border: 0;
-  border-radius: 5px;
+  border-bottom: 1px solid var(--dock-row-divider);
+  border-radius: 0;
   background: transparent;
 }
 
+.dock-host .task-item:hover {
+  background: var(--dock-row-hover-bg);
+}
+
+/* Terminal Console */
+.terminal-console {
+  padding: 0;
+  overflow: hidden;
+  background: var(--dock-surface);
+  color: var(--dock-text);
+  font: 12px/1.7 var(--font-mono);
+}
+
 .terminal-console a {
-  color: #6aa7ff;
+  color: var(--dock-link);
 }
 
 .terminal-prompt {
-  color: #d3d7dd;
+  color: var(--dock-text-strong);
 }
 
 .terminal-caret {
   display: inline-block;
   width: 8px;
   height: 16px;
-  border: 1px solid #87909c;
+  border: 1px solid var(--dock-caret-border);
   vertical-align: -3px;
-}
-
-
-
-.dock-host--right .dock-host__content {
-  grid-column: 1;
-  grid-row: 1;
 }

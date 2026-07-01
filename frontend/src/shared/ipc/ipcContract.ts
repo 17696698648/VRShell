@@ -25,6 +25,8 @@ export type IpcCommandMap = {
   sftp_read_file: {args: {connection: SftpConnection; remotePath: string}; result: string}
   list_sftp_tasks: {args: undefined; result: SftpTaskSnapshot[]}
   cancel_sftp_task: {args: {taskId: string}; result: void}
+  list_background_tasks: {args: undefined; result: BackgroundTaskSnapshot[]}
+  cancel_background_task: {args: {taskId: string}; result: void}
   keyring_store: {args: {service: string; key: string; value: string}; result: void}
   keyring_get: {args: {service: string; key: string}; result: string | null}
   keyring_delete: {args: {service: string; key: string}; result: void}
@@ -57,6 +59,7 @@ export interface SftpConnection {
 }
 
 export interface SftpTransferOptions {
+  conflict?: 'overwrite' | 'skip' | 'rename'
   overwrite?: boolean
   resume?: boolean
 }
@@ -70,7 +73,24 @@ export interface SftpTaskSnapshot {
   transferredBytes: number
   totalBytes?: number | null
   error?: string | null
+  traceId?: string | null
   updatedAtMs: number
+}
+
+export interface BackgroundTaskSnapshot {
+  taskId: string
+  kind: string
+  title: string
+  detail: string
+  status: 'running' | 'done' | 'failed' | 'cancelled'
+  progress: {
+    transferredBytes: number
+    totalBytes?: number | null
+  }
+  error?: string | null
+  traceId?: string | null
+  updatedAtMs: number
+  startedAtMs?: number | null
 }
 
 export interface ConnectSshArgs {

@@ -17,6 +17,7 @@
   --jb-control: rgba(255, 255, 255, 0.035);
   --jb-radius: 9px;
   --jb-gap: 1px;
+  --workspace-context-width: min(560px, calc(100vw - 96px));
 }
 
 html,
@@ -72,22 +73,22 @@ body,
 
 .workspace-context {
   justify-self: center;
-  width: min(520px, 100%);
+  width: var(--workspace-context-width);
   min-width: 260px;
-  max-width: 520px;
-  height: 26px;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 7px;
+  max-width: 560px;
+  height: 25px;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  gap: 8px;
   align-items: center;
   justify-content: center;
-  padding: 0 8px;
-  border: 1px solid rgba(160, 170, 185, 0.22);
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.045);
-  color: var(--jb-muted);
+  padding: 0 8px 0 10px;
+  border: 1px solid rgba(204, 204, 204, 0.16);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(204, 204, 204, 0.78);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.035),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.16);
+    0 1px 0 rgba(0, 0, 0, 0.18);
   transition:
     background var(--duration-fast) var(--ease-standard),
     border-color var(--duration-fast) var(--ease-standard),
@@ -98,30 +99,44 @@ body,
 .workspace-context span {
   min-width: 0;
   overflow: hidden;
-  color: var(--jb-text);
+  color: rgba(204, 204, 204, 0.9);
   font-size: 12px;
   font-weight: 500;
+  letter-spacing: 0.01em;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .workspace-context svg {
-  color: var(--jb-text);
+  color: rgba(204, 204, 204, 0.72);
+  transition:
+    color var(--duration-fast) var(--ease-standard),
+    transform var(--duration-fast) var(--ease-standard);
 }
 
 .workspace-context:hover,
 .workspace-context:focus-visible,
 .workspace-context.is-open {
-  border-color: rgba(160, 170, 185, 0.36);
-  background: rgba(255, 255, 255, 0.075);
+  border-color: rgba(204, 204, 204, 0.26);
+  background: rgba(255, 255, 255, 0.105);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    0 0 0 1px rgba(87, 149, 247, 0.14);
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 0 0 1px rgba(255, 255, 255, 0.035),
+    0 1px 0 rgba(0, 0, 0, 0.2);
   color: var(--jb-text);
 }
 
+.workspace-context.is-open .workspace-context__chevron {
+  transform: rotate(180deg);
+}
+
+.workspace-context.is-open {
+  opacity: 0;
+  pointer-events: none;
+}
+
 .workspace-context:focus-visible {
-  outline: 1px solid color-mix(in srgb, var(--jb-blue) 62%, transparent);
+  outline: 1px solid #0078d4;
   outline-offset: 1px;
 }
 
@@ -133,9 +148,11 @@ body,
 
 .workspace-context kbd {
   margin-left: auto;
-  border: 0;
-  background: transparent;
-  color: var(--jb-muted);
+  padding: 1px 5px;
+  border: 1px solid rgba(204, 204, 204, 0.14);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.14);
+  color: rgba(204, 204, 204, 0.62);
   font-size: 11px;
   font-family: var(--font-ui);
 }

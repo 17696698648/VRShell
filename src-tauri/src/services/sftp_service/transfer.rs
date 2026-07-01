@@ -26,6 +26,7 @@ struct SftpProgressEventPayload {
     transferred_bytes: u64,
     total_bytes: Option<u64>,
     bytes_per_second: Option<u64>,
+    trace_id: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -39,6 +40,7 @@ struct SftpFailedEventPayload {
     total_bytes: Option<u64>,
     bytes_per_second: Option<u64>,
     error: String,
+    trace_id: String,
 }
 
 pub(super) enum UploadSource {
@@ -215,6 +217,7 @@ pub(super) fn emit_sftp_progress(
     let Some(task_id) = task_id else {
         return;
     };
+    let trace_id = sftp_task_trace_id(task_id);
     let snapshot = if let Some(state) = state {
         let _ = apply_sftp_task_transition(
             state,
@@ -229,6 +232,7 @@ pub(super) fn emit_sftp_progress(
     } else {
         None
     };
+    tracing::trace!(task_id, trace_id = %trace_id, transferred_bytes, total_bytes = ?total_bytes, "SFTP task progress recorded");
     let Some(window) = window else {
         return;
     };
@@ -248,6 +252,7 @@ pub(super) fn emit_sftp_completed(
     let Some(task_id) = task_id else {
         return;
     };
+    let trace_id = sftp_task_trace_id(task_id);
     let snapshot = if let Some(state) = state {
         let _ = apply_sftp_task_transition(
             state,
@@ -261,6 +266,7 @@ pub(super) fn emit_sftp_completed(
     } else {
         None
     };
+    tracing::info!(task_id, trace_id = %trace_id, transferred_bytes, total_bytes = ?total_bytes, "SFTP task completed");
     let Some(window) = window else {
         return;
     };
@@ -294,6 +300,9 @@ fn sftp_progress_payload(
         transferred_bytes,
         total_bytes,
         bytes_per_second,
+        trace_id: snapshot
+            .and_then(|task| task.trace_id.clone())
+            .unwrap_or_else(|| sftp_task_trace_id(task_id)),
     }
 }
 
@@ -304,6 +313,7 @@ pub(crate) fn emit_sftp_failed(
     error: impl Into<String>,
 ) {
     let error = error.into();
+    let trace_id = sftp_task_trace_id(task_id);
     let snapshot = if let Some(state) = state {
         let _ = apply_sftp_task_transition(
             state,
@@ -317,6 +327,7 @@ pub(crate) fn emit_sftp_failed(
     } else {
         None
     };
+    tracing::warn!(task_id, trace_id = %trace_id, error = %error, "SFTP task failed");
     window.emit_event(
         crate::ipc::events::SFTP_FAILED,
         SftpFailedEventPayload {
@@ -334,6 +345,29 @@ pub(crate) fn emit_sftp_failed(
             total_bytes: snapshot.as_ref().and_then(|task| task.total_bytes),
             bytes_per_second: None,
             error,
+            trace_id,
         },
     );
+}
+
+fn sftp_task_trace_id(task_id: &str) -> String {
+    format!("task:{task_id}")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{sftp_progress_payload, sftp_task_trace_id};
+
+    #[test]
+    fn sftp_progress_payload_includes_trace_id() {
+        let payload = sftp_progress_payload("upload-1", None, 10, Some(100));
+        let value = serde_json::to_value(payload).expect("serialize progress payload");
+
+        assert_eq!(value["traceId"], "task:upload-1");
+    }
+
+    #[test]
+    fn sftp_task_trace_id_is_stable_for_task_id() {
+        assert_eq!(sftp_task_trace_id("download-1"), "task:download-1");
+    }
 }

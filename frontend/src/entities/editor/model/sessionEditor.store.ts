@@ -6,6 +6,9 @@ export interface SessionEditorFile {
   path: string
   title: string
   content: string
+  dirty?: boolean
+  saving?: boolean
+  error?: string
 }
 
 export const sessionEditorState = reactive({
@@ -34,6 +37,19 @@ export function activateSessionEditorFile(sessionId: string, fileId: string) {
   if (sessionEditorState.files.some((file) => file.sessionId === sessionId && file.id === fileId)) {
     sessionEditorState.activeFileIdBySession[sessionId] = fileId
   }
+}
+
+export function updateSessionEditorFileContent(fileId: string, content: string) {
+  const file = sessionEditorState.files.find((item) => item.id === fileId)
+  if (!file) return
+  file.content = content
+  file.dirty = true
+  file.error = undefined
+}
+
+export function patchSessionEditorFile(fileId: string, patch: Partial<SessionEditorFile>) {
+  const file = sessionEditorState.files.find((item) => item.id === fileId)
+  if (file) Object.assign(file, patch)
 }
 
 export function closeSessionEditorFile(sessionId: string, fileId: string) {

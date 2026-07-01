@@ -2,11 +2,11 @@ import type {PanelBodyState} from '../../../shared/ui'
 
 export type SessionExplorerEmptyState = PanelBodyState<'search' | 'empty'>
 
-export function getSessionExplorerEmptyState(query: string): SessionExplorerEmptyState {
+export function getSessionExplorerEmptyState(query: string, favoriteOnly = false): SessionExplorerEmptyState {
   const trimmedQuery = query.trim()
-  if (trimmedQuery) {
+  if (trimmedQuery || favoriteOnly) {
     return {
-      description: `No sessions match “${trimmedQuery}”.`,
+      description: favoriteOnly && !trimmedQuery ? 'No favorite sessions yet.' : `No sessions match “${trimmedQuery}”.`,
       icon: '⌕',
       kind: 'search',
       title: 'No matching sessions',

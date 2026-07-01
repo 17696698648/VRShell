@@ -92,7 +92,8 @@ async function invokeMock(command: keyof IpcCommandMap, args: unknown) {
       {name: 'app.env', path: `${payload.path}/app.env`, is_dir: false, size: 2048, modified: Date.now()},
     ]
   }
-  if (command === 'list_sftp_tasks') return []
+  if (command === 'list_sftp_tasks' || command === 'list_background_tasks') return []
+  if (command === 'cancel_background_task') return undefined
   if (command === 'accept_host_key') return 'mock-session-id'
   if (command === 'reject_host_key') return undefined
   if (command === 'test_ssh_connection') {

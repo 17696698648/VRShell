@@ -5,7 +5,7 @@ describe('SftpExplorer body state contract', () => {
   it('routes error loading empty and disconnected states through one state model', () => {
     expect(source).toContain("import {getSftpBodyState} from '../model/sftpBodyState'")
     expect(source).toContain('const sftpBodyState = computed(() => getSftpBodyState({')
-    expect(source).toContain('activeSession: Boolean(activeSession.value)')
+    expect(source).toContain('activeSession: hasConnectedTerminal.value')
     expect(source).toContain('itemCount: sftpState.items.length')
   })
 

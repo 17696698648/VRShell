@@ -20,6 +20,7 @@ export interface AppErrorNotificationInput {
   detail?: string
   cooldownMs?: number
   timeoutMs?: number | null
+  traceId?: string
 }
 
 type FailureNotificationInput = AppErrorNotificationInput & {
@@ -27,6 +28,7 @@ type FailureNotificationInput = AppErrorNotificationInput & {
   path?: string
   taskId?: string
   terminalId?: string
+  traceId?: string
 }
 
 export function notifyFeedback(notification: FeedbackNotification) {
@@ -42,7 +44,7 @@ export function notifyAppError(error: unknown, input: AppErrorNotificationInput)
   return notifyFeedback({
     level: feedbackLevelForSeverity(appError.severity),
     title: input.title,
-    detail: input.detail ?? displayMessageForError(error, appError),
+    detail: withTraceId(input.detail ?? displayMessageForError(error, appError), input.traceId),
     dedupeKey: input.dedupeKey ?? `${appError.source}:${appError.code}:${input.action ?? input.title}`,
     cooldownMs: input.cooldownMs ?? 5000,
     recoverable: appError.recoverable,
@@ -76,7 +78,12 @@ export function notifyTaskFailure(input: FailureNotificationInput & {taskId: str
 
 function notifyFailure(input: FailureNotificationInput, dedupeKey: string) {
   if (input.error !== undefined) return notifyAppError(input.error, {...input, dedupeKey})
-  return notifyError({title: input.title, detail: input.detail, dedupeKey})
+  return notifyError({title: input.title, detail: withTraceId(input.detail, input.traceId), dedupeKey})
+}
+
+function withTraceId(detail: string | undefined, traceId: string | undefined) {
+  if (!traceId) return detail
+  return detail ? `${detail}\nTrace ID: ${traceId}` : `Trace ID: ${traceId}`
 }
 
 function feedbackLevelForSeverity(severity: AppErrorSeverity): FeedbackLevel {

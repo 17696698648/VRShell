@@ -43,6 +43,7 @@
   --session-tree-scrollbar-gutter: 10px;
 }
 
+.session-filter-toggle,
 .session-search-toggle {
   display: inline-grid;
   place-items: center;
@@ -56,6 +57,9 @@
   cursor: pointer;
 }
 
+.session-filter-toggle:hover,
+.session-filter-toggle:focus-visible,
+.session-filter-toggle.active,
 .session-search-toggle:hover,
 .session-search-toggle:focus-visible,
 .session-search-toggle.active {
@@ -205,7 +209,7 @@
 
 .session-group {
   position: relative;
-  min-height: 24px;
+  min-height: var(--session-tree-row-height);
   color: var(--color-text-muted);
   width: calc(100% - var(--session-tree-row-end-gap));
   border-radius: var(--session-tree-hover-radius);
@@ -220,7 +224,7 @@
   width: 100%;
   padding: 1px calc(var(--space-row-padding-x) + var(--session-tree-scrollbar-gutter)) 1px calc((var(--ui-tree-level, 1) - 1) * var(--session-tree-indent) + 6px);
   z-index: 0;
-  gap: 3px;
+  gap: 4px;
   align-items: center;
   border-radius: var(--session-tree-hover-radius);
   color: var(--color-text-muted);
@@ -353,7 +357,7 @@
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   min-width: 0;
   width: 100%;
 }
@@ -392,9 +396,9 @@
 .session-node {
   position: relative;
   display: grid;
-  grid-template-columns: var(--session-tree-icon-size) minmax(0, 1fr);
+  grid-template-columns: var(--session-tree-icon-size) minmax(0, 1fr) auto;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
   min-height: var(--session-tree-row-height);
   width: calc(100% - var(--session-tree-row-end-gap));
   padding: 1px calc(var(--space-row-padding-x) + var(--session-tree-scrollbar-gutter)) 1px calc((var(--ui-tree-level, 1) - 1) * var(--session-tree-indent) + 1px);
@@ -414,8 +418,8 @@
 .session-tree__status {
   align-self: center;
   justify-self: center;
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 999px;
   background: var(--color-text-muted);
   box-shadow: none;
@@ -455,6 +459,29 @@
   white-space: nowrap;
 }
 
+.session-node__favorite {
+  margin-right: 3px;
+  color: var(--color-warning-strong-text);
+}
+
+.session-node__tags {
+  display: inline-flex;
+  gap: 3px;
+  min-width: 0;
+}
+
+.session-node__tags small {
+  max-width: 56px;
+  overflow: hidden;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-bg-selected) 72%, transparent);
+  color: var(--color-text-muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .session-create-dialog {
   width: min(420px, calc(100vw - 32px));
 }
@@ -471,6 +498,25 @@
 .session-form__actions {
   display: flex;
   gap: 8px;
+}
+
+.session-form__favorite {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.session-form__favorite input {
+  accent-color: var(--color-accent);
+}
+
+.session-form__hint {
+  margin: -4px 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
 }
 
 .session-form__errors {

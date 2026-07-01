@@ -2,6 +2,10 @@
   <UiWorkbenchPanel compact class="explorer-panel session-explorer" title="Sessions" subtitle="SSH inventory">
     <template #actions>
       <SessionToolbar :form-open="formOpen" @create="openCreateDialog()" @create-group="handleCreateGroup"/>
+      <button :class="['session-filter-toggle', {active: favoriteOnly}]" type="button"
+              aria-label="Show favorite sessions" :aria-pressed="favoriteOnly" @click="favoriteOnly = !favoriteOnly">
+        ★
+      </button>
       <button :class="['session-search-toggle', {active: searchOpen || query}]" type="button"
               aria-label="Toggle session search" @click="searchOpen = !searchOpen">
         <Search :size="14" aria-hidden="true"/>
@@ -12,7 +16,7 @@
       <section v-if="searchOpen || query" class="explorer-utility session-search-bar">
         <label class="session-search-field">
           <Search :size="14" aria-hidden="true"/>
-          <input :value="query" aria-label="Search sessions" placeholder="Search sessions"
+          <input :value="query" aria-label="Search sessions" placeholder="Search sessions, hosts, or #tags"
                  @input="query = ($event.target as HTMLInputElement).value"/>
           <span class="session-search-field__count">{{ filteredSessions.length }}</span>
           <button v-if="query" type="button" aria-label="Clear session search" @click="query = ''">
@@ -24,7 +28,7 @@
         <EmptyState v-if="showEmptyState" compact class="explorer-empty-state" :icon="emptyState.icon"
                     :title="emptyState.title" :description="emptyState.description">
           <template #actions>
-            <UiButton v-if="emptyState.kind === 'search'" size="sm" variant="ghost" @click="query = ''">Clear search
+            <UiButton v-if="emptyState.kind === 'search'" size="sm" variant="ghost" @click="clearFilters">Clear filters
             </UiButton>
             <template v-else>
               <UiButton size="sm" variant="primary" @click="openCreateDialog()">New session</UiButton>
@@ -32,7 +36,7 @@
             </template>
           </template>
         </EmptyState>
-        <SessionTree v-else :filtering="Boolean(query)" :groups="groups" :sessions="filteredSessions"
+        <SessionTree v-else :filtering="Boolean(query) || favoriteOnly" :groups="groups" :sessions="filteredSessions"
                      @create="openCreateDialog" @edit="editingSession = $event"/>
       </section>
       <section v-if="message" class="explorer-feedback" role="status">{{ message }}</section>
@@ -63,14 +67,14 @@ import SessionEditDialog from './SessionEditDialog.vue'
 import SessionToolbar from './SessionToolbar.vue'
 import SessionTree from './SessionTree.vue'
 
-const {query, filteredSessions, groups} = useSessionExplorer()
+const {query, favoriteOnly, filteredSessions, groups} = useSessionExplorer()
 const message = ref('')
 const searchOpen = ref(false)
 const formOpen = ref(false)
 const targetGroupId = ref('all')
 const editingSession = ref<SessionHost | null>(null)
 const showEmptyState = computed(() => filteredSessions.value.length === 0)
-const emptyState = computed(() => getSessionExplorerEmptyState(query.value))
+const emptyState = computed(() => getSessionExplorerEmptyState(query.value, favoriteOnly.value))
 let messageTimer: ReturnType<typeof window.setTimeout> | null = null
 
 watch(message, (value) => {
@@ -107,6 +111,11 @@ function openCreateDialog(group?: SessionGroup) {
 function closeCreateDialog() {
   formOpen.value = false
   targetGroupId.value = 'all'
+}
+
+function clearFilters() {
+  query.value = ''
+  favoriteOnly.value = false
 }
 
 async function handleCreateGroup() {

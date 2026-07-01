@@ -1,4 +1,5 @@
 import {setActiveSession} from '../../../entities/session'
+import {favoriteSessionTag} from '../../session/edit-session/sessionActions'
 import type {SessionHost} from '../../../entities/session'
 import {terminalState, type TerminalTab} from '../../../entities/terminal'
 import {activateWorkspaceTab, workspaceState} from '../../../entities/workspace'
@@ -18,8 +19,14 @@ export function closeQuickOpen() {
 export function getQuickOpenItems(sessions: SessionHost[], terminals: TerminalTab[]): QuickOpenItem[] {
   return [
     ...terminals.map((tab) => ({id: `terminal:${tab.id}`, kind: 'terminal' as const, label: tab.title, detail: `${tab.cwd} - ${tab.sessionId}`, status: tab.status, tab})),
-    ...sessions.map((session) => ({id: `session:${session.id}`, kind: 'session' as const, label: session.name, detail: `${session.username}@${session.host} - ${session.tags.join(', ') || 'untagged'}`, status: session.status, session})),
+    ...sessions.map((session) => ({id: `session:${session.id}`, kind: 'session' as const, label: session.name, detail: sessionDetail(session), status: session.status, session})),
   ]
+}
+
+function sessionDetail(session: SessionHost) {
+  const tags = session.tags.filter((tag) => tag !== favoriteSessionTag).map((tag) => `#${tag}`)
+  const favorite = session.tags.includes(favoriteSessionTag) ? 'favorite' : null
+  return [favorite, `${session.username}@${session.host}:${session.port}`, ...tags].filter(Boolean).join(' · ')
 }
 
 export function activateQuickOpenItem(item: QuickOpenItem) {

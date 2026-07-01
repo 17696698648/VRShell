@@ -145,6 +145,7 @@ pub(super) fn apply_sftp_task_transition(
             transferred_bytes: 0,
             total_bytes: None,
             error: None,
+            trace_id: Some(task_trace_id(task_id)),
             updated_at_ms: now_ms,
             started_at_ms: Some(now_ms),
         },
@@ -199,6 +200,14 @@ pub(super) fn apply_sftp_task_transition(
             )
         }
     };
+    tracing::debug!(
+        task_id,
+        trace_id = ?next.trace_id,
+        status = ?next.status,
+        transferred_bytes = next.transferred_bytes,
+        total_bytes = ?next.total_bytes,
+        "SFTP task state updated"
+    );
     tasks.insert(task_id.to_string(), next);
     drop(tasks);
     persist_sftp_tasks(state)
@@ -228,9 +237,17 @@ fn transition_existing_task(
         transferred_bytes,
         total_bytes,
         error,
+        trace_id: existing
+            .as_ref()
+            .and_then(|task| task.trace_id.clone())
+            .or_else(|| Some(task_trace_id(task_id))),
         updated_at_ms,
         started_at_ms: existing.and_then(|task| task.started_at_ms),
     }
+}
+
+fn task_trace_id(task_id: &str) -> String {
+    format!("task:{task_id}")
 }
 
 #[cfg(test)]
@@ -396,6 +413,7 @@ mod tests {
             transferred_bytes: 0,
             total_bytes: None,
             error: None,
+            trace_id: Some(task_trace_id(task_id)),
             updated_at_ms,
             started_at_ms: None,
         }

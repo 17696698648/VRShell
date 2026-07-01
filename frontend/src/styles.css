@@ -9,6 +9,7 @@
 /* Shell layout */
 @import './shell/styles/shell.css';
 @import './shell/styles/overlays.css';
+@import './shell/styles/quick-open.css';
 @import './shell/dock/dock.css';
 
 /* Widgets */

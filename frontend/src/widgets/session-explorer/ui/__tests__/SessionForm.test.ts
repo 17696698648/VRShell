@@ -8,11 +8,20 @@ describe('SessionForm contract', () => {
     expect(source).toContain('form.auth.type === \'password\'')
     expect(source).toContain('type="password"')
     expect(source).toContain('placeholder="Password"')
+    expect(source).toContain('OS keyring')
   })
 
   it('keeps private key fields available', () => {
     expect(source).toContain("{label: 'Private key', value: 'key'}")
     expect(source).toContain('placeholder="~/.ssh/id_ed25519"')
     expect(source).toContain('placeholder="Optional"')
+    expect(source).toContain('Private keys stay on disk')
+  })
+
+  it('exposes tags and favorite controls', () => {
+    expect(source).toContain('label="Tags"')
+    expect(source).toContain('Favorite session')
+    expect(source).toContain('normalizeTags')
+    expect(source).toContain('favoriteSessionTag')
   })
 })

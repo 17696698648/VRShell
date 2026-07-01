@@ -36,7 +36,7 @@
     <ContextMenuHost/>
     <DialogHost/>
     <HostKeyDialogHost/>
-    <ToastHost/>
+    <ToastHost :dock-visible="dockVisible"/>
   </div>
 </template>
 
@@ -57,7 +57,7 @@ import SidebarRight from './sidebar-right/SidebarRight.vue'
 import StatusBar from './status-bar/StatusBar.vue'
 import AppTitlebar from './titlebar/AppTitlebar.vue'
 
-defineProps<{dockVisible?: boolean}>()
+withDefaults(defineProps<{dockVisible?: boolean}>(), {dockVisible: false})
 
 const sidebarLeftRef = ref<HTMLElement | null>(null)
 const sidebarRightRef = ref<HTMLElement | null>(null)

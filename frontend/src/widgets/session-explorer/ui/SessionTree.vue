@@ -36,7 +36,7 @@
             <template #title>
               <span class="session-group__title">
                 <span class="session-group__icon" aria-hidden="true">
-                  <Folder :size="15"/>
+                  <Folder :size="14"/>
                 </span>
                 <strong>{{ node.group.name }}</strong>
               </span>
