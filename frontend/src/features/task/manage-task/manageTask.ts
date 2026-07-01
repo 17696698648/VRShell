@@ -3,7 +3,7 @@ import {messages} from '../../../shared/copy'
 import {getErrorMessage} from '../../../shared/error/getErrorMessage'
 import {notifyTaskFailure} from '../../../shared/feedback'
 import {taskApi, type BackgroundTaskSnapshot} from '../../../shared/ipc/ipcFacade'
-import {createTransferTask} from '../../sftp/manage-files/manageSftpFiles'
+import {createTransferTask, retrySftpOperation} from '../../sftp/manage-files/manageSftpFiles'
 
 export async function restoreBackgroundTasks() {
   const snapshots = await taskApi.list()
@@ -42,6 +42,10 @@ export async function cancelTask(task: TaskItem) {
 
 export async function retryTask(task: TaskItem) {
   if (task.status !== 'failed' && task.status !== 'cancelled') return null
+  if (task.kind === 'sftp' && task.retryContext) {
+    patchTask(task.id, {error: undefined})
+    return retrySftpOperation(task.retryContext)
+  }
   const kind = getTransferKind(task)
   if (!kind) return null
   patchTask(task.id, {error: undefined})

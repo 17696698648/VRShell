@@ -36,6 +36,14 @@ export function patchTerminal(tabId: string, patch: Partial<TerminalTab>) {
   if (tab) Object.assign(tab, patch)
 }
 
+export function hasTerminal(tabId: string) {
+  return terminalState.tabs.some((item) => item.id === tabId)
+}
+
+export function markTerminalDisconnecting(tabId: string) {
+  patchTerminal(tabId, {status: 'disconnecting'})
+}
+
 export function closeTerminal(tabId: string) {
   const index = terminalState.tabs.findIndex((tab) => tab.id === tabId)
   if (index >= 0) terminalState.tabs.splice(index, 1)

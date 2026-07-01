@@ -7,6 +7,7 @@
     <UiInput :model-value="tagText" label="Tags" placeholder="prod, api, bastion" @update:model-value="tagText = $event" />
     <label class="session-form__favorite"><input v-model="favorite" type="checkbox" /> Favorite session</label>
     <UiSelect :model-value="form.auth.type" label="Authentication" :options="authOptions" @update:model-value="setAuthType" />
+    <p class="session-form__hint">On first connection, verify the host-key fingerprint before trusting the server. If a saved host key changes, stop and confirm with your administrator.</p>
     <p v-if="form.auth.type === 'agent'" class="session-form__hint">Uses your local SSH agent. No secret is stored by VRShell.</p>
     <template v-if="form.auth.type === 'password'">
       <UiInput :model-value="form.auth.password ?? ''" label="Password" placeholder="Password" type="password" @update:model-value="form.auth.password = $event" />
@@ -33,6 +34,7 @@ import {UiButton, UiInput, UiSelect, type UiSelectOption} from '../../../shared/
 
 const props = withDefaults(
   defineProps<{
+    modelValue?: CreateSessionInput | null
     initialValue?: CreateSessionInput
     resetOnSubmit?: boolean
     submitLabel?: string
@@ -42,7 +44,7 @@ const props = withDefaults(
     submitLabel: 'Save',
   },
 )
-const emit = defineEmits<{submit: [input: CreateSessionInput]}>()
+const emit = defineEmits<{submit: [input: CreateSessionInput]; 'update:modelValue': [input: CreateSessionInput]}>()
 const errors = ref<string[]>([])
 const form = reactive<CreateSessionInput>(createInitialValue())
 const tagText = ref(tagsToText(form.tags ?? []))
@@ -57,6 +59,12 @@ watch(
   () => props.initialValue,
   () => resetForm(),
   {deep: true},
+)
+
+watch(
+  [form, tagText, favorite],
+  () => emit('update:modelValue', normalizeInput(form)),
+  {deep: true, immediate: true},
 )
 
 function submit() {

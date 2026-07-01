@@ -18,11 +18,19 @@ describe('TaskListItem contract', () => {
     expect(source).toContain('messages.task.actions.copyError')
     expect(source).toContain('messages.task.actions.openLogs')
     expect(source).toContain('messages.task.actions.retryUnavailable')
-    expect(source).not.toContain('retryTask')
+    expect(source).toContain('retryTask(task)')
+    expect(source).toContain('canRetry')
   })
 
   it('surfaces trace ids with expanded task errors', () => {
     expect(source).toContain('task.traceId')
     expect(source).toContain('Trace ID:')
+  })
+
+  it('uses shared buttons and live status semantics for keyboard users', () => {
+    expect(source).toContain('role="listitem"')
+    expect(source).toContain('aria-live="polite"')
+    expect(source).toContain('aria-expanded')
+    expect(source).toContain('UiButton')
   })
 })

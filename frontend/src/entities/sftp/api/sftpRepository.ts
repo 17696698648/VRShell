@@ -1,5 +1,6 @@
 import {sftpFileApi, sftpTaskApi, type SftpConnection, type SftpTaskSnapshot, type SftpTransferOptions} from '../../../shared/ipc/ipcFacade'
 import type {SessionHost} from '../../session'
+import {toSshConnection} from '../../session/api/sshConnection'
 import type {SftpItem} from '../model/sftp.types'
 
 export interface SftpListPage {
@@ -74,16 +75,7 @@ export function listSftpTasks(): Promise<SftpTaskSnapshot[]> {
 }
 
 function toConnection(session: SessionHost): SftpConnection {
-  return {
-    host: session.host,
-    port: session.port,
-    username: session.username,
-    password: session.auth?.type === 'password' ? session.auth.password : null,
-    privateKeyPath: session.auth?.type === 'key' ? session.auth.privateKeyPath : null,
-    passphrase: session.auth?.type === 'key' ? session.auth.passphrase : null,
-    authMethod: session.auth?.type,
-    credentialRef: session.auth?.type === 'password' ? session.auth.credentialRef : null,
-  }
+  return toSshConnection(session)
 }
 
 function formatEntrySize(size: string | number, sizeBytes?: number) {

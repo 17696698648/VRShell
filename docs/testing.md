@@ -62,6 +62,14 @@ npm.cmd run check
 
 The full check runs generated IPC validation, JSON/UTF-8 checks, the Tauri release security guard, frontend guard/lint/typecheck/tests, and Rust check/test/clippy.
 
+## CI Jobs
+
+- **Fast checks**: generated IPC, JSON/UTF-8, Tauri release guard, frontend architecture guard, and lint.
+- **Frontend test/build**: frontend audit, typecheck, unit tests, and production build on Windows plus Linux compatibility coverage.
+- **Rust check/test/clippy**: Rust formatting, check, tests, clippy, and audit.
+- **E2E smoke/security**: Playwright smoke and security suites run as focused jobs after frontend validation.
+- **Release-sensitive checks**: Tauri permission guardrails run after frontend, Rust, and security coverage before packaging smoke.
+
 ## Release Check
 
 ```powershell

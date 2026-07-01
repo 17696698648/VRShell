@@ -1,4 +1,4 @@
-import {describe, expect, it, vi, beforeEach} from 'vitest'
+import {describe, expect, it, beforeEach} from 'vitest'
 import {sessionApi, terminalApi, sftpFileApi, sftpTaskApi, taskApi, credentialApi, securityApi} from '../ipcFacade'
 import {setIpcMock} from '../ipcClient'
 
@@ -56,6 +56,7 @@ describe('terminalApi', () => {
     const sessionId = await terminalApi.open(request)
     expect(sessionId).toBe('mock-session-id')
     expect(invokeLog[0].command).toBe('connect_ssh')
+    expect(invokeLog[0].args).toEqual(request)
   })
 
   it('write maps to send_input', async () => {

@@ -3,6 +3,7 @@ import {sessionState} from '../../../../entities/session'
 import {clearTerminalBuffers, getTerminalBufferLines, initializeTerminalBuffer, terminalState, type TerminalTab} from '../../../../entities/terminal'
 import {clearToasts, feedbackState} from '../../../../shared/feedback'
 import {encodeTextBase64} from '../../../../shared/lib/base64'
+import {clearLogs, logState} from '../../../../shared/lib/logger'
 import {setIpcMock} from '../../../../shared/ipc/ipcClient'
 import {createTerminalEventProvider, createTerminalOutputBatcher, handleTerminalError} from '../terminalEventProvider'
 
@@ -24,6 +25,7 @@ describe('terminal event provider', () => {
   afterEach(() => {
     setIpcMock(null)
     clearToasts()
+    clearLogs()
     clearTerminalBuffers()
     sessionState.sessions.splice(0, sessionState.sessions.length, ...JSON.parse(JSON.stringify(defaultSessions)))
     sessionState.activeSessionId = ''
@@ -54,6 +56,7 @@ describe('terminal event provider', () => {
 
     expect(getTerminalBufferLines(terminal.id)).toEqual(['hello'])
     expect(terminalState.tabs[0].lines).toEqual([])
+    expect(logState.entries.at(-1)).toMatchObject({source: 'terminal', message: 'Polled 1 terminal output event(s)', detail: 'terminalId=event-terminal'})
   })
 
   it('accepts backend snake_case terminal output payloads', async () => {
@@ -91,6 +94,26 @@ describe('terminal event provider', () => {
     expect(feedbackState.toasts).toHaveLength(0)
   })
 
+  it('ignores polling output when the terminal closes before the response settles', async () => {
+    const resolvePoll = vi.fn<(events: unknown[]) => void>()
+    setIpcMock(async (command) => {
+      if (command === 'poll_events') {
+        return new Promise((resolve) => {
+          resolvePoll.mockImplementationOnce(resolve)
+        })
+      }
+      return undefined
+    })
+
+    const poll = createTerminalEventProvider().pollOnce()
+    await vi.waitUntil(() => resolvePoll.getMockImplementation() !== undefined)
+    terminalState.tabs.splice(0, terminalState.tabs.length)
+    resolvePoll([{type: 'output', dataBase64: encodeTextBase64('stale')}])
+    await poll
+
+    expect(getTerminalBufferLines(terminal.id)).toEqual([])
+  })
+
   it('reports connection lost errors even for the active terminal', () => {
     handleTerminalError({sessionId: terminal.backendSessionId, error: 'Terminal connection lost: keepalive failed: [Session(-7)] Unable to send window-change packet'})
 
@@ -113,6 +136,18 @@ describe('terminal event provider', () => {
     batcher.flush()
 
     expect(getTerminalBufferLines(terminal.id)).toEqual(['first', 'second'])
+    expect(logState.entries.at(-1)).toMatchObject({source: 'terminal', message: 'Flushed 2 terminal output line(s)'})
+  })
+
+  it('records safe lifecycle diagnostics without terminal output content', () => {
+    const provider = createTerminalEventProvider({setInterval: vi.fn(() => 1 as unknown as ReturnType<typeof window.setInterval>), clearInterval: vi.fn()})
+
+    provider.start()
+    provider.stop()
+
+    expect(logState.entries.map((entry) => entry.message)).toContain('Terminal events started in poll mode (180ms)')
+    expect(logState.entries.map((entry) => entry.message)).toContain('Terminal events stopped')
+    expect(JSON.stringify(logState.entries)).not.toContain('pending')
   })
 
   it('cancels pending terminal output batches', () => {

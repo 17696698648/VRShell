@@ -3,6 +3,8 @@ import {sessionState, setActiveSession, type SessionHost} from '../../../entitie
 import {activateSftpSessionState, clearSftpState, getSftpSessionState, persistActiveSftpState, sftpState, type SftpItem} from '../../../entities/sftp'
 import {listRemoteDirectoryPage} from '../../../entities/sftp/api/sftpRepository'
 import {terminalState} from '../../../entities/terminal'
+import {runSftpOperationTask} from '../../../features/sftp/manage-files/sftpOperationTasks'
+import {messages} from '../../../shared/copy'
 import {getErrorMessage} from '../../../shared/error/getErrorMessage'
 import {notifyFeedback} from '../../../shared/feedback'
 
@@ -43,10 +45,10 @@ export function useSftpExplorer() {
     const session = activeSession.value
     if (!session) return
     if (!isSessionReadyForSftp(session)) {
-      const message = 'Session is disconnected. Reconnect before loading SFTP directories.'
+      const message = messages.reconnect.sftpDisconnected
       applyDirectoryError(session.id, message)
       Object.assign(sftpState, {error: message, initialized: true, loading: false})
-      notifyFeedback({level: 'warning', title: 'Reconnect required for SFTP', detail: message, dedupeKey: `sftp:${session.id}:reconnect-required`})
+      notifyFeedback({level: 'warning', title: messages.reconnect.sftpReconnectTitle, detail: message, dedupeKey: `sftp:${session.id}:reconnect-required`})
       persistActiveSftpState()
       return
     }
@@ -60,7 +62,15 @@ export function useSftpExplorer() {
     sftpState.error = ''
     persistActiveSftpState()
     try {
-      const page = await listRemoteDirectoryPage(session, path, {offset: 0, limit: DIRECTORY_PAGE_SIZE})
+      const page = await runSftpOperationTask({
+        kind: 'refresh',
+        path,
+        title: 'Refresh remote directory',
+        failureTitle: 'Refresh remote directory failed',
+        retryContext: {sessionId: session.id, path},
+        run: () => listRemoteDirectoryPage(session, path, {offset: 0, limit: DIRECTORY_PAGE_SIZE}),
+      })
+      if (!page) return
       if (refreshVersions.get(session.id) !== version) return
       applyDirectoryState(session.id, path, page.items, page.nextCursor, false)
       if (activeSession.value?.id === session.id) syncActiveDirectoryState(session.id)

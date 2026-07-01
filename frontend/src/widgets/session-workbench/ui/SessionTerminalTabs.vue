@@ -33,6 +33,7 @@ import {closeTerminalTab} from '../../../features/terminal/close-terminal/closeT
 import {reconnectTerminalTab} from '../../../features/terminal/manage-connection/manageTerminalConnection'
 import {executeCommand} from '../../../shared/command'
 import {openContextMenu} from '../../../shared/context-menu'
+import {messages} from '../../../shared/copy'
 import {UiTabs, type UiTabItem} from '../../../shared/ui'
 import {useSessionWorkbench} from '../model/useSessionWorkbench'
 
@@ -47,9 +48,9 @@ const tabItems = computed<UiTabItem[]>(() =>
   currentSessionTerminals.value.map((tab, index) => ({
     closable: true,
     id: tab.id,
-    status: tab.status === 'failed' ? 'error' : tab.status,
+    status: tab.status === 'failed' ? 'error' : tab.status === 'disconnecting' ? 'connecting' : tab.status,
     title: customTitles.value.get(tab.id) ?? `terminal${index + 1}`,
-    tooltip: `${customTitles.value.get(tab.id) ?? `terminal${index + 1}`} \u00b7 ${tab.status}${tab.cwd ? ` \u00b7 ${tab.cwd}` : ''}`,
+    tooltip: getTabTooltip(tab, customTitles.value.get(tab.id) ?? `terminal${index + 1}`),
   })),
 )
 
@@ -92,7 +93,7 @@ function openTabMenu(id: string, event: MouseEvent) {
     x: event.clientX,
     y: event.clientY,
     items: [
-      {id: 'reconnect', label: 'Reconnect', run: () => reconnectTerminalTab(tab)},
+      {id: 'reconnect', label: messages.reconnect.action, run: () => reconnectTerminalTab(tab)},
       {id: 'new-terminal', label: 'New Terminal', run: () => openAdditionalTerminal()},
       {id: 'search', label: 'Search\tCtrl+F', run: async () => { terminalState.activeTerminalId = id; await executeCommand('terminal.search') }},
       {id: 'close', label: 'Close', run: () => closeTerminalTab(tab, {skipConfirm: true})},
@@ -100,5 +101,10 @@ function openTabMenu(id: string, event: MouseEvent) {
       {id: 'close-all', label: 'Close All', danger: true, run: () => { for (const item of [...currentSessionTerminals.value]) closeTerminalTab(item, {skipConfirm: true}) }},
     ],
   })
+}
+
+function getTabTooltip(tab: {title: string; status: string; cwd: string}, title: string) {
+  if (tab.status === 'failed' || tab.status === 'disconnected') return `${title} · ${messages.reconnect.terminalDisconnected(tab.title)}`
+  return `${title} · ${tab.status}${tab.cwd ? ` · ${tab.cwd}` : ''}`
 }
 </script>

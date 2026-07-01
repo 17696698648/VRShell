@@ -1,4 +1,5 @@
 ﻿import {logState} from '../lib/logger'
+import {sanitizeSensitiveText} from '../lib/sanitizeSensitiveText'
 
 export interface DiagnosticSessionInput {
   id: string
@@ -14,8 +15,10 @@ export interface DiagnosticSessionInput {
 
 export interface DiagnosticTaskInput {
   id: string
+  action?: string
   title: string
   detail: string
+  path?: string
   status: string
   progress: number
   traceId?: string
@@ -33,6 +36,12 @@ export interface DiagnosticBundle {
     userAgent: string
     tauri: boolean
   }
+  summary: {
+    sessionCount: number
+    taskCount: number
+    failedTaskCount: number
+    connectedSessionCount: number
+  }
   sessions: Array<{
     id: string
     name: string
@@ -46,8 +55,10 @@ export interface DiagnosticBundle {
   }>
   tasks: Array<{
     id: string
+    action?: string
     title: string
     detail: string
+    path?: string
     status: string
     progress: number
     traceId?: string
@@ -72,6 +83,12 @@ export function createDiagnosticBundle(input: DiagnosticBundleInput = {}): Diagn
       userAgent: sanitizeDiagnosticText(typeof navigator === 'undefined' ? 'unknown' : navigator.userAgent),
       tauri: typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window,
     },
+    summary: {
+      sessionCount: sessions.length,
+      taskCount: tasks.length,
+      failedTaskCount: tasks.filter((task) => task.status === 'failed').length,
+      connectedSessionCount: sessions.filter((session) => session.status === 'connected').length,
+    },
     sessions: sessions.map((session) => ({
       id: session.id,
       name: sanitizeDiagnosticText(session.name),
@@ -85,8 +102,10 @@ export function createDiagnosticBundle(input: DiagnosticBundleInput = {}): Diagn
     })),
     tasks: tasks.map((task) => ({
       id: task.id,
+      action: task.action,
       title: sanitizeDiagnosticText(task.title),
       detail: sanitizeDiagnosticText(task.detail),
+      path: task.path ? sanitizeDiagnosticText(task.path) : undefined,
       status: task.status,
       progress: task.progress,
       traceId: task.traceId,
@@ -107,8 +126,5 @@ export function exportDiagnosticBundle(input: DiagnosticBundleInput = {}) {
 }
 
 export function sanitizeDiagnosticText(value: string) {
-  return value
-    .replace(/(password|passphrase|secret|token|privateKey|private_key|access_token|refresh_token)(\s*[=:]\s*)[^\s,;&]+/gi, '$1$2[redacted]')
-    .replace(/(password|passphrase|secret|token|access_token|refresh_token)=([^\s,;&]+)/gi, '$1=[redacted]')
-    .replace(/(-----BEGIN [^-]+-----)[\s\S]*?(-----END [^-]+-----)/g, '$1[redacted]$2')
+  return sanitizeSensitiveText(value)
 }

@@ -22,17 +22,18 @@ pub(crate) struct ConnectTerminalRequest {
 
 impl From<ConnectSshRequest> for ConnectTerminalRequest {
     fn from(request: ConnectSshRequest) -> Self {
+        let connection = request.connection;
         Self {
-            host: request.host,
-            port: request.port,
-            username: request.username,
-            password: request.password,
-            private_key_path: request.private_key_path,
-            passphrase: request.passphrase,
-            auth_method: request.auth_method,
+            host: connection.host,
+            port: connection.port,
+            username: connection.username,
+            password: connection.password,
+            private_key_path: connection.private_key_path,
+            passphrase: connection.passphrase,
+            auth_method: connection.auth_method,
             auto_reconnect: request.auto_reconnect,
             idle_timeout_secs: request.idle_timeout_secs,
-            credential_ref: request.credential_ref,
+            credential_ref: connection.credential_ref,
         }
     }
 }

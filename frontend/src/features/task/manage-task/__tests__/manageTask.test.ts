@@ -80,4 +80,29 @@ describe('manageTask', () => {
     expect(taskItems.find((task) => task.id === 'task')?.error).toBeUndefined()
     expect(taskItems[0]).toMatchObject({id: retryTaskId, title: 'Download file', status: 'done'})
   })
+
+  it('retries failed SFTP operations from retry context', async () => {
+    addTask({
+      id: 'mkdir-task',
+      action: 'create-directory',
+      kind: 'sftp',
+      title: 'Create folder cache',
+      detail: '/srv/cache',
+      error: 'permission denied',
+      progress: 0,
+      retryContext: {kind: 'create-directory', name: 'cache', parentPath: '/srv'},
+      status: 'failed',
+    })
+    let mkdirPayload: unknown = null
+    setIpcMock(async (command, args) => {
+      if (command === 'sftp_mkdir') mkdirPayload = args
+      return undefined
+    })
+
+    await retryTask(taskItems[0])
+
+    expect(taskItems.find((task) => task.id === 'mkdir-task')?.error).toBeUndefined()
+    expect(mkdirPayload).toMatchObject({remotePath: '/srv/cache'})
+    expect(taskItems[0]).toMatchObject({action: 'create-directory', path: '/srv/cache', status: 'done'})
+  })
 })

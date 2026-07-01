@@ -58,7 +58,10 @@ describe('manageTerminalConnection', () => {
 
     await reconnectTerminalTab(tab)
 
-    expect(terminalState.tabs.find((item) => item.id === `term-${tab.sessionId}`)?.status).toBe('connected')
+    expect(tab.status).toBe('connected')
+    expect(tab.backendSessionId).toBe('mock-deploy-example.com')
+    expect(terminalState.tabs.filter((item) => item.sessionId === tab.sessionId)).toHaveLength(1)
+    expect(sessionState.sessions[0]).toMatchObject({status: 'connected', backendSessionId: 'mock-deploy-example.com'})
   })
 
   it('marks terminal failed when reconnect cannot establish a session', async () => {

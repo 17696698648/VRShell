@@ -44,6 +44,23 @@ describe('ipcErrors', () => {
     })
   })
 
+  it('maps authentication backend errors to ssh warning policy', () => {
+    const error = normalizeIpcError('connect_ssh', {
+      code: 'authenticationError',
+      kind: 'authentication',
+      message: 'ssh authentication failed',
+      recoverable: true,
+    })
+
+    expect(error).toMatchObject({
+      code: 'authenticationError',
+      displayMessage: 'ssh authentication failed',
+      recoverable: true,
+      severity: 'error',
+      source: 'ssh',
+    })
+  })
+
   it('infers sftp source from command when backend kind is missing', () => {
     const error = normalizeIpcError('sftp_list', {code: 'storageError', message: 'disk unavailable'})
 

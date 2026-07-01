@@ -33,9 +33,12 @@ export async function sendTerminalDataToTerminalTab(tab: TerminalTab, data: stri
 }
 
 async function sendTerminalDataNow(tab: TerminalTab, data: string) {
+  const latestTab = terminalState.tabs.find((item) => item.id === tab.id)
+  if (!latestTab || latestTab.backendSessionId !== tab.backendSessionId) return
   try {
-    await sendTerminalInputRepository(tab.backendSessionId, encodeTextBase64(data))
+    await sendTerminalInputRepository(latestTab.backendSessionId, encodeTextBase64(data))
   } catch (error) {
+    if (!terminalState.tabs.some((item) => item.id === tab.id && item.backendSessionId === latestTab.backendSessionId)) return
     patchTerminal(tab.id, {status: 'failed'})
     appendTerminalLines(tab.id, [`Input failed: ${getErrorMessage(error)}`])
     notifyTerminalFailure({action: 'send-input-failed', terminalId: tab.id, title: messages.terminal.failures.sendInput(tab.title), error})

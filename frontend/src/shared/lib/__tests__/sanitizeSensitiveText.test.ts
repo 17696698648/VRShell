@@ -17,6 +17,14 @@ describe('sanitizeSensitiveText', () => {
     )
   })
 
+  it('redacts common token variants, authorization headers, and local user paths', () => {
+    expect(
+      sanitizeSensitiveText('Authorization: Bearer abc access_token=one refresh-token:two C:\\Users\\alice\\app.env /home/deploy/.ssh/id_rsa /Users/bob/.ssh/config'),
+    ).toBe(
+      'Authorization: [redacted] access_token=[redacted] refresh-token:[redacted] C:\\Users\\[redacted]\\app.env /home/[redacted]/.ssh/id_rsa /Users/[redacted]/.ssh/config',
+    )
+  })
+
   it('scrubs log entries before they reach the logs panel state', () => {
     logMessage({
       detail: 'privateKey=secret-value',
@@ -37,4 +45,3 @@ describe('sanitizeSensitiveText', () => {
     expect(outputState.entries[0]?.message).toBe('password=[redacted]')
   })
 })
-

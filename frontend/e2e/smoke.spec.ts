@@ -28,6 +28,19 @@ test.describe('smoke', () => {
     await expect(page.getByPlaceholder('Password')).toBeVisible()
   })
 
+  test('opens session create and edit dialogs from explorer actions @smoke', async ({page}) => {
+    await page.getByLabel('Create new session').click()
+    await expect(page.getByRole('heading', {name: 'New session'})).toBeVisible()
+    await page.getByRole('button', {name: 'Cancel'}).click()
+
+    await page.getByRole('button', {name: /New SSH Session/}).click()
+    await expect(page.locator('.session-node').first()).toBeVisible()
+    await page.locator('.session-node').first().click({button: 'right'})
+    await page.getByRole('menuitem', {name: 'Edit'}).click()
+    await expect(page.getByRole('heading', {name: 'Edit session'})).toBeVisible()
+    await expect(page.getByLabel('Authentication')).toBeVisible()
+  })
+
   test('opens SFTP explorer panel @smoke', async ({page}) => {
     await page.keyboard.press('Control+K')
     await page.getByTestId('command-palette-search').fill('Open SFTP panel')

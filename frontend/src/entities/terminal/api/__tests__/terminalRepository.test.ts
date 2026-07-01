@@ -30,6 +30,12 @@ describe('terminalRepository', () => {
 
     await connectTerminal(session)
 
-    expect(payload).toMatchObject({authMethod: 'password', password: 'secret', privateKeyPath: null})
+    expect(payload).toMatchObject({
+      authMethod: 'password',
+      password: 'secret',
+      privateKeyPath: null,
+      autoReconnect: true,
+      idleTimeoutSecs: 0,
+    })
   })
 })

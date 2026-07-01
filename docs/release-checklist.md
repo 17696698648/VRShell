@@ -7,11 +7,14 @@ Use this checklist before publishing a VRShell desktop build.
 - Confirm the target version in `package.json`, `frontend/package.json`, `src-tauri/Cargo.toml`, and `src-tauri/tauri.conf.json`.
 - Run `npm.cmd run release:check` from the repository root.
 - Run `npm.cmd run security:audit` and review all reported advisories.
-- Confirm `npm.cmd run check:tauri-release` passes so release builds do not enable DevTools.
+- Confirm `npm.cmd run check:tauri-release` passes so release builds do not enable DevTools or forbidden Tauri permissions.
 
 ## Security
 
 - Verify Tauri capabilities are limited to workflows used by the app.
+- Current reviewed capabilities are `dialog:allow-open`, `dialog:allow-save`, `core:event:allow-listen`, and titlebar-only `core:window` controls for the `main` window.
+- Release guardrails fail on filesystem, shell, updater, process, extra-window, and unreviewed window-creation permissions.
+- Do not add filesystem, shell, updater, or additional window permissions without updating `scripts/check-tauri-release-config.mjs`, documenting the workflow that requires them, and adding focused tests/checklist notes.
 - Confirm unknown SSH host keys require explicit user acceptance.
 - Confirm changed SSH host keys are shown as a security warning and are not silently accepted.
 - Do not persist raw passwords or private key passphrases in frontend storage.

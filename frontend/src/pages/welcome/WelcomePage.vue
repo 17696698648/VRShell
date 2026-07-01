@@ -10,6 +10,22 @@
         <UiButton variant="secondary" @click="executeCommand('session.importSshConfig')"><Upload :size="15" /> Import SSH Config</UiButton>
       </div>
     </div>
+    <section v-if="!onboardingDismissed" class="welcome-page__onboarding" aria-labelledby="welcome-onboarding-title">
+      <div class="welcome-page__onboarding-heading">
+        <div>
+          <p class="welcome-page__eyebrow">First connection</p>
+          <h2 id="welcome-onboarding-title">Connect safely in four steps</h2>
+        </div>
+        <UiButton size="sm" variant="ghost" @click="dismissOnboarding">Dismiss</UiButton>
+      </div>
+      <ol class="welcome-page__steps">
+        <li><strong>Create a session</strong><span>Enter host, port, username, and an easy-to-scan name.</span></li>
+        <li><strong>Choose authentication</strong><span>Use your SSH agent, OS-keyring password storage, or a private key path.</span></li>
+        <li><strong>Verify host keys</strong><span>Accept only fingerprints you recognize; stop if a known host key changes unexpectedly.</span></li>
+        <li><strong>Open SFTP</strong><span>After the terminal connects, use the SFTP panel to browse and transfer files.</span></li>
+      </ol>
+      <a class="welcome-page__workflow-link" href="docs/user-workflows.md">Read the user workflows guide</a>
+    </section>
     <div class="welcome-page__recent" aria-label="Recent sessions">
       <h2 class="welcome-page__recent-title">Recent Sessions</h2>
       <ul v-if="recentSessions.length" class="welcome-page__recent-list">
@@ -34,7 +50,7 @@
 
 <script setup lang="ts">
 import {Server, TerminalSquare, Upload} from '@lucide/vue'
-import {computed} from 'vue'
+import {computed, ref} from 'vue'
 import {sessionState} from '../../entities/session'
 import {terminalState} from '../../entities/terminal'
 import {executeCommand} from '../../shared/command'
@@ -48,6 +64,9 @@ type RecentSession = {
   tone: string
   sessionId: string
 }
+
+const onboardingStorageKey = 'vrshell.onboarding.dismissed'
+const onboardingDismissed = ref(readOnboardingDismissed())
 
 /** Sessions sorted by most recently used (based on terminal tab order, last active first) */
 const sessionsByRecency = computed(() => {
@@ -81,5 +100,14 @@ const recentSessions = computed<RecentSession[]>(() =>
 
 function reconnectSession(sessionId: string) {
   executeCommand('session.reconnect', {sessionId})
+}
+
+function dismissOnboarding() {
+  onboardingDismissed.value = true
+  if (typeof localStorage !== 'undefined') localStorage.setItem(onboardingStorageKey, 'true')
+}
+
+function readOnboardingDismissed() {
+  return typeof localStorage !== 'undefined' && localStorage.getItem(onboardingStorageKey) === 'true'
 }
 </script>

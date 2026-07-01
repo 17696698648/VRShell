@@ -207,7 +207,10 @@ pub(crate) fn connect(
 ) -> BackendResult<TerminalSession> {
     let pruned_disconnected = prune_expired_disconnected_terminal_sessions(state);
     if pruned_disconnected > 0 {
-        tracing::debug!(count = pruned_disconnected, "pruned disconnected terminal session markers");
+        tracing::debug!(
+            count = pruned_disconnected,
+            "pruned disconnected terminal session markers"
+        );
     }
     tracing::info!(host = %request.host, port = request.port, username = %request.username, "connecting terminal");
     validate_terminal_request(&request)?;

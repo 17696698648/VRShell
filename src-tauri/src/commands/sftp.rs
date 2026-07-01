@@ -18,7 +18,8 @@ pub fn sftp_list(
     limit: Option<usize>,
     cursor: Option<String>,
 ) -> IpcResult<Vec<crate::domain::sftp::SftpEntry>> {
-    sftp_service::list(Some(&state), connection.into(), path, offset, limit, cursor).map_err(Into::into)
+    sftp_service::list(Some(&state), connection.into(), path, offset, limit, cursor)
+        .map_err(Into::into)
 }
 
 #[tauri::command]

@@ -1,4 +1,5 @@
 import {acceptHostKeyRequest, hostKeyState, rejectHostKeyRequest, setHostKeyRequestError, setHostKeyRequestSubmitting} from '../../../entities/security/model/hostKeyState'
+import {getErrorMessage} from '../../../shared/error/getErrorMessage'
 import {securityApi} from '../../../shared/ipc/ipcFacade'
 
 export async function acceptPendingHostKey() {
@@ -37,7 +38,6 @@ export async function rejectPendingHostKey() {
 }
 
 function toHostKeyActionError(error: unknown) {
-  if (error instanceof Error && error.message) return error.message
-  if (typeof error === 'string' && error.trim()) return error
-  return 'Failed to accept host key. Please try again.'
+  const message = getErrorMessage(error).trim()
+  return message || 'Failed to accept host key. Please try again.'
 }

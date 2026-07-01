@@ -1,11 +1,11 @@
 use crate::infrastructure::event_bus::EventSink;
+use crate::state::prune_expired_disconnected_terminal_sessions;
 use crate::{
     domain::sftp::{SftpConnectionKey, SftpConnectionRequest, SftpEntry},
     error::{BackendError, BackendResult},
     ipc::dto::{SftpTransferConflictStrategyDto, SftpTransferOptionsDto, SftpTransferRequest},
     state::BackendState,
 };
-use crate::state::prune_expired_disconnected_terminal_sessions;
 use base64::Engine;
 use parking_lot::Mutex;
 use ssh2::{FileStat, OpenFlags, OpenType};
@@ -761,8 +761,7 @@ fn join_remote_path(parent_path: &str, name: &str) -> String {
 mod tests {
     use super::{
         apply_list_window, is_sftp_session_idle_expired, is_special_directory_entry,
-        renamed_remote_path,
-        SftpTransferConflictStrategy, SftpTransferOptions, SftpTransferPermit,
+        renamed_remote_path, SftpTransferConflictStrategy, SftpTransferOptions, SftpTransferPermit,
         MAX_ACTIVE_SFTP_TRANSFERS, MAX_ACTIVE_SFTP_TRANSFERS_PER_CONNECTION, SFTP_SESSION_IDLE_TTL,
     };
     use crate::domain::sftp::SftpEntry;

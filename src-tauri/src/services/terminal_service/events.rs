@@ -1,5 +1,5 @@
-use crate::infrastructure::event_bus::EventSink;
 use crate::error::scrub_sensitive_message;
+use crate::infrastructure::event_bus::EventSink;
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use serde::Serialize;
 

@@ -16,6 +16,10 @@ Authentication methods
 - Private key: choose or type a private key path, and optionally provide a passphrase.
 - SSH agent: leave password and key empty to use the local SSH agent when available.
 
+User workflows
+- `docs/user-workflows.md` explains first connection setup, host-key verification, SFTP operations, terminal shortcuts, and local validation commands.
+- `docs/troubleshooting.md` provides focused recovery steps for connection, host-key, SFTP, terminal, and workspace issues.
+
 Prerequisites
 - Node.js 20+ and npm 10+ (`.nvmrc` pins Node 20; CI uses Node.js 20)
 - Rust toolchain (stable)
@@ -67,5 +71,9 @@ Project operations:
 - `docs/architecture.md` - frontend/backend layering, IPC contract, and security boundaries
 - `docs/adr/` - architecture decision records for release security, terminal/SFTP runtime ownership, and host-key policy
 - `docs/testing.md` - local lint, typecheck, unit, E2E smoke, build, and Rust check workflow
+- `docs/user-workflows.md` - user-facing connection, host-key, SFTP, terminal shortcut, and troubleshooting guide
+- `docs/troubleshooting.md` - common failure symptoms and recovery steps
+- `docs/contributor-checklist.md` - required checks by change type
+- `docs/optimization-task-plan.md` - ordered application improvement backlog for “按照文档任务依次执行”
 - `docs/dependency-security.md` - Dependabot and audit remediation workflow
 - `docs/release-checklist.md` - release readiness, signing, DevTools, SSH `known_hosts`, credentials, and rollback checklist

@@ -32,4 +32,14 @@ describe('useSessionExplorer', () => {
     explorer.favoriteOnly.value = true
     expect(explorer.filteredSessions.value.map((session) => session.id)).toEqual(['prod'])
   })
+
+  it('keeps search results reactive when sessions change', () => {
+    const explorer = useSessionExplorer()
+    explorer.query.value = 'cache'
+
+    expect(explorer.filteredSessions.value).toEqual([])
+    sessionState.sessions.push({id: 'cache', name: 'Cache Node', host: 'cache.example.com', port: 22, username: 'deploy', protocol: 'ssh', groupId: 'all', tags: ['redis'], status: 'idle'})
+
+    expect(explorer.filteredSessions.value.map((session) => session.id)).toEqual(['cache'])
+  })
 })

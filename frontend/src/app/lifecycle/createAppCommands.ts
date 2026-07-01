@@ -12,6 +12,7 @@ import {openQuickOpen} from '../../features/workspace/quick-open/quickOpen'
 import {switchPanel} from '../../features/workspace/switch-panel/switchPanel'
 import {switchTerminal} from '../../features/workspace/switch-terminal/switchTerminal'
 import {terminalState} from '../../entities/terminal'
+import {sessionState} from '../../entities/session'
 import {resetWorkspaceLayout, switchRightPanel, toggleMaximizeMainArea, toggleRightPanel, workspaceState} from '../../entities/workspace'
 import {requestPrompt} from '../../shared/dialog'
 
@@ -81,6 +82,20 @@ export function createAppCommands(): AppCommand[] {
       keywords: ['ssh', 'config', 'hosts'],
       async run() {
         await importSshConfigSessions()
+      },
+    },
+    {
+      id: 'session.reconnect',
+      title: 'Reconnect session',
+      category: 'Session',
+      description: 'Reconnect the terminal for a disconnected or stale SSH session.',
+      group: 'session',
+      keywords: ['ssh', 'connect', 'retry', 'sftp'],
+      disabledReason: () => terminalState.tabs.length > 0 ? null : 'No terminal to reconnect',
+      run: async (payload) => {
+        const sessionId = getReconnectSessionId(payload)
+        const tab = findReconnectableTerminal(sessionId)
+        if (tab) await reconnectTerminalTab(tab)
       },
     },
     {
@@ -238,6 +253,20 @@ export function createAppCommands(): AppCommand[] {
       run: () => switchRightPanel('connection-info'),
     },
   ]
+}
+
+function getReconnectSessionId(payload: unknown) {
+  if (payload && typeof payload === 'object' && 'sessionId' in payload) {
+    const sessionId = (payload as {sessionId?: unknown}).sessionId
+    if (typeof sessionId === 'string' && sessionId) return sessionId
+  }
+  return sessionState.activeSessionId
+}
+
+function findReconnectableTerminal(sessionId: string) {
+  return terminalState.tabs.find((tab) => tab.sessionId === sessionId && (tab.status === 'failed' || tab.status === 'disconnected'))
+    ?? terminalState.tabs.find((tab) => tab.sessionId === sessionId)
+    ?? null
 }
 
 function getActiveTerminal() {

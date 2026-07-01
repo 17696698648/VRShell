@@ -2,6 +2,7 @@
 import {nextTick} from 'vue'
 import {sessionState, type SessionHost} from '../../../../entities/session'
 import {sftpSessionStates, sftpState} from '../../../../entities/sftp'
+import {taskItems} from '../../../../entities/task'
 import {terminalState} from '../../../../entities/terminal'
 import {clearToasts, feedbackState} from '../../../../shared/feedback'
 import {setIpcMock} from '../../../../shared/ipc/ipcClient'
@@ -21,6 +22,7 @@ describe('useSftpExplorer', () => {
     sessionState.sessions.splice(0, sessionState.sessions.length, JSON.parse(JSON.stringify(activeSession)))
     sessionState.activeSessionId = activeSession.id
     terminalState.tabs.splice(0, terminalState.tabs.length)
+    taskItems.splice(0, taskItems.length)
     terminalState.activeTerminalId = ''
     for (const sessionId of Object.keys(sftpSessionStates)) delete sftpSessionStates[sessionId]
     sftpState.connectedSessionId = ''
@@ -36,6 +38,7 @@ describe('useSftpExplorer', () => {
     sessionState.sessions.splice(0, sessionState.sessions.length, ...JSON.parse(JSON.stringify(defaultSessions)))
     sessionState.activeSessionId = defaultActiveSessionId
     terminalState.tabs.splice(0, terminalState.tabs.length, ...JSON.parse(JSON.stringify(defaultTerminalTabs)))
+    taskItems.splice(0, taskItems.length)
     terminalState.activeTerminalId = defaultActiveTerminalId
     for (const sessionId of Object.keys(sftpSessionStates)) delete sftpSessionStates[sessionId]
     sftpState.connectedSessionId = ''
@@ -68,7 +71,8 @@ describe('useSftpExplorer', () => {
 
     expect(sftpState.loading).toBe(false)
     expect(sftpState.error).toBe('permission denied')
-    expect(feedbackState.toasts).toHaveLength(0)
+    expect(taskItems[0]).toMatchObject({action: 'refresh', path: '/root', status: 'failed'})
+    expect(feedbackState.toasts.at(-1)).toMatchObject({level: 'error', title: 'Refresh remote directory failed'})
   })
 
   it('does not start directory loading when reconnect is required', async () => {
@@ -83,8 +87,8 @@ describe('useSftpExplorer', () => {
 
     expect(listCalls).toBe(0)
     expect(sftpState.loading).toBe(false)
-    expect(sftpState.error).toContain('Reconnect before loading SFTP directories')
-    expect(feedbackState.toasts.at(-1)).toMatchObject({level: 'warning', title: 'Reconnect required for SFTP'})
+    expect(sftpState.error).toBe('Session is disconnected. Reconnect the terminal before using SFTP.')
+    expect(feedbackState.toasts.at(-1)).toMatchObject({level: 'warning', title: 'Reconnect required'})
   })
 
   it('shows disconnected state until the active session has a connected terminal', async () => {

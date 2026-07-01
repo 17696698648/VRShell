@@ -23,7 +23,7 @@ const checks = [
   },
   {
     file: 'scripts/check-frontend-guards.mjs',
-    patterns: ['assertLayerImports(file, source)', 'function assertLayerImports(file, source)', 'function isAllowedLayerImport(fromLayer, toLayer)'],
+    patterns: ['assertLayerImports(file, source)', 'function assertLayerImports(file, source)', 'function isAllowedLayerImport(fromLayer, toLayer)', 'function assertNoLocalFeedbackState(file, source)', 'function assertNoLocalTaskState(file, source)'],
   },
   {
     file: 'src/shared/ui/index.ts',
@@ -46,6 +46,8 @@ for (const file of listSourceFiles('src')) {
   assertNoFeatureCommandRegistryImport(file, source)
   assertNoDirectPushToast(file, source)
   assertNoDirectIpcClientImport(file, source)
+  assertNoLocalFeedbackState(file, source)
+  assertNoLocalTaskState(file, source)
   assertNoSecretsInStore(file, source)
   assertNoDirectTauriWindowApi(file, source)
   assertNoReverseDependency(file, source)
@@ -199,6 +201,21 @@ function assertNoDirectPushToast(file, source) {
   if (file.includes('/__tests__/')) return
   assert(!/\bpushToast\s*\(/.test(source), `${file} calls pushToast directly; use shared/feedback notifyFeedback helpers`)
   assert(!/import\s*\{[^}]*\bpushToast\b/.test(source), `${file} imports pushToast directly; use shared/feedback notifyFeedback helpers`)
+}
+
+function assertNoLocalFeedbackState(file, source) {
+  if (file.startsWith('src/shared/feedback/')) return
+  if (file.includes('/__tests__/')) return
+  assert(!/\binterface\s+\w*(?:Toast|Notification|Feedback)\b|\btype\s+\w*(?:Toast|Notification|Feedback)\b/.test(source), `${file} defines local feedback/toast types; use shared/feedback primitives`)
+  assert(!/\b(?:toasts|notifications)\s*=\s*(?:ref|reactive)\s*\(/.test(source), `${file} defines local feedback state; use shared/feedback store`)
+}
+
+function assertNoLocalTaskState(file, source) {
+  if (file.startsWith('src/entities/task/')) return
+  if (file.startsWith('src/shared/stores/')) return
+  if (file.includes('/__tests__/')) return
+  assert(!/\binterface\s+\w*(?:Task|QueueItem)\b|\btype\s+\w*(?:Task|QueueItem)\b/.test(source), `${file} defines local task item types; use entities/task primitives`)
+  assert(!/\b(?:tasks|queue)\s*=\s*(?:ref|reactive)\s*\(/.test(source), `${file} defines local task queue state; use entities/task store`)
 }
 
 function assertTerminalOutputStaysOutsideReactiveStore() {

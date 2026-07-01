@@ -11,6 +11,11 @@ describe('SessionForm contract', () => {
     expect(source).toContain('OS keyring')
   })
 
+  it('explains host-key verification during session setup', () => {
+    expect(source).toContain('verify the host-key fingerprint')
+    expect(source).toContain('If a saved host key changes')
+  })
+
   it('keeps private key fields available', () => {
     expect(source).toContain("{label: 'Private key', value: 'key'}")
     expect(source).toContain('placeholder="~/.ssh/id_ed25519"')
@@ -23,5 +28,12 @@ describe('SessionForm contract', () => {
     expect(source).toContain('Favorite session')
     expect(source).toContain('normalizeTags')
     expect(source).toContain('favoriteSessionTag')
+  })
+
+  it('publishes normalized draft changes for dialog actions', () => {
+    expect(source).toContain("modelValue?: CreateSessionInput | null")
+    expect(source).toContain("'update:modelValue': [input: CreateSessionInput]")
+    expect(source).toContain("emit('update:modelValue', normalizeInput(form))")
+    expect(source).toContain('immediate: true')
   })
 })

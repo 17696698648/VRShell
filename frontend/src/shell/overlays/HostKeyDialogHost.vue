@@ -10,12 +10,17 @@
       <div class="host-key-content">
         <p class="host-key-warning" :class="{'host-key-warning--danger': hostKeyState.pendingRequest.reason === 'changed'}">
           <template v-if="hostKeyState.pendingRequest.reason === 'changed'">
-            The host key for <strong>{{ hostKeyState.pendingRequest.host }}:{{ hostKeyState.pendingRequest.port }}</strong> has changed. This may indicate a man-in-the-middle attack.
+            The saved host key for <strong>{{ hostKeyState.pendingRequest.host }}:{{ hostKeyState.pendingRequest.port }}</strong> no longer matches. Stop unless an administrator confirms the server was re-keyed.
           </template>
           <template v-else>
-            The authenticity of host <strong>{{ hostKeyState.pendingRequest.host }}:{{ hostKeyState.pendingRequest.port }}</strong> cannot be established.
+            VRShell has not seen <strong>{{ hostKeyState.pendingRequest.host }}:{{ hostKeyState.pendingRequest.port }}</strong> before. Compare this fingerprint with a trusted source before accepting.
           </template>
         </p>
+        <ul class="host-key-guidance">
+          <li>Accept only when the fingerprint matches documentation from your server owner.</li>
+          <li>Reject if you are unsure, on public Wi-Fi, or the host key changed unexpectedly.</li>
+          <li>Use known_hosts to inspect or remove stale entries after confirming the right key.</li>
+        </ul>
         <div class="host-key-fingerprint">
           <span class="host-key-label">Key type:</span>
           <code>{{ hostKeyState.pendingRequest.keyType }}</code>
@@ -38,8 +43,8 @@
           <button type="button" class="host-key-tool" @click="openKnownHosts">
             Open known_hosts
           </button>
-          <a class="host-key-help" href="https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/githubs-ssh-key-fingerprints" target="_blank" rel="noreferrer">
-            How to verify fingerprints
+          <a class="host-key-help" href="docs/user-workflows.md#verify-host-keys">
+            Host-key verification guide
           </a>
         </div>
         <p v-if="hostKeyState.pendingRequest.error" class="host-key-error" role="alert">
@@ -51,7 +56,7 @@
           No
         </button>
         <button type="button" class="host-key-accept" :disabled="hostKeyState.pendingRequest.submitting || hostKeyState.pendingRequest.reason === 'changed'" @click="onAccept">
-          {{ hostKeyState.pendingRequest.submitting ? 'Trusting…' : 'Yes, I trust this host' }}
+          {{ hostKeyState.pendingRequest.submitting ? 'Trusting…' : acceptLabel }}
         </button>
       </footer>
     </section>
@@ -62,7 +67,11 @@
 <script setup lang="ts">
 import {hostKeyState, setHostKeyRequestError} from '../../entities/security/model/hostKeyState'
 import {acceptPendingHostKey, rejectPendingHostKey} from '../../features/session/connect-session/hostKeyActions'
+import {getErrorMessage} from '../../shared/error/getErrorMessage'
 import {securityApi} from '../../shared/ipc/ipcFacade'
+import {computed} from 'vue'
+
+const acceptLabel = computed(() => hostKeyState.pendingRequest?.reason === 'changed' ? 'Disabled for changed keys' : 'Accept and save host key')
 
 function onAccept() {
   void acceptPendingHostKey()
@@ -88,7 +97,7 @@ async function openKnownHosts() {
     const path = await securityApi.openKnownHosts()
     setHostKeyRequestError(`Opened known_hosts: ${path}`)
   } catch (error) {
-    setHostKeyRequestError(error instanceof Error ? error.message : 'Failed to open known_hosts')
+    setHostKeyRequestError(getErrorMessage(error) || 'Failed to open known_hosts')
   }
 }
 </script>
@@ -112,6 +121,15 @@ async function openKnownHosts() {
   gap: 8px;
   align-items: baseline;
   margin-bottom: 4px;
+  font-size: 0.9em;
+}
+
+.host-key-guidance {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0 12px;
+  padding-left: 18px;
+  color: var(--color-text-muted);
   font-size: 0.9em;
 }
 

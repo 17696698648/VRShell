@@ -1,4 +1,4 @@
-﻿import {closeTerminal, getTerminalInputQueueLength, type TerminalTab} from '../../../entities/terminal'
+﻿import {closeTerminal, getTerminalInputQueueLength, markTerminalDisconnecting, type TerminalTab} from '../../../entities/terminal'
 import {disconnectTerminal} from '../../../entities/terminal/api/terminalRepository'
 import {requestConfirm} from '../../../shared/dialog'
 import {getErrorMessage} from '../../../shared/error/getErrorMessage'
@@ -19,6 +19,7 @@ export async function closeTerminalTab(tab: TerminalTab, options: CloseTerminalT
     if (!confirmed) return false
   }
   const backendSessionId = tab.backendSessionId
+  markTerminalDisconnecting(tab.id)
   closeTerminal(tab.id)
   disconnectClosedTerminal(tab, backendSessionId)
   return true
@@ -32,7 +33,7 @@ function disconnectClosedTerminal(tab: TerminalTab, backendSessionId: string) {
 }
 
 function shouldConfirmClose(tab: TerminalTab) {
-  return tab.status === 'connected' || tab.status === 'connecting' || getTerminalInputQueueLength(tab.id) > 0
+  return tab.status === 'connected' || tab.status === 'connecting' || tab.status === 'disconnecting' || getTerminalInputQueueLength(tab.id) > 0
 }
 
 function getCloseMessage(tab: TerminalTab) {

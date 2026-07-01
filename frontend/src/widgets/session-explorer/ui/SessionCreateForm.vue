@@ -1,15 +1,17 @@
 ﻿<template>
-  <div class="dialog-backdrop" @click.self="emit('close')">
-    <section class="dialog session-create-dialog" role="dialog" aria-modal="true" aria-labelledby="session-create-title">
-      <header>
-        <h2 id="session-create-title">New session</h2>
-      </header>
-      <SessionForm reset-on-submit submit-label="Create and connect" @submit="(input) => emit('submit', input)" />
-      <footer>
-        <UiButton variant="secondary" @click="emit('close')">Cancel</UiButton>
-      </footer>
-    </section>
-  </div>
+  <Teleport to="body">
+    <div class="dialog-backdrop" @click.self="emit('close')">
+      <section class="dialog session-create-dialog" role="dialog" aria-modal="true" aria-labelledby="session-create-title">
+        <header>
+          <h2 id="session-create-title">New session</h2>
+        </header>
+        <SessionForm reset-on-submit submit-label="Create and connect" @submit="(input) => emit('submit', input)" />
+        <footer>
+          <UiButton variant="secondary" @click="emit('close')">Cancel</UiButton>
+        </footer>
+      </section>
+    </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">

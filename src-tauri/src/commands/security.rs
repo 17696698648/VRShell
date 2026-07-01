@@ -1,7 +1,10 @@
 use crate::{
     domain::credential::CredentialRef,
     infrastructure::known_hosts_store::KnownHostsStore,
-    ipc::{dto::ConnectSshRequest, IpcResult},
+    ipc::{
+        dto::{ConnectSshRequest, SshConnectionDto},
+        IpcResult,
+    },
     services::terminal_service,
     state::{prune_expired_pending_host_key_sessions, BackendState},
 };
@@ -30,16 +33,18 @@ pub fn accept_host_key(
     };
 
     let request = ConnectSshRequest {
-        host,
-        port,
-        username,
-        password,
-        private_key_path,
-        passphrase,
-        auth_method,
+        connection: SshConnectionDto {
+            host,
+            port,
+            username,
+            password,
+            private_key_path,
+            passphrase,
+            auth_method,
+            credential_ref,
+        },
         auto_reconnect: None,
         idle_timeout_secs: None,
-        credential_ref,
     };
 
     terminal_service::accept_host_key(&window, &state, &pending_id, request.into())

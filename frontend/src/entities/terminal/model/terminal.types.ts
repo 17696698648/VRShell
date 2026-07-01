@@ -3,7 +3,7 @@ export interface TerminalTab {
   sessionId: string
   backendSessionId: string
   title: string
-  status: 'connecting' | 'connected' | 'disconnected' | 'failed'
+  status: 'connecting' | 'connected' | 'disconnecting' | 'disconnected' | 'failed'
   cwd: string
   lines: string[]
   latency?: number // Network latency in milliseconds

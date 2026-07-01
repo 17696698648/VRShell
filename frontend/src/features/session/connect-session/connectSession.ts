@@ -6,6 +6,7 @@ import {workspaceState} from '../../../entities/workspace'
 import {notifyAppError} from '../../../shared/feedback'
 import {resolveSessionAuth} from '../manage-credentials/sessionCredentials'
 import {messages} from '../../../shared/copy'
+import {normalizeConnectionFailure} from './connectionFailure'
 
 export async function connectSession(session: SessionHost) {
   setActiveSession(session.id)
@@ -29,7 +30,7 @@ export async function connectSession(session: SessionHost) {
     workspaceState.rightPanelVisible = true
   } catch (error) {
     patchSession(session.id, {status: 'failed'})
-    notifyAppError(error, {title: messages.session.failures.connect(session.name), action: 'connect-session', dedupeKey: `session:${session.id}:connect`})
+    notifyAppError(normalizeConnectionFailure(error), {title: messages.session.failures.connect(session.name), action: 'connect-session', dedupeKey: `session:${session.id}:connect`})
     throw error
   }
 }

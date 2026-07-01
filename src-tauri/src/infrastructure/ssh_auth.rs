@@ -38,7 +38,7 @@ pub(crate) fn authenticate(session: &SshSession, params: &SshAuthParams) -> Back
     if session.authenticated() {
         Ok(())
     } else {
-        Err(BackendError::credential("ssh authentication failed"))
+        Err(BackendError::authentication("ssh authentication failed"))
     }
 }
 
@@ -66,7 +66,7 @@ pub(crate) fn authenticate_with_inferred_method(
     if session.authenticated() {
         Ok(())
     } else {
-        Err(BackendError::credential("ssh authentication failed"))
+        Err(BackendError::authentication("ssh authentication failed"))
     }
 }
 
@@ -101,12 +101,12 @@ fn authenticate_with_password(session: &SshSession, params: &SshAuthParams) -> B
         .as_deref()
         .filter(|value| !value.is_empty())
         .or(stored_password.as_deref())
-        .ok_or_else(|| BackendError::credential("password authentication requires a password"))?;
+        .ok_or_else(|| BackendError::validation("password authentication requires a password"))?;
 
     session
         .userauth_password(&params.username, password)
         .map_err(|error| {
-            BackendError::credential(format!("ssh password authentication failed: {error}"))
+            BackendError::authentication(format!("ssh password authentication failed: {error}"))
         })
 }
 
@@ -119,7 +119,7 @@ fn authenticate_with_private_key(
         .as_deref()
         .filter(|value| !value.is_empty())
         .ok_or_else(|| {
-            BackendError::credential("key authentication requires a private key path")
+            BackendError::validation("key authentication requires a private key path")
         })?;
 
     session
@@ -130,13 +130,13 @@ fn authenticate_with_private_key(
             params.passphrase.as_deref(),
         )
         .map_err(|error| {
-            BackendError::credential(format!("ssh key authentication failed: {error}"))
+            BackendError::authentication(format!("ssh key authentication failed: {error}"))
         })
 }
 
 fn authenticate_with_agent(session: &SshSession, params: &SshAuthParams) -> BackendResult<()> {
     session.userauth_agent(&params.username).map_err(|error| {
-        BackendError::credential(format!("ssh agent authentication failed: {error}"))
+        BackendError::authentication(format!("ssh agent authentication failed: {error}"))
     })
 }
 

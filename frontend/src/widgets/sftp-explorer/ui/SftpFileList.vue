@@ -6,11 +6,12 @@
                   :label="messages.sftp.treeGrid.label" :empty-text="messages.sftp.treeGrid.emptyText"
                   :selected-key="selectedItemId" :sort-key="sortKey" :sort-direction="sortDirection"
                   @activate="openItem" @contextmenu="openGridMenu" @select="selectItem"
-                  @sort="toggleSort($event as SortKey)">
+                   @sort="toggleSort($event as SftpSortKey)">
         <template #default="{item, cellProps, gridStyle, rowProps}">
           <article
             v-bind="rowProps"
             :class="['sftp-file-row', 'ui-row', {clickable: item.type === 'directory', selected: selectedItemId === item.id, 'is-selected': selectedItemId === item.id}]"
+            :aria-label="`${item.name}, ${item.type}, ${item.size}, modified ${item.modifiedAt}`"
             :style="gridStyle"
             :title="item.path"
             @click="selectItem(item)"
@@ -52,16 +53,14 @@ import {
   openSftpItem,
   renameSftpItem
 } from '../model/sftpItemActions'
+import {sortSftpItems, type SftpSortDirection, type SftpSortKey} from '../model/sortSftpItems'
 
 const props = withDefaults(defineProps<{ items: SftpItem[]; displayMode?: 'tree' | 'list' }>(), {displayMode: 'list'})
 const emit = defineEmits<{ openDirectory: [path: string] }>()
 
-type SortKey = 'type' | 'name' | 'size' | 'modifiedAt'
-type SortDirection = 'asc' | 'desc'
-
 const selectedItemId = computed(() => sftpState.selectedItemId || null)
-const sortKey = ref<SortKey>('name')
-const sortDirection = ref<SortDirection>('asc')
+const sortKey = ref<SftpSortKey>('name')
+const sortDirection = ref<SftpSortDirection>('asc')
 const columns: UiDataGridColumn[] = [
   {id: 'name', title: messages.sftp.treeGrid.columns.name, width: '130px'},
   {id: 'size', title: messages.sftp.treeGrid.columns.size, width: '88px'},
@@ -69,13 +68,7 @@ const columns: UiDataGridColumn[] = [
   {id: 'modifiedAt', title: messages.sftp.treeGrid.columns.modified, width: '120px'},
 ]
 
-const sortedItems = computed(() => {
-  const direction = sortDirection.value === 'asc' ? 1 : -1
-  return [...props.items].sort((left, right) => {
-    if (left.type !== right.type) return left.type === 'directory' ? -1 : 1
-    return compareByKey(left, right, sortKey.value) * direction
-  })
-})
+const sortedItems = computed(() => sortSftpItems(props.items, sortKey.value, sortDirection.value))
 
 function selectItem(item: SftpItem) {
   sftpState.selectedItemId = item.id
@@ -91,7 +84,7 @@ async function openItem(item: SftpItem) {
   await openSftpItem(item, {openDirectory: (path) => emit('openDirectory', path)})
 }
 
-function toggleSort(key: SortKey) {
+function toggleSort(key: SftpSortKey) {
   if (sortKey.value === key) {
     sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
     return
@@ -117,18 +110,4 @@ function createItemMenu(item: SftpItem) {
   })
 }
 
-function compareByKey(left: SftpItem, right: SftpItem, key: SortKey) {
-  if (key === 'size') return parseSize(left.size) - parseSize(right.size)
-  return String(left[key]).localeCompare(String(right[key]), undefined, {numeric: true, sensitivity: 'base'})
-}
-
-function parseSize(size: string) {
-  const normalized = size.trim().toLowerCase()
-  const value = Number.parseFloat(normalized)
-  if (Number.isNaN(value)) return 0
-  if (normalized.includes('gb')) return value * 1024 * 1024 * 1024
-  if (normalized.includes('mb')) return value * 1024 * 1024
-  if (normalized.includes('kb')) return value * 1024
-  return value
-}
 </script>

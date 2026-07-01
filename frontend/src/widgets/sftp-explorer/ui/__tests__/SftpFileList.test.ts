@@ -8,4 +8,8 @@ describe('SftpFileList contracts', () => {
     expect(source).toContain(':item-height="26"')
     expect(source).toContain(':get-key="(item) => item.id"')
   })
+
+  it('exposes meaningful row labels for assistive technology', () => {
+    expect(source).toContain(':aria-label="`${item.name}, ${item.type}, ${item.size}, modified ${item.modifiedAt}`"')
+  })
 })

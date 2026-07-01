@@ -68,6 +68,7 @@ describe('manageSftpFiles', () => {
 
     expect(item).toMatchObject({name: 'cache', path: `${sftpState.path}/cache`, type: 'directory'})
     expect(sftpState.items[0]).toMatchObject(item!)
+    expect(taskItems[0]).toMatchObject({action: 'create-directory', kind: 'sftp', path: '/srv/app/cache', progress: 100, status: 'done'})
     expect(feedbackState.toasts.at(-1)).toMatchObject({level: 'success', title: 'Created folder cache'})
   })
 
@@ -107,6 +108,8 @@ describe('manageSftpFiles', () => {
 
     await expect(createRemoteDirectory('cache')).rejects.toThrow('sftp_mkdir failed: permission denied')
 
+    expect(taskItems[0]).toMatchObject({action: 'create-directory', error: 'permission denied', path: '/srv/app/cache', status: 'failed'})
+    expect(taskItems[0].retryContext).toMatchObject({name: 'cache', parentPath: '/srv/app'})
     expect(feedbackState.toasts.at(-1)).toMatchObject({level: 'error', title: 'Create folder cache failed'})
   })
 
@@ -182,6 +185,28 @@ describe('manageSftpFiles', () => {
 
     expect(taskItems[0]).toMatchObject({status: 'failed'})
     expect(feedbackState.toasts.at(-1)).toMatchObject({level: 'error', title: 'Download failed'})
+  })
+
+  it('guards duplicate operations for the same remote path', async () => {
+    const releaseCreate = vi.fn<() => void>()
+    setIpcMock(async (command) => {
+      if (command === 'sftp_mkdir') {
+        await new Promise<void>((resolve) => {
+          releaseCreate.mockImplementationOnce(resolve)
+        })
+      }
+      return undefined
+    })
+
+    const firstCreate = createRemoteDirectory('cache')
+    await vi.waitUntil(() => taskItems.length === 1)
+    const duplicateCreate = await createRemoteDirectory('cache')
+    releaseCreate()
+    await firstCreate
+
+    expect(duplicateCreate).toBeNull()
+    expect(taskItems.filter((task) => task.path === '/srv/app/cache')).toHaveLength(1)
+    expect(feedbackState.toasts.some((toast) => toast.level === 'warning' && toast.title === 'SFTP action already running')).toBe(true)
   })
 })
 

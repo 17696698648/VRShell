@@ -1,6 +1,6 @@
 use crate::{
-    domain::task::BackgroundTaskSnapshot,
     domain::sftp::{SftpConnectionKey, SftpTaskSnapshot},
+    domain::task::BackgroundTaskSnapshot,
     domain::terminal::{TerminalOutputEvent, TerminalSession},
     infrastructure::{app_paths::AppPaths, file_store::FileStore},
     services::{sftp_service::SftpSessionRuntime, terminal_service::TerminalRuntime},

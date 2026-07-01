@@ -47,7 +47,7 @@ export const ipcCommandMapMatchesBackend: [MissingFrontendCommandTypes, ExtraFro
 
 export const ipcCommandNames = backendCommandNames satisfies readonly (keyof IpcCommandMap)[]
 
-export interface SftpConnection {
+export interface SshConnection {
   host: string
   port: number
   username: string
@@ -57,6 +57,8 @@ export interface SftpConnection {
   authMethod?: 'agent' | 'password' | 'key'
   credentialRef?: CredentialRef | null
 }
+
+export type SftpConnection = SshConnection
 
 export interface SftpTransferOptions {
   conflict?: 'overwrite' | 'skip' | 'rename'
@@ -93,18 +95,9 @@ export interface BackgroundTaskSnapshot {
   startedAtMs?: number | null
 }
 
-export interface ConnectSshArgs {
-  host: string
-  port: number
-  username: string
-  password?: string | null
-  privateKeyPath?: string | null
-  passphrase?: string | null
-  authMethod?: 'agent' | 'password' | 'key'
+export interface ConnectSshArgs extends SshConnection {
   autoReconnect: boolean
   idleTimeoutSecs: number
-  /** Credential reference for keyring-based authentication */
-  credentialRef?: CredentialRef | null
 }
 
 export interface SshConfigHost {

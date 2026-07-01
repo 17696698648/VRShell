@@ -69,6 +69,7 @@ impl BackendError {
 }
 
 pub(crate) fn scrub_sensitive_message(message: String) -> String {
+    let message = scrub_pem_blocks(&message);
     let mut parts = Vec::new();
     let mut skip_parts = 0;
 
@@ -84,7 +85,7 @@ pub(crate) fn scrub_sensitive_message(message: String) -> String {
             parts.push(part.to_string());
             continue;
         }
-        parts.push(scrub_sensitive_part(part));
+        parts.push(scrub_sensitive_part(&scrub_local_user_paths(part)));
     }
 
     parts.join(" ")
@@ -97,9 +98,16 @@ fn scrub_sensitive_part(part: &str) -> String {
         "passphrase",
         "secret",
         "token",
+        "access-token",
         "access_token",
+        "refresh-token",
         "refresh_token",
+        "private-key",
         "private_key",
+        "privatekey",
+        "privatekeypath",
+        "private_key_path",
+        "private-key-path",
     ];
 
     let mut scrubbed = part.to_string();
@@ -141,15 +149,82 @@ fn is_sensitive_assignment(lower: &str) -> bool {
         "secret:",
         "token=",
         "token:",
+        "access-token=",
+        "access-token:",
         "access_token=",
         "access_token:",
+        "refresh-token=",
+        "refresh-token:",
         "refresh_token=",
         "refresh_token:",
+        "private-key=",
+        "private-key:",
         "private_key=",
         "private_key:",
+        "privatekey=",
+        "privatekey:",
+        "privatekeypath=",
+        "privatekeypath:",
+        "private_key_path=",
+        "private_key_path:",
+        "private-key-path=",
+        "private-key-path:",
     ]
     .iter()
     .any(|pattern| lower.starts_with(pattern))
+}
+
+fn scrub_local_user_paths(value: &str) -> String {
+    let value = scrub_path_after_marker(value, "C:\\Users\\", '\\');
+    let value = scrub_path_after_marker(&value, "/home/", '/');
+    scrub_path_after_marker(&value, "/Users/", '/')
+}
+
+fn scrub_path_after_marker(value: &str, marker: &str, separator: char) -> String {
+    let mut scrubbed = value.to_string();
+    let mut search_from = 0;
+    while let Some(offset) = scrubbed[search_from..].find(marker) {
+        let user_start = search_from + offset + marker.len();
+        let user_end = scrubbed[user_start..]
+            .find(separator)
+            .map(|path_offset| user_start + path_offset)
+            .unwrap_or(scrubbed.len());
+        if user_end > user_start {
+            scrubbed.replace_range(user_start..user_end, "[redacted]");
+        }
+        search_from = user_start + "[redacted]".len();
+        if search_from >= scrubbed.len() {
+            break;
+        }
+    }
+    scrubbed
+}
+
+fn scrub_pem_blocks(message: &str) -> String {
+    let mut scrubbed = String::new();
+    let mut rest = message;
+    while let Some(begin_offset) = rest.find("-----BEGIN ") {
+        let begin_start = begin_offset;
+        let label_start = begin_start + "-----BEGIN ".len();
+        let Some(label_end_offset) = rest[label_start..].find("-----") else {
+            break;
+        };
+        let label_end = label_start + label_end_offset;
+        let header_end = label_end + "-----".len();
+        let label = &rest[label_start..label_end];
+        let end_marker = format!("-----END {label}-----");
+        let Some(end_offset) = rest[header_end..].find(&end_marker) else {
+            break;
+        };
+        scrubbed.push_str(&rest[..header_end]);
+        scrubbed.push_str("[redacted]");
+        let end_start = header_end + end_offset;
+        let end_end = end_start + end_marker.len();
+        scrubbed.push_str(&rest[end_start..end_end]);
+        rest = &rest[end_end..];
+    }
+    scrubbed.push_str(rest);
+    scrubbed
 }
 
 fn redact_value(part: &str, value_start: usize) -> String {
@@ -217,10 +292,40 @@ mod tests {
     }
 
     #[test]
+    fn backend_error_scrubs_paths_key_variants_and_pem_blocks() {
+        let error = BackendError::credential(
+            "privateKeyPath=C:\\Users\\alice\\.ssh\\id_rsa access-token:abc /home/deploy/.ssh/id_rsa -----BEGIN OPENSSH PRIVATE KEY-----\nsecret\n-----END OPENSSH PRIVATE KEY-----",
+        );
+
+        assert_eq!(
+            error.message,
+            "[redacted] [redacted] /home/[redacted]/.ssh/id_rsa -----BEGIN OPENSSH PRIVATE KEY-----[redacted]-----END OPENSSH PRIVATE KEY-----"
+        );
+    }
+
+    #[test]
     fn terminal_error_uses_terminal_code() {
         let error = BackendError::terminal("failed to resize pty");
 
         assert_eq!(error.code, "terminalError");
         assert!(error.recoverable);
+    }
+
+    #[test]
+    fn authentication_error_uses_stable_taxonomy() {
+        let error = BackendError::authentication("ssh password authentication failed");
+
+        assert_eq!(error.code, "authenticationError");
+        assert_eq!(error.kind, "authentication");
+        assert!(error.recoverable);
+    }
+
+    #[test]
+    fn host_key_changed_is_non_recoverable_security_error() {
+        let error = BackendError::host_key_changed("host key changed");
+
+        assert_eq!(error.code, "hostKeyChanged");
+        assert_eq!(error.kind, "security");
+        assert!(!error.recoverable);
     }
 }

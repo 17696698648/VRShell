@@ -1,6 +1,7 @@
-import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
+﻿import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 import {sessionState, type SessionGroup, type SessionHost} from '../../../entities/session'
 import {workspaceState} from '../../../entities/workspace'
+import {clearToasts, feedbackState} from '../../../shared/feedback'
 import {migratePersistedState, persistState, restorePersistedState} from '../persistence'
 
 const storageKey = 'vrshell-ui-state-v1'
@@ -31,6 +32,7 @@ describe('persistence', () => {
 
   afterEach(() => {
     localStorage.clear()
+    clearToasts()
     sessionState.groups.splice(0, sessionState.groups.length, ...cloneState(defaultGroups))
     sessionState.sessions.splice(0, sessionState.sessions.length, ...cloneState(defaultSessions))
     sessionState.activeSessionId = defaultActiveSessionId
@@ -59,9 +61,9 @@ describe('persistence', () => {
 
     const persisted = JSON.parse(localStorage.getItem(storageKey) ?? '{}')
     expect(persisted).toMatchObject({
-      schemaVersion: 5,
+      schemaVersion: 6,
       data: {
-        version: 5,
+        version: 6,
         activeSessionId: 'staging-web',
         workspaceLayout: {
           activePanel: 'sessions',
@@ -72,6 +74,12 @@ describe('persistence', () => {
           density: 'comfortable',
         },
         theme: 'light',
+        substateVersions: {
+          openPanes: 1,
+          sessionTree: 1,
+          sftp: 1,
+          workspaceLayout: 1,
+        },
       },
     })
     expect(persisted.savedAt).toEqual(expect.any(String))
@@ -119,10 +127,10 @@ describe('persistence', () => {
     localStorage.setItem(
       storageKey,
       JSON.stringify({
-        schemaVersion: 5,
+        schemaVersion: 6,
         savedAt: '2026-06-22T00:00:00.000Z',
         data: {
-          version: 5,
+          version: 6,
           groups,
           sessions,
           activeSessionId: 'custom-host',
@@ -143,7 +151,7 @@ describe('persistence', () => {
     restorePersistedState()
 
     expect(sessionState.groups).toEqual([
-      {id: 'all', name: '所有', sessionIds: []},
+      expect.objectContaining({id: 'all', sessionIds: []}),
       {id: 'custom', name: 'Custom', sessionIds: ['custom-host'], parentId: 'all'},
     ])
     expect(sessionState.sessions).toEqual(sessions)
@@ -160,7 +168,7 @@ describe('persistence', () => {
 
   it('keeps high contrast theme during migration', () => {
     const migrated = migratePersistedState({
-      version: 5,
+      version: 6,
       groups: [],
       sessions: [],
       activeSessionId: '',
@@ -177,6 +185,30 @@ describe('persistence', () => {
     })
 
     expect(migrated?.data.theme).toBe('high-contrast')
+  })
+
+  it('migrates v5 state into separately versioned substates', () => {
+    const migrated = migratePersistedState({
+      version: 5,
+      groups: [],
+      sessions: [],
+      activeSessionId: '',
+      workspaceLayout: {},
+      theme: 'dark',
+    })
+
+    expect(migrated).toMatchObject({
+      schemaVersion: 6,
+      data: {
+        version: 6,
+        substateVersions: {
+          openPanes: 1,
+          sessionTree: 1,
+          sftp: 1,
+          workspaceLayout: 1,
+        },
+      },
+    })
   })
 
   it('normalizes v3 workspace layout', () => {
@@ -221,10 +253,10 @@ describe('persistence', () => {
       theme: 'bad-theme',
     })
 
-    expect(migrated?.data).toMatchObject({version: 5, workspaceLayout: {activePanel: 'sessions'}, theme: 'dark'})
+    expect(migrated?.data).toMatchObject({version: 6, workspaceLayout: {activePanel: 'sessions'}, theme: 'dark'})
     expect(migrated?.data.sessions).toEqual([{id: 'custom-host', name: 'custom-host', host: 'example.com', port: 22, username: 'deploy', protocol: 'ssh', groupId: 'custom', tags: [], status: 'idle'}])
     expect(migrated?.data.groups).toEqual([
-      {id: 'all', name: '所有', sessionIds: []},
+      expect.objectContaining({id: 'all', sessionIds: []}),
       {id: 'custom', name: 'Custom', sessionIds: ['custom-host'], parentId: 'all'},
     ])
   })
@@ -236,13 +268,13 @@ describe('persistence', () => {
     restorePersistedState()
 
     expect(localStorage.getItem(backupStorageKey)).toBe(legacyPayload)
-    expect(JSON.parse(localStorage.getItem(storageKey) ?? '{}')).toMatchObject({schemaVersion: 5, data: {version: 5}})
+    expect(JSON.parse(localStorage.getItem(storageKey) ?? '{}')).toMatchObject({schemaVersion: 6, data: {version: 6}})
   })
 
   it('scrubs sensitive fields during migration', () => {
     const migrated = migratePersistedState({
-      version: 5,
-      groups: [{id: 'all', name: '所有', sessionIds: ['password-host', 'key-host']}],
+      version: 6,
+      groups: [{id: 'all', name: 'All', sessionIds: ['password-host', 'key-host']}],
       sessions: [
         {id: 'password-host', name: 'password-host', host: 'example.com', port: 22, username: 'deploy', protocol: 'ssh', groupId: 'all', tags: [], status: 'idle', auth: {type: 'password', password: 'secret'}},
         {id: 'key-host', name: 'key-host', host: 'example.net', port: 22, username: 'deploy', protocol: 'ssh', groupId: 'all', tags: [], status: 'idle', auth: {type: 'key', privateKeyPath: '~/.ssh/id_rsa', passphrase: 'secret'}},
@@ -263,6 +295,7 @@ describe('persistence', () => {
 
     expect(localStorage.getItem(storageKey)).toBe('{broken')
     expect(localStorage.getItem(backupStorageKey)).toBe('{broken')
+    expect(feedbackState.toasts.at(-1)).toMatchObject({level: 'warning', title: 'Workspace layout recovered'})
   })
 
   it('backs up unsupported persisted versions without deleting the source', () => {
@@ -273,5 +306,19 @@ describe('persistence', () => {
 
     expect(localStorage.getItem(storageKey)).toBe(unsupportedPayload)
     expect(localStorage.getItem(backupStorageKey)).toBe(unsupportedPayload)
+    expect(feedbackState.toasts.at(-1)).toMatchObject({level: 'warning', title: 'Workspace layout recovered'})
+  })
+
+  it('restores sessions with safe disconnected runtime state', () => {
+    const migrated = migratePersistedState({
+      version: 6,
+      groups: [{id: 'all', name: 'All', sessionIds: ['stale-host']}],
+      sessions: [{id: 'stale-host', name: 'stale-host', host: 'example.com', port: 22, username: 'deploy', protocol: 'ssh', groupId: 'all', tags: [], status: 'connected', backendSessionId: 'stale-backend'}],
+      activeSessionId: 'stale-host',
+      workspaceLayout: {},
+      theme: 'dark',
+    })
+
+    expect(migrated?.data.sessions[0]).toMatchObject({status: 'idle', backendSessionId: undefined})
   })
 })

@@ -2,7 +2,7 @@
   <section class="session-terminal-pane" :class="{'session-terminal-pane--connected': terminal.status === 'connected'}">
     <div v-if="terminal.status !== 'connected'" :class="['session-terminal-status', `session-terminal-status--${terminal.status}`]">
       <span>{{ statusMessage }}</span>
-      <button v-if="terminal.status === 'failed' || terminal.status === 'disconnected'" type="button" @click="reconnectTerminalTab(terminal)">Reconnect</button>
+      <button v-if="terminal.status === 'failed' || terminal.status === 'disconnected'" type="button" @click="reconnectTerminalTab(terminal)">{{ messages.reconnect.action }}</button>
     </div>
     <div ref="viewportRef" class="session-terminal-pane__viewport" />
   </section>
@@ -18,14 +18,15 @@ import {getTerminalBuffer, type TerminalTab} from '../../../entities/terminal'
 import {reconnectTerminalTab} from '../../../features/terminal/manage-connection/manageTerminalConnection'
 import {scheduleTerminalResize} from '../../../features/terminal/resize-terminal/resizeTerminal'
 import {sendTerminalDataToTerminalTab} from '../../../features/terminal/send-terminal-input/sendTerminalInput'
+import {messages} from '../../../shared/copy'
 
 const props = defineProps<{terminal: TerminalTab}>()
 const viewportRef = ref<HTMLElement | null>(null)
 const lines = computed(() => getTerminalBuffer(props.terminal.id).value)
 const statusMessage = computed(() => {
   if (props.terminal.status === 'connecting') return `Connecting to ${props.terminal.title}...`
-  if (props.terminal.status === 'failed') return `${props.terminal.title} failed. Reconnect or inspect logs.`
-  if (props.terminal.status === 'disconnected') return `${props.terminal.title} is disconnected.`
+  if (props.terminal.status === 'failed') return messages.reconnect.terminalFailed(props.terminal.title)
+  if (props.terminal.status === 'disconnected') return messages.reconnect.terminalDisconnected(props.terminal.title)
   return ''
 })
 let resizeObserver: ResizeObserver | null = null

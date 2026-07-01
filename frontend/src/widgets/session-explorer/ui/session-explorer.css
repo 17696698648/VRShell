@@ -17,20 +17,14 @@
 }
 
 .session-explorer .ui-workbench-panel__header {
-  grid-template-columns: auto auto minmax(0, 1fr);
-  justify-content: start;
+  grid-template-columns: minmax(0, 1fr) auto auto;
 }
 
 .session-explorer .ui-workbench-panel__actions {
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--duration-fast) var(--ease-standard);
-}
-
-.session-explorer:hover .ui-workbench-panel__actions,
-.session-explorer:focus-within .ui-workbench-panel__actions {
   opacity: 1;
   pointer-events: auto;
+  position: relative;
+  z-index: 1;
 }
 
 .session-explorer .ui-toolbar {

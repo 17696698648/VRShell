@@ -15,4 +15,10 @@ describe('SftpExplorer body state contract', () => {
     expect(source).toContain(':title="sftpBodyState.title"')
     expect(source).toContain(':description="sftpBodyState.description"')
   })
+
+  it('offers the shared reconnect action for disconnected sessions', () => {
+    expect(source).toContain('sftpBodyState.kind === \'disconnected\' && activeSession')
+    expect(source).toContain("executeCommand('session.reconnect'")
+    expect(source).toContain('messages.reconnect.action')
+  })
 })

@@ -44,6 +44,9 @@
             <UiButton v-if="sftpBodyState.kind === 'empty'" size="sm" variant="primary" @click="refresh()">
               {{ messages.sftp.explorer.refreshDirectory }}
             </UiButton>
+            <UiButton v-else-if="sftpBodyState.kind === 'disconnected' && activeSession" size="sm" variant="primary" @click="reconnectSession()">
+              {{ messages.reconnect.action }}
+            </UiButton>
           </template>
         </EmptyState>
         <SftpDirectoryTree v-else-if="viewMode === 'tree'" :key="activeSession?.id ?? 'no-session'"
@@ -65,6 +68,7 @@
 <script setup lang="ts">
 import {computed, ref, watch} from 'vue'
 import {createRemoteDirectory, createRemoteFile, uploadFileToRemoteDirectory, uploadFolderToRemoteDirectory} from '../../../features/sftp/manage-files/manageSftpFiles'
+import {executeCommand} from '../../../shared/command'
 import {messages} from '../../../shared/copy'
 import {requestPrompt} from '../../../shared/dialog'
 import type {SftpTransferOptions} from '../../../shared/ipc/ipcFacade'
@@ -101,6 +105,11 @@ watch(() => [activeSession.value?.id, sftpState.path] as const, () => {
 function openBreadcrumbPath(path: string) {
   selectedTreePath.value = null
   return refresh(path)
+}
+
+function reconnectSession() {
+  if (!activeSession.value) return
+  return executeCommand('session.reconnect', {sessionId: activeSession.value.id})
 }
 
 async function handleMkdir() {

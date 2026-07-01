@@ -3,12 +3,13 @@
 <script setup lang="ts">
 import {onBeforeUnmount, onErrorCaptured} from 'vue'
 import {messages} from '../../shared/copy'
-import {notifyError} from '../../shared/feedback'
+import {getErrorMessage} from '../../shared/error/getErrorMessage'
+import {notifyAppError} from '../../shared/feedback'
 
 function reportError(error: unknown) {
-  const message = error instanceof Error ? error.message : String(error)
+  const message = getErrorMessage(error)
   if (isResizeObserverLoopMessage(message)) return
-  notifyError({title: messages.app.errors.boundary, detail: message})
+  notifyAppError(error, {title: messages.app.errors.boundary, detail: message, action: 'app-error-boundary'})
 }
 
 function isResizeObserverLoopMessage(message: string) {
@@ -21,7 +22,7 @@ onErrorCaptured((error) => {
 })
 
 function onUnhandledRejection(event: PromiseRejectionEvent) {
-  const message = event.reason instanceof Error ? event.reason.message : String(event.reason)
+  const message = getErrorMessage(event.reason)
   if (isResizeObserverLoopMessage(message)) {
     event.preventDefault()
     return
@@ -30,7 +31,7 @@ function onUnhandledRejection(event: PromiseRejectionEvent) {
 }
 
 function onWindowError(event: ErrorEvent) {
-  const message = event.error instanceof Error ? event.error.message : event.message
+  const message = getErrorMessage(event.error ?? event.message)
   if (isResizeObserverLoopMessage(message)) {
     event.preventDefault()
     return

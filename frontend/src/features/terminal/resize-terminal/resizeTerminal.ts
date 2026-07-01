@@ -2,6 +2,7 @@
 import {terminalState} from '../../../entities/terminal'
 import {resizeTerminalPty} from '../../../entities/terminal/api/terminalRepository'
 import {messages} from '../../../shared/copy'
+import {getErrorMessage} from '../../../shared/error/getErrorMessage'
 import {notifyTerminalFailure, notifyWarning} from '../../../shared/feedback'
 
 const charWidthPx = 9
@@ -81,6 +82,6 @@ function canResizeTerminal(tab: TerminalTab) {
 
 function isStaleResizeFailure(tab: TerminalTab, error: unknown) {
   if (!canResizeTerminal(tab)) return true
-  const message = error instanceof Error ? error.message : String(error)
+  const message = getErrorMessage(error)
   return /unable to send window-change packet|session\(-7\)|terminal runtime is not available|terminal is (closing|closed|not ready)/i.test(message)
 }

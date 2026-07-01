@@ -1054,6 +1054,57 @@
   gap: var(--space-3);
 }
 
+.welcome-page__onboarding {
+  display: grid;
+  gap: var(--space-4);
+  width: min(720px, 100%);
+  padding: var(--space-5);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-xl);
+  background: color-mix(in srgb, var(--color-bg-card) 84%, transparent);
+  box-shadow: var(--shadow-soft);
+}
+
+.welcome-page__onboarding-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+
+.welcome-page__onboarding h2 {
+  margin: var(--space-1) 0 0;
+  font-size: var(--font-size-xl);
+}
+
+.welcome-page__steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.welcome-page__steps li {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-muted);
+}
+
+.welcome-page__steps span,
+.welcome-page__workflow-link {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.welcome-page__workflow-link {
+  justify-self: start;
+  color: var(--color-accent);
+}
+
 .welcome-page__recent {
   display: grid;
   gap: var(--space-3);

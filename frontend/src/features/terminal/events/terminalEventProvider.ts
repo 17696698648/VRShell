@@ -5,6 +5,7 @@ import {messages} from '../../../shared/copy'
 import {getErrorMessage} from '../../../shared/error/getErrorMessage'
 import {notifyTerminalFailure} from '../../../shared/feedback'
 import {decodeTextBase64} from '../../../shared/lib/base64'
+import {logMessage} from '../../../shared/lib/logger'
 import type {TerminalOutputEvent as PolledTerminalOutputEvent} from '../../../shared/ipc/ipcContract'
 import {listenTypedEvent, type TerminalErrorEvent, type TerminalOutputEvent} from '../../../shared/ipc/ipcEvents'
 
@@ -42,6 +43,7 @@ export function createTerminalEventProvider(options: TerminalEventProviderOption
   function start() {
     if (eventDisposer || eventRegistration || pollTimer !== null) return
     if (isTauriRuntime()) {
+      logTerminalDiagnostic('Terminal events started in event mode')
       eventRegistration = registerTerminalEvents(outputBatcher).then((dispose) => {
         eventDisposer = dispose
         eventRegistration = null
@@ -49,6 +51,7 @@ export function createTerminalEventProvider(options: TerminalEventProviderOption
       })
       return
     }
+    logTerminalDiagnostic(`Terminal events started in poll mode (${intervalMs}ms)`)
     startPollingFallback()
   }
 
@@ -61,6 +64,7 @@ export function createTerminalEventProvider(options: TerminalEventProviderOption
     }
     stopPollingFallback()
     outputBatcher.cancel()
+    logTerminalDiagnostic('Terminal events stopped')
   }
 
   function startPollingFallback() {
@@ -93,9 +97,12 @@ async function pollTerminal(tab: TerminalTab) {
   if (!tab.backendSessionId || tab.status !== 'connected') return
   try {
     const events = await pollTerminalOutput(tab.backendSessionId)
+    if (!isSameTerminalRuntime(tab)) return
     const lines = events.map(decodeEvent).filter((line) => line.length > 0)
+    if (lines.length > 0) logTerminalDiagnostic(`Polled ${lines.length} terminal output event(s)`, tab.id)
     if (lines.length > 0) appendTerminalLines(tab.id, lines)
   } catch (error) {
+    if (!isSameTerminalRuntime(tab)) return
     markTerminalOutputFailed(tab, `Output polling failed: ${getErrorMessage(error)}`, getErrorMessage(error))
   }
 }
@@ -104,7 +111,10 @@ function handleTerminalOutput(event: TerminalOutputEvent, outputBatcher: Termina
   const tab = findTerminalByBackendSessionId(event.sessionId)
   if (!tab) return
   const line = decodeEvent(event)
-  if (line) outputBatcher.enqueue(tab.id, line)
+  if (line) {
+    logTerminalDiagnostic('Queued terminal output event', tab.id)
+    outputBatcher.enqueue(tab.id, line)
+  }
 }
 
 interface TerminalOutputBatcher {
@@ -134,6 +144,7 @@ export function createTerminalOutputBatcher(options: TerminalEventProviderOption
   function flush() {
     scheduledHandle = null
     for (const [tabId, lines] of pendingLines) {
+      logTerminalDiagnostic(`Flushed ${lines.length} terminal output line(s)`, tabId)
       appendTerminalLines(tabId, lines)
     }
     pendingLines.clear()
@@ -168,6 +179,7 @@ function handleTerminalClosed(event: {sessionId: string}) {
   if (!tab) return
   patchTerminal(tab.id, {status: 'disconnected'})
   patchSession(tab.sessionId, {status: 'idle', backendSessionId: undefined})
+  logTerminalDiagnostic('Terminal runtime closed', tab.id)
   // 如果关闭的是当前活跃终端，自动切换到第一个可用终端
   if (terminalState.activeTerminalId === tab.id) {
     const fallback = terminalState.tabs.find((t) => t.id !== tab!.id && t.status === 'connected')
@@ -185,13 +197,27 @@ function findTerminalByBackendSessionId(sessionId: string) {
   return terminalState.tabs.find((tab) => tab.backendSessionId === sessionId)
 }
 
+function isSameTerminalRuntime(tab: TerminalTab) {
+  return terminalState.tabs.some((item) => item.id === tab.id && item.backendSessionId === tab.backendSessionId && item.status === 'connected')
+}
+
 function markTerminalOutputFailed(tab: TerminalTab, line: string, detail: string) {
   patchTerminal(tab.id, {status: 'failed'})
   patchSession(tab.sessionId, {status: 'failed', backendSessionId: undefined})
   appendTerminalLines(tab.id, [line])
+  logTerminalDiagnostic(`Terminal output failed: ${detail}`, tab.id)
   if (terminalState.activeTerminalId !== tab.id || isConnectionLostMessage(detail)) {
     notifyTerminalFailure({action: 'output-failed', terminalId: tab.id, title: messages.terminal.failures.outputStopped(tab.title), detail})
   }
+}
+
+function logTerminalDiagnostic(message: string, terminalId?: string) {
+  logMessage({
+    detail: terminalId ? `terminalId=${terminalId}` : undefined,
+    level: 'info',
+    message,
+    source: 'terminal',
+  })
 }
 
 function isConnectionLostMessage(message: string) {

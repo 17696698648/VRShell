@@ -23,7 +23,34 @@ test.describe('security flows', () => {
     const dialog = page.getByRole('alertdialog', {name: 'Unknown Host Key'})
     await expect(dialog).toBeVisible()
     await expect(dialog.getByText('prod.example.com:22')).toBeVisible()
-    await dialog.getByRole('button', {name: 'Yes, I trust this host'}).click()
+    await expect(dialog.getByText('Compare this fingerprint with a trusted source before accepting')).toBeVisible()
+    await dialog.getByRole('button', {name: 'Accept and save host key'}).click()
+    await expect(dialog).toBeHidden()
+  })
+
+  test('renders changed host key warning and blocks direct trust action @security', async ({page}) => {
+    await page.evaluate(() => window.__TAURI_INTERNALS__?.invoke('mock:event:emit', {
+      eventName: 'security-hostKeyRequested',
+      payload: {
+        pendingId: '',
+        host: 'prod.example.com',
+        port: 22,
+        fingerprint: 'SHA256:new-key',
+        keyType: 'ssh-ed25519',
+        reason: 'changed',
+        knownFingerprint: 'SHA256:old-key',
+      },
+    }))
+
+    const dialog = page.getByRole('alertdialog', {name: 'Host Key Changed'})
+    await expect(dialog).toBeVisible()
+    await expect(dialog.getByText('Known fingerprint:')).toBeVisible()
+    await expect(dialog.getByText('SHA256:old-key')).toBeVisible()
+    await expect(dialog.getByText('SHA256:new-key')).toBeVisible()
+    await expect(dialog.getByText('Stop unless an administrator confirms the server was re-keyed')).toBeVisible()
+    await expect(dialog.getByRole('button', {name: 'Disabled for changed keys'})).toBeDisabled()
+
+    await dialog.getByRole('button', {name: 'No', exact: true}).click()
     await expect(dialog).toBeHidden()
   })
 
@@ -40,4 +67,3 @@ test.describe('security flows', () => {
     await expect(toast).not.toContainText('abc123')
   })
 })
-

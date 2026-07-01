@@ -9,6 +9,7 @@ describe('diagnostic bundle', () => {
 
   it('redacts sensitive values in diagnostic text', () => {
     expect(sanitizeDiagnosticText('failed password=secret token=abc passphrase:open')).toBe('failed password=[redacted] token=[redacted] passphrase:[redacted]')
+    expect(sanitizeDiagnosticText('localPath=C:\\Users\\alice\\Downloads\\secret.txt remote=/home/deploy/.ssh/id_rsa')).toBe('localPath=C:\\Users\\[redacted]\\Downloads\\secret.txt remote=/home/[redacted]/.ssh/id_rsa')
   })
 
   it('exports sessions, tasks, and logs without raw credentials', () => {
@@ -25,14 +26,15 @@ describe('diagnostic bundle', () => {
       auth: {type: 'password', password: 'secret'},
       backendSessionId: 'backend-1',
     }]
-    const tasks = [{id: 'task-1', title: 'Upload', detail: '/srv/app.env', progress: 50, status: 'failed', error: 'token=abc failed', traceId: 'task:task-1'}]
+    const tasks = [{id: 'task-1', action: 'upload', title: 'Upload', detail: '/srv/app.env', path: 'C:\\Users\\alice\\Downloads\\app.env', progress: 50, status: 'failed', error: 'token=abc failed', traceId: 'task:task-1'}]
     logMessage({level: 'error', source: 'sftp', message: 'Upload failed', detail: 'password=secret'})
 
     const bundle = createDiagnosticBundle({sessions, tasks})
     const exported = exportDiagnosticBundle({sessions, tasks})
 
     expect(bundle.sessions[0]).toMatchObject({authType: 'password', backendSessionId: 'backend-1'})
-    expect(bundle.tasks[0]).toMatchObject({traceId: 'task:task-1', error: 'token=[redacted] failed'})
+    expect(bundle.summary).toMatchObject({sessionCount: 1, taskCount: 1, failedTaskCount: 1, connectedSessionCount: 1})
+    expect(bundle.tasks[0]).toMatchObject({action: 'upload', traceId: 'task:task-1', error: 'token=[redacted] failed', path: 'C:\\Users\\[redacted]\\Downloads\\app.env'})
     expect(bundle.logs[0]).toMatchObject({detail: 'password=[redacted]'})
     expect(exported).not.toContain('password":"secret')
     expect(exported).not.toContain('token=abc')

@@ -2,6 +2,7 @@ import type {SftpItem} from '../../../entities/sftp'
 
 export type SftpSortKey = 'type' | 'name' | 'size' | 'modifiedAt'
 export type SftpSortDirection = 'asc' | 'desc'
+const naturalCollator = new Intl.Collator(undefined, {numeric: true, sensitivity: 'base'})
 
 export function sortSftpItems(items: SftpItem[], key: SftpSortKey, direction: SftpSortDirection) {
   if (items.length <= 1) return items
@@ -16,7 +17,7 @@ export function sortSftpItems(items: SftpItem[], key: SftpSortKey, direction: Sf
 
 function compareByKey(left: SftpItem, right: SftpItem, key: SftpSortKey) {
   if (key === 'size') return parseSize(left.size) - parseSize(right.size)
-  return String(left[key]).localeCompare(String(right[key]), undefined, {numeric: true, sensitivity: 'base'})
+  return naturalCollator.compare(String(left[key]), String(right[key]))
 }
 
 function parseSize(size: string) {
@@ -28,4 +29,3 @@ function parseSize(size: string) {
   if (normalized.includes('kb')) return value * 1024
   return value
 }
-

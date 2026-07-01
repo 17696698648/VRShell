@@ -1,18 +1,9 @@
 import {terminalApi} from '../../../shared/ipc/ipcFacade'
 import type {SessionHost} from '../../session'
+import {toConnectSshArgs} from '../../session/api/sshConnection'
 
 export async function connectTerminal(session: SessionHost) {
-  return terminalApi.open({
-    host: session.host,
-    port: session.port,
-    username: session.username,
-    password: session.auth?.type === 'password' ? session.auth.password : null,
-    privateKeyPath: session.auth?.type === 'key' ? session.auth.privateKeyPath : null,
-    passphrase: session.auth?.type === 'key' ? session.auth.passphrase : null,
-    authMethod: session.auth?.type ?? 'agent',
-    autoReconnect: true,
-    idleTimeoutSecs: 0,
-  })
+  return terminalApi.open(toConnectSshArgs(session))
 }
 
 export function disconnectTerminal(sessionId: string) {

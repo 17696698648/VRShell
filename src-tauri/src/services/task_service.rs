@@ -13,18 +13,15 @@ pub(crate) fn list_background_tasks(
     let mut tasks = state.tasks.lock().values().cloned().collect::<Vec<_>>();
     tasks.extend(
         sftp_service::list_sftp_tasks(state)?
-        .into_iter()
-        .map(BackgroundTaskSnapshot::from),
+            .into_iter()
+            .map(BackgroundTaskSnapshot::from),
     );
     tasks.sort_by_key(|task| Reverse(task.updated_at_ms));
     Ok(tasks)
 }
 
 pub(crate) fn cancel_background_task(state: &BackendState, task_id: &str) -> BackendResult<()> {
-    state
-        .cancelled_tasks
-        .lock()
-        .insert(task_id.to_string());
+    state.cancelled_tasks.lock().insert(task_id.to_string());
     if let Some(task) = state.tasks.lock().get_mut(task_id) {
         task.status = BackgroundTaskStatus::Cancelled;
         task.updated_at_ms = current_time_ms();
@@ -125,7 +122,9 @@ mod tests {
         let tasks = list_background_tasks(&state).expect("list background tasks");
 
         assert!(tasks.iter().any(|task| task.task_id == task_id));
-        assert!(tasks.iter().any(|task| task.kind == "diagnostic.tcp-latency"));
+        assert!(tasks
+            .iter()
+            .any(|task| task.kind == "diagnostic.tcp-latency"));
     }
 
     #[test]

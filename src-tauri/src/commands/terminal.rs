@@ -1,7 +1,10 @@
 use crate::{
-    domain::task::BackgroundTaskStatus,
     domain::credential::CredentialRef,
-    ipc::{dto::ConnectSshRequest, IpcResult},
+    domain::task::BackgroundTaskStatus,
+    ipc::{
+        dto::{ConnectSshRequest, SshConnectionDto},
+        IpcResult,
+    },
     services::{task_service, terminal_service},
     state::BackendState,
 };
@@ -24,16 +27,18 @@ pub fn connect_ssh(
     credential_ref: Option<CredentialRef>,
 ) -> IpcResult<String> {
     let request = ConnectSshRequest {
-        host,
-        port,
-        username,
-        password,
-        private_key_path,
-        passphrase,
-        auth_method,
+        connection: SshConnectionDto {
+            host,
+            port,
+            username,
+            password,
+            private_key_path,
+            passphrase,
+            auth_method,
+            credential_ref,
+        },
         auto_reconnect,
         idle_timeout_secs,
-        credential_ref,
     };
     terminal_service::connect(&window, &state, request.into())
         .map(|session| {
@@ -104,11 +109,8 @@ pub fn tcp_latency(
     timeout_ms: Option<u64>,
 ) -> IpcResult<u64> {
     let detail = format!("{host}:{port}");
-    let result = crate::infrastructure::ssh_client::SshClient::measure_tcp_latency(
-        &host,
-        port,
-        timeout_ms,
-    );
+    let result =
+        crate::infrastructure::ssh_client::SshClient::measure_tcp_latency(&host, port, timeout_ms);
 
     match result {
         Ok(latency) => {

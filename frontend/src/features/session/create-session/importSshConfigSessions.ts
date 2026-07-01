@@ -1,8 +1,7 @@
 ﻿import {addSessions, sessionState} from '../../../entities/session'
 import {importSshConfig} from '../../../entities/session/api/sessionRepository'
-import {notifyError, notifyWarning} from '../../../shared/feedback'
+import {notifyAppError} from '../../../shared/feedback'
 import {messages} from '../../../shared/copy'
-import {getErrorMessage} from '../../../shared/error/getErrorMessage'
 
 export interface ImportSshConfigSummary {
   imported: number
@@ -16,7 +15,7 @@ export async function importSshConfigSessions(): Promise<ImportSshConfigSummary>
     addSessions(result.imported)
     return {imported: result.imported.length, skipped: result.skipped, total: result.total}
   } catch (error) {
-    notifyError({title: messages.session.failures.importSshConfig, detail: getErrorMessage(error)})
+    notifyAppError(error, {title: messages.session.failures.importSshConfig, action: 'import-ssh-config'})
     throw error
   }
 }

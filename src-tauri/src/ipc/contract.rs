@@ -90,7 +90,10 @@ mod tests {
     #[test]
     fn matches_frontend_command_contract() {
         let frontend_commands = frontend_command_names();
-        let rust_commands = COMMANDS.iter().map(|command| command.to_string()).collect::<Vec<_>>();
+        let rust_commands = COMMANDS
+            .iter()
+            .map(|command| command.to_string())
+            .collect::<Vec<_>>();
 
         assert_eq!(rust_commands, frontend_commands);
     }
