@@ -1,5 +1,6 @@
 import type {IpcCommandMap} from './ipcContract'
 import type {AppError, AppErrorSeverity, AppErrorSource} from '../lib/appError'
+import {sanitizeSensitiveText} from '../lib/sanitizeSensitiveText'
 
 type BackendErrorKind = 'validation' | 'network' | 'authentication' | 'sftp' | 'terminal' | 'cancelled' | 'storage' | 'credential' | 'security'
 
@@ -96,7 +97,5 @@ function sourceForIpcError(command: keyof IpcCommandMap, error: IpcErrorDetail):
 }
 
 function sanitizeErrorMessage(message: string) {
-  return message
-    .replace(/(password|passphrase|secret|token|privateKey|private_key)(\s*[=:]\s*)[^\s,;]+/gi, '$1$2[redacted]')
-    .replace(/(-----BEGIN [^-]+-----)[\s\S]*?(-----END [^-]+-----)/g, '$1[redacted]$2')
+  return sanitizeSensitiveText(message)
 }

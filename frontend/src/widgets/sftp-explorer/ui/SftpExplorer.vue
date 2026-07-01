@@ -49,7 +49,14 @@
         <SftpDirectoryTree v-else-if="viewMode === 'tree'" :key="activeSession?.id ?? 'no-session'"
                            :items="sftpState.items" :root-path="sftpState.path" :session="activeSession"
                            @select-directory="selectedTreePath = $event"/>
-        <SftpFileList v-else :items="sftpState.items" display-mode="list" @open-directory="refresh"/>
+        <template v-else>
+          <SftpFileList :items="sftpState.items" display-mode="list" @open-directory="refresh"/>
+          <div v-if="sftpBodyState.kind === 'ready' && sftpState.hasMore" class="sftp-pagination-action">
+            <UiButton size="sm" variant="secondary" :disabled="sftpState.loading" @click="loadMore()">
+              {{ messages.sftp.explorer.loadMoreDirectory }}
+            </UiButton>
+          </div>
+        </template>
       </section>
     </div>
   </UiWorkbenchPanel>
@@ -73,7 +80,7 @@ import SftpFileList from './SftpFileList.vue'
 type SftpUploadConflictStrategy = NonNullable<SftpTransferOptions['conflict']>
 
 defineProps<{ compact?: boolean }>()
-const {sftpState, activeSession, hasConnectedTerminal, refresh} = useSftpExplorer()
+const {sftpState, activeSession, hasConnectedTerminal, refresh, loadMore} = useSftpExplorer()
 const {viewMode} = useSftpViewMode()
 const selectedTreePath = ref<string | null>(null)
 const panelClasses = computed(() => ['explorer-panel', 'sftp-explorer', `sftp-explorer--${viewMode.value}`])

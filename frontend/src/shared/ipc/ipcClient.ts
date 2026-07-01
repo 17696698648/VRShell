@@ -86,11 +86,15 @@ async function invokeMock(command: keyof IpcCommandMap, args: unknown) {
     }
   }
   if (command === 'sftp_list') {
-    const payload = args as {path: string}
-    return [
-      {name: 'logs', path: `${payload.path}/logs`, is_dir: true, size: 0, modified: Date.now()},
-      {name: 'app.env', path: `${payload.path}/app.env`, is_dir: false, size: 2048, modified: Date.now()},
+    const payload = args as {path: string; offset?: number | null; limit?: number | null; cursor?: string | null}
+    const entries = [
+      {name: 'logs', path: `${payload.path}/logs`, isDirectory: true, size: 0, modified: Date.now()},
+      {name: 'app.env', path: `${payload.path}/app.env`, isDirectory: false, size: 2048, modified: Date.now()},
     ]
+    const cursorOffset = payload.cursor?.startsWith('offset:') ? Number.parseInt(payload.cursor.slice('offset:'.length), 10) : null
+    const offset = Number.isInteger(cursorOffset) ? Number(cursorOffset) : (payload.offset ?? 0)
+    const limit = payload.limit ?? entries.length
+    return entries.slice(offset, offset + limit)
   }
   if (command === 'list_sftp_tasks' || command === 'list_background_tasks') return []
   if (command === 'cancel_background_task') return undefined

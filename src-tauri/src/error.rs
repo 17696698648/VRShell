@@ -68,7 +68,7 @@ impl BackendError {
     }
 }
 
-fn scrub_sensitive_message(message: String) -> String {
+pub(crate) fn scrub_sensitive_message(message: String) -> String {
     let mut parts = Vec::new();
     let mut skip_parts = 0;
 

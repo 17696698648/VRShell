@@ -14,8 +14,11 @@ pub fn sftp_list(
     state: State<'_, BackendState>,
     connection: SftpConnectionDto,
     path: String,
+    offset: Option<usize>,
+    limit: Option<usize>,
+    cursor: Option<String>,
 ) -> IpcResult<Vec<crate::domain::sftp::SftpEntry>> {
-    sftp_service::list(Some(&state), connection.into(), path).map_err(Into::into)
+    sftp_service::list(Some(&state), connection.into(), path, offset, limit, cursor).map_err(Into::into)
 }
 
 #[tauri::command]
@@ -107,7 +110,7 @@ pub fn sftp_upload(
         local_path,
         options,
     };
-    clear_cancelled_sftp_task(&state, &request.task_id)?;
+    clear_cancelled_task(&state, &request.task_id)?;
     sftp_service::register_sftp_task(
         &state,
         &request.task_id,
@@ -137,7 +140,7 @@ pub fn sftp_upload_directory(
     remote_path: String,
     task_id: String,
 ) -> IpcResult<()> {
-    clear_cancelled_sftp_task(&state, &task_id)?;
+    clear_cancelled_task(&state, &task_id)?;
     sftp_service::register_sftp_task(&state, &task_id, "upload", "Upload folder", &remote_path)
         .map_err(crate::ipc::IpcError::from)?;
     std::thread::spawn(move || {
@@ -173,7 +176,7 @@ pub fn sftp_download(
         local_path,
         options: None,
     };
-    clear_cancelled_sftp_task(&state, &request.task_id)?;
+    clear_cancelled_task(&state, &request.task_id)?;
     sftp_service::register_sftp_task(
         &state,
         &request.task_id,
@@ -214,11 +217,11 @@ pub fn list_sftp_tasks(state: State<'_, BackendState>) -> IpcResult<Vec<SftpTask
 
 #[tauri::command]
 pub fn cancel_sftp_task(state: State<'_, BackendState>, task_id: String) -> IpcResult<()> {
-    state.cancelled_sftp_tasks.lock().insert(task_id.clone());
+    state.cancelled_tasks.lock().insert(task_id.clone());
     sftp_service::mark_sftp_task_cancelled(&state, &task_id).map_err(Into::into)
 }
 
-fn clear_cancelled_sftp_task(state: &BackendState, task_id: &str) -> IpcResult<()> {
-    state.cancelled_sftp_tasks.lock().remove(task_id);
+fn clear_cancelled_task(state: &BackendState, task_id: &str) -> IpcResult<()> {
+    state.cancelled_tasks.lock().remove(task_id);
     Ok(())
 }

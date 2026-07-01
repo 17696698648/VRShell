@@ -170,6 +170,12 @@
   grid-template-rows: minmax(0, 1fr);
 }
 
+.sftp-pagination-action {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-2) var(--explorer-edge) var(--space-1);
+}
+
 
 .sftp-explorer .ui-error-state {
   margin-inline: var(--explorer-edge);

@@ -5,6 +5,7 @@ use crate::{
     ipc::dto::{SftpTransferConflictStrategyDto, SftpTransferOptionsDto, SftpTransferRequest},
     state::BackendState,
 };
+use crate::state::prune_expired_disconnected_terminal_sessions;
 use base64::Engine;
 use parking_lot::Mutex;
 use ssh2::{FileStat, OpenFlags, OpenType};
@@ -130,6 +131,7 @@ pub(crate) fn drop_cached_sftp_sessions_for_terminal(
 }
 
 fn prune_idle_sftp_sessions_with_ttl(state: &BackendState, idle_ttl: Duration) -> usize {
+    let _ = prune_expired_disconnected_terminal_sessions(state);
     let now = Instant::now();
     let mut sessions = state.sftp_sessions.lock();
     let before = sessions.len();
@@ -231,6 +233,9 @@ pub(crate) fn list(
     state: Option<&BackendState>,
     connection: SftpConnectionRequest,
     path: String,
+    offset: Option<usize>,
+    limit: Option<usize>,
+    cursor: Option<String>,
 ) -> BackendResult<Vec<SftpEntry>> {
     validate_connection(&connection)?;
     let path = path.trim();
@@ -252,8 +257,29 @@ pub(crate) fn list(
                 .cmp(&left.is_directory)
                 .then_with(|| left.name.to_lowercase().cmp(&right.name.to_lowercase()))
         });
-        Ok(entries)
+        Ok(apply_list_window(entries, offset, limit, cursor))
     })
+}
+
+fn apply_list_window(
+    entries: Vec<SftpEntry>,
+    offset: Option<usize>,
+    limit: Option<usize>,
+    cursor: Option<String>,
+) -> Vec<SftpEntry> {
+    let offset = cursor
+        .as_deref()
+        .and_then(parse_list_cursor)
+        .or(offset)
+        .unwrap_or(0);
+    let limit = limit.unwrap_or(entries.len().saturating_sub(offset));
+    entries.into_iter().skip(offset).take(limit).collect()
+}
+
+fn parse_list_cursor(cursor: &str) -> Option<usize> {
+    cursor
+        .strip_prefix("offset:")
+        .and_then(|value| value.parse::<usize>().ok())
 }
 
 pub(crate) fn read_file(
@@ -734,10 +760,12 @@ fn join_remote_path(parent_path: &str, name: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        is_sftp_session_idle_expired, is_special_directory_entry, renamed_remote_path,
+        apply_list_window, is_sftp_session_idle_expired, is_special_directory_entry,
+        renamed_remote_path,
         SftpTransferConflictStrategy, SftpTransferOptions, SftpTransferPermit,
         MAX_ACTIVE_SFTP_TRANSFERS, MAX_ACTIVE_SFTP_TRANSFERS_PER_CONNECTION, SFTP_SESSION_IDLE_TTL,
     };
+    use crate::domain::sftp::SftpEntry;
     use crate::ipc::dto::{SftpTransferConflictStrategyDto, SftpTransferOptionsDto};
     use crate::{domain::sftp::SftpConnectionRequest, state::BackendState};
     use std::{
@@ -857,6 +885,47 @@ mod tests {
         assert_eq!(renamed_remote_path("/srv/archive", 1), "/srv/archive (1)");
     }
 
+    #[test]
+    fn apply_list_window_respects_offset_and_limit() {
+        let entries = vec![
+            test_entry("a"),
+            test_entry("b"),
+            test_entry("c"),
+            test_entry("d"),
+        ];
+
+        let sliced = apply_list_window(entries, Some(1), Some(2), None);
+
+        assert_eq!(sliced.len(), 2);
+        assert_eq!(sliced[0].name, "b");
+        assert_eq!(sliced[1].name, "c");
+    }
+
+    #[test]
+    fn apply_list_window_returns_empty_when_offset_exceeds_len() {
+        let entries = vec![test_entry("a"), test_entry("b")];
+
+        let sliced = apply_list_window(entries, Some(10), Some(5), None);
+
+        assert!(sliced.is_empty());
+    }
+
+    #[test]
+    fn apply_list_window_supports_cursor_tokens() {
+        let entries = vec![
+            test_entry("a"),
+            test_entry("b"),
+            test_entry("c"),
+            test_entry("d"),
+        ];
+
+        let sliced = apply_list_window(entries, None, Some(2), Some("offset:2".to_string()));
+
+        assert_eq!(sliced.len(), 2);
+        assert_eq!(sliced[0].name, "c");
+        assert_eq!(sliced[1].name, "d");
+    }
+
     fn test_connection(host: &str) -> SftpConnectionRequest {
         SftpConnectionRequest {
             host: host.to_string(),
@@ -867,6 +936,16 @@ mod tests {
             passphrase: None,
             auth_method: Some("agent".to_string()),
             credential_ref: None,
+        }
+    }
+
+    fn test_entry(name: &str) -> SftpEntry {
+        SftpEntry {
+            name: name.to_string(),
+            path: format!("/{name}"),
+            is_directory: false,
+            size_bytes: 0,
+            modified: None,
         }
     }
 

@@ -1,5 +1,6 @@
 use crate::{
     domain::sftp::SftpTaskSnapshot,
+    error::scrub_sensitive_message,
     error::{BackendError, BackendResult},
     infrastructure::event_bus::EventSink,
     state::BackendState,
@@ -199,7 +200,7 @@ pub(super) fn ensure_task_not_cancelled(
     let (Some(state), Some(task_id)) = (state, task_id) else {
         return Ok(());
     };
-    let cancelled = state.cancelled_sftp_tasks.lock().contains(task_id);
+    let cancelled = state.cancelled_tasks.lock().contains(task_id);
     if cancelled {
         Err(BackendError::cancelled("sftp task was cancelled"))
     } else {
@@ -227,7 +228,7 @@ pub(super) fn emit_sftp_progress(
                 total_bytes,
             },
         );
-        state.cancelled_sftp_tasks.lock().remove(task_id);
+        state.cancelled_tasks.lock().remove(task_id);
         find_sftp_task(state, task_id).ok().flatten()
     } else {
         None
@@ -312,7 +313,7 @@ pub(crate) fn emit_sftp_failed(
     task_id: &str,
     error: impl Into<String>,
 ) {
-    let error = error.into();
+    let error = scrub_sensitive_message(error.into());
     let trace_id = sftp_task_trace_id(task_id);
     let snapshot = if let Some(state) = state {
         let _ = apply_sftp_task_transition(
@@ -322,7 +323,7 @@ pub(crate) fn emit_sftp_failed(
                 error: error.clone(),
             },
         );
-        state.cancelled_sftp_tasks.lock().remove(task_id);
+        state.cancelled_tasks.lock().remove(task_id);
         find_sftp_task(state, task_id).ok().flatten()
     } else {
         None

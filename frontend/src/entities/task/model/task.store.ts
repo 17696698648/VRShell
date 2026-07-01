@@ -2,6 +2,7 @@ import {reactive} from 'vue'
 
 export interface TaskItem {
   id: string
+  kind?: string
   title: string
   detail: string
   error?: string

@@ -15,6 +15,8 @@
     "test:task-center": "vitest run src/widgets/task-center",
     "test:e2e": "playwright test",
     "test:e2e:smoke": "playwright test --project=chromium --grep @smoke",
+    "test:e2e:security": "playwright test --project=chromium --grep @security",
+    "test:e2e:visual": "playwright test --project=chromium --grep \"VRShell visual states\"",
     "build": "vite build",
     "preview": "vite preview",
     "lint": "biome check .",

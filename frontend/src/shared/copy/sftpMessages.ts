@@ -11,6 +11,7 @@ export const sftpMessages = {
     emptyWithoutSessionTitle: 'Connect a session first',
     emptyWithoutSession: 'Connect a session to browse remote files.',
     refreshDirectory: 'Refresh directory',
+    loadMoreDirectory: 'Load more',
     createRemoteDirectoryTitle: 'Create remote directory',
     directoryName: 'Directory name',
   },

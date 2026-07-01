@@ -1,5 +1,6 @@
 import {reactive} from 'vue'
 import {createId} from './createId'
+import {sanitizeSensitiveText} from './sanitizeSensitiveText'
 
 export type OutputChannel = 'SSH' | 'SFTP' | 'Terminal' | 'Task' | 'IPC' | 'UI'
 
@@ -15,7 +16,7 @@ export const outputState = reactive({
 })
 
 export function writeOutput(channel: OutputChannel, message: string) {
-  const entry = {channel, id: createId('output'), message, timestamp: Date.now()}
+  const entry = {channel, id: createId('output'), message: sanitizeSensitiveText(message), timestamp: Date.now()}
   outputState.entries.unshift(entry)
   outputState.entries.splice(300)
   return entry

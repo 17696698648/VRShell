@@ -12,6 +12,16 @@
   --jb-faint: #666e79;
   --jb-blue: #5795f7;
   --jb-blue-soft: rgba(87, 149, 247, 0.18);
+  --jb-input-bg: #202227;
+  --jb-active-bg: #30343a;
+  --jb-terminal-tab-bg: #181a1d;
+  --jb-terminal-bg: #111318;
+  --jb-text-inverse: #ffffff;
+  --jb-overlay-weak: rgba(255, 255, 255, 0.045);
+  --jb-overlay-soft: rgba(255, 255, 255, 0.055);
+  --jb-overlay-hover: rgba(255, 255, 255, 0.06);
+  --jb-overlay-strong: rgba(255, 255, 255, 0.14);
+  --jb-outline-focus: #0078d4;
   --jb-line-strong: rgba(160, 170, 185, 0.2);
   --jb-hover: rgba(255, 255, 255, 0.06);
   --jb-control: rgba(255, 255, 255, 0.035);
@@ -136,7 +146,7 @@ body,
 }
 
 .workspace-context:focus-visible {
-  outline: 1px solid #0078d4;
+  outline: 1px solid var(--jb-outline-focus);
   outline-offset: 1px;
 }
 
@@ -214,19 +224,19 @@ body,
 .activity-bar-left__item:focus-visible,
 .activity-bar-right__item:hover,
 .activity-bar-right__item:focus-visible {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--jb-overlay-hover);
 }
 
 .activity-bar-left__item.is-expanded,
 .activity-bar-right__item.is-expanded {
-  background: rgba(255, 255, 255, 0.14);
+  background: var(--jb-overlay-strong);
   box-shadow: none;
 }
 
 .activity-bar-left__item.is-current,
 .activity-bar-right__item.is-current {
   background: var(--jb-blue);
-  color: #ffffff;
+  color: var(--jb-text-inverse);
   box-shadow: none;
 }
 
@@ -423,7 +433,7 @@ body,
   min-height: 28px;
   border: 1px solid var(--jb-line-strong);
   border-radius: 7px;
-  background: #202227;
+  background: var(--jb-input-bg);
   color: var(--jb-muted);
 }
 
@@ -447,7 +457,7 @@ body,
 .sidebar-left .session-tree__row:hover,
 .sidebar-left [role='treeitem']:hover,
 .sidebar-left .explorer-row:hover {
-  background: rgba(255, 255, 255, 0.055);
+  background: var(--jb-overlay-soft);
   color: var(--jb-text);
 }
 
@@ -455,7 +465,7 @@ body,
 .sidebar-left .session-tree__row.active,
 .sidebar-left [aria-selected='true'],
 .sidebar-left .explorer-row.active {
-  background: #3b3e46;
+  background: var(--jb-active-bg);
   color: #e1e5ea;
 }
 
@@ -489,7 +499,7 @@ body,
 .workbench-shell__main .session-tabs__item:hover,
 .workbench-shell__main .editor-tabs__item:hover,
 .workbench-shell__main .editor-tab:hover {
-  background: rgba(255, 255, 255, 0.045);
+  background: var(--jb-overlay-weak);
   color: var(--jb-text);
 }
 
@@ -516,7 +526,7 @@ body,
   min-height: 30px;
   padding: 0 8px;
   border: 0;
-  background: #181a1d;
+  background: var(--jb-terminal-tab-bg);
 }
 
 .workbench-shell__main .session-terminal-tabs__item,
@@ -530,13 +540,13 @@ body,
 
 .workbench-shell__main .session-terminal-tabs__item:hover,
 .workbench-shell__main .session-terminal-tabs button:hover {
-  background: rgba(255, 255, 255, 0.055);
+  background: var(--jb-overlay-soft);
   color: var(--jb-text);
 }
 
 .workbench-shell__main .session-terminal-tabs__item.active,
 .workbench-shell__main .session-terminal-tabs button.active {
-  background: #30343a;
+  background: var(--jb-active-bg);
   color: #c8cdd4;
 }
 
@@ -552,12 +562,12 @@ body,
 .workbench-shell__main .terminal,
 .workbench-shell__main .terminal-host,
 .workbench-shell__main .terminal-pane {
-  background: #111318 !important;
+  background: var(--jb-terminal-bg) !important;
 }
 
 .workbench-shell__main .xterm .xterm-viewport,
 .workbench-shell__main .xterm .xterm-screen {
-  background-color: #111318 !important;
+  background-color: var(--jb-terminal-bg) !important;
 }
 
 .workbench-shell__main .empty-state,
@@ -807,7 +817,7 @@ body,
 .session-connection-info__card {
   border: 0;
   border-radius: 7px;
-  background: #292c31;
+  background: color-mix(in srgb, var(--jb-panel-3) 74%, var(--jb-panel));
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.045);
 }
 
@@ -864,7 +874,7 @@ body,
 .sidebar-right .sftp-explorer .breadcrumbs {
   border: 1px solid var(--jb-line-strong);
   border-radius: 7px;
-  background: #202227;
+  background: var(--jb-input-bg);
   box-shadow: none;
 }
 
@@ -878,7 +888,7 @@ body,
 .sidebar-right .ui-tree__item:hover,
 .sidebar-right .sftp-file-list__row:hover,
 .sidebar-right .ui-virtual-list__item:hover {
-  background: rgba(255, 255, 255, 0.055);
+  background: var(--jb-overlay-soft);
   color: var(--jb-text);
 }
 
@@ -958,19 +968,19 @@ body,
 .activity-bar-right__item:focus-visible,
 .activity-bar-left__settings:hover,
 .activity-bar-left__settings:focus-visible {
-  background: rgba(255, 255, 255, 0.07);
+  background: color-mix(in srgb, var(--jb-overlay-hover) 85%, transparent);
 }
 
 .activity-bar-left__item.is-expanded,
 .activity-bar-right__item.is-expanded {
-  background: rgba(255, 255, 255, 0.14);
+  background: var(--jb-overlay-strong);
   box-shadow: none;
 }
 
 .activity-bar-left__item.is-current,
 .activity-bar-right__item.is-current {
   background: var(--jb-blue);
-  color: #ffffff;
+  color: var(--jb-text-inverse);
 }
 
 .activity-bar-left__badge,
@@ -999,14 +1009,14 @@ body,
 
 .activity-bar-left__item.is-expanded,
 .activity-bar-right__item.is-expanded {
-  background: rgba(255, 255, 255, 0.14);
+  background: var(--jb-overlay-strong);
   box-shadow: none;
 }
 
 .activity-bar-left__item.is-current,
 .activity-bar-right__item.is-current {
   background: var(--jb-blue);
-  color: #ffffff;
+  color: var(--jb-text-inverse);
 }
 
 .activity-bar-left__item.is-expanded::before,

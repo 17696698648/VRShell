@@ -1,6 +1,7 @@
 import {reactive} from 'vue'
 import {createId} from './createId'
 import {normalizeError, type AppError, type AppErrorSeverity, type AppErrorSource} from './appError'
+import {sanitizeSensitiveText} from './sanitizeSensitiveText'
 
 export interface LogEntry {
   id: string
@@ -17,9 +18,14 @@ export const logState = reactive({
 })
 
 export function logMessage(input: Omit<LogEntry, 'id' | 'timestamp'>) {
+  const sanitizedMessage = sanitizeSensitiveText(input.message)
+  const sanitizedDetail = input.detail ? sanitizeSensitiveText(input.detail) : undefined
+
   const entry: LogEntry = {
     ...input,
+    detail: sanitizedDetail,
     id: createId('log'),
+    message: sanitizedMessage,
     timestamp: Date.now(),
   }
   logState.entries.unshift(entry)

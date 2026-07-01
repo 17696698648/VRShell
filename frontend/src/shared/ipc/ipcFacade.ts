@@ -106,8 +106,14 @@ export const terminalApi = {
 
 export const sftpFileApi = {
   /** 列出远程目录 */
-  list(connection: SftpConnection, path: string) {
-    return typedInvoke('sftp_list', {connection, path})
+  list(connection: SftpConnection, path: string, options?: {offset?: number; limit?: number; cursor?: string}) {
+    return typedInvoke('sftp_list', {
+      connection,
+      path,
+      offset: options?.offset ?? null,
+      limit: options?.limit ?? null,
+      cursor: options?.cursor ?? null,
+    })
   },
 
   /** 创建远程目录 */

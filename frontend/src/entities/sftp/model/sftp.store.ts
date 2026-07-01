@@ -11,6 +11,8 @@ export interface SftpSessionState {
   connectedSessionId: string
   initialized: boolean
   path: string
+  nextCursor: string | null
+  hasMore: boolean
   loading: boolean
   error: string
   selectedItemId: string
@@ -23,6 +25,8 @@ function createSftpSessionState(sessionId = ''): SftpSessionState {
     connectedSessionId: sessionId,
     initialized: false,
     path: '/',
+    nextCursor: null,
+    hasMore: false,
     loading: false,
     error: '',
     selectedItemId: '',
@@ -72,6 +76,8 @@ export function removeSftpSessionState(sessionId: string) {
 
 export function setSftpItems(path: string, items: SftpItem[]) {
   sftpState.path = path
+  sftpState.nextCursor = null
+  sftpState.hasMore = false
   sftpState.items = items
   persistActiveSftpState()
 }
@@ -86,6 +92,8 @@ export function clearSftpState() {
   sftpState.connectedSessionId = ''
   sftpState.initialized = false
   sftpState.path = '/'
+  sftpState.nextCursor = null
+  sftpState.hasMore = false
   sftpState.loading = false
   sftpState.error = ''
   sftpState.selectedItemId = ''

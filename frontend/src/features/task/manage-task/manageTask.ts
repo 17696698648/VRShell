@@ -16,6 +16,7 @@ export const restoreSftpTasks = restoreBackgroundTasks
 export function toTaskItem(snapshot: BackgroundTaskSnapshot): TaskItem {
   return {
     id: snapshot.taskId,
+    kind: snapshot.kind,
     title: snapshot.title || 'Background task',
     detail: snapshot.detail || snapshot.taskId,
     error: snapshot.error ?? undefined,

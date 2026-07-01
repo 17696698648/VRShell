@@ -86,8 +86,15 @@ describe('sftpFileApi', () => {
   const connection = {host: 'example.com', port: 22, username: 'alice'}
 
   it('list maps to sftp_list', async () => {
-    await sftpFileApi.list(connection as never, '/home')
+    await sftpFileApi.list(connection as never, '/home', {offset: 10, limit: 25})
     expect(invokeLog[0].command).toBe('sftp_list')
+    expect(invokeLog[0].args).toEqual({
+      connection,
+      path: '/home',
+      offset: 10,
+      limit: 25,
+      cursor: null,
+    })
   })
 
   it('mkdir maps to sftp_mkdir', async () => {

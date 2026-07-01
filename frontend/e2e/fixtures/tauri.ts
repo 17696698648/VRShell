@@ -1,3 +1,5 @@
+/// <reference path="../global.d.ts" />
+
 import type { Page } from '@playwright/test'
 
 export const emptySessionTree = [
@@ -13,7 +15,54 @@ export const emptySessionTree = [
 export async function installTauriMock(page: Page, sessionTree = emptySessionTree) {
   await page.addInitScript((mockSessionTree) => {
     const callbacks = new Map<number, (event: unknown) => void>()
+    const listeners = new Map<string, Set<number>>()
+    const invocationLog: Array<{command: string; args?: Record<string, unknown>}> = []
     let callbackId = 0
+    let connectError: string | null = null
+
+    const sftpEntries = [
+      {name: 'logs', path: '/srv/logs', isDirectory: true, size: 0, modified: Math.floor(Date.now() / 1000)},
+      {name: 'app.tar.gz', path: '/srv/releases/app.tar.gz', isDirectory: false, size: 73400320, modified: Math.floor(Date.now() / 1000)},
+      {name: '.env', path: '/srv/app/.env', isDirectory: false, size: 2048, modified: Math.floor(Date.now() / 1000)},
+      ...Array.from({length: 420}, (_unused, index) => {
+        const item = index + 1
+        return {
+          name: `file-${String(item).padStart(3, '0')}.log`,
+          path: `/srv/logs/file-${String(item).padStart(3, '0')}.log`,
+          isDirectory: false,
+          size: 1024 + item,
+          modified: Math.floor(Date.now() / 1000),
+        }
+      }),
+    ]
+
+    function addListener(eventName: string, eventId: number) {
+      if (!listeners.has(eventName)) listeners.set(eventName, new Set())
+      listeners.get(eventName)?.add(eventId)
+    }
+
+    function removeListener(eventId: number) {
+      listeners.forEach((ids) => ids.delete(eventId))
+    }
+
+    function emitEvent(eventName: string, payload: unknown) {
+      const ids = listeners.get(eventName)
+      if (!ids) return
+      ids.forEach((id) => {
+        const callback = callbacks.get(id)
+        if (callback) callback({event: eventName, id, payload})
+      })
+    }
+
+    function resolveSftpOffset(args?: Record<string, unknown>) {
+      const cursor = typeof args?.cursor === 'string' ? args.cursor : null
+      if (cursor?.startsWith('offset:')) {
+        const cursorValue = Number.parseInt(cursor.slice('offset:'.length), 10)
+        if (!Number.isNaN(cursorValue)) return cursorValue
+      }
+      const offset = Number(args?.offset ?? 0)
+      return Number.isNaN(offset) ? 0 : Math.max(0, offset)
+    }
 
     window.__TAURI_INTERNALS__ = {
       metadata: {
@@ -26,13 +75,34 @@ export async function installTauriMock(page: Page, sessionTree = emptySessionTre
         return callbackId
       },
       invoke(command: string, args?: Record<string, unknown>) {
+        invocationLog.push({command, args})
+
         if (command === 'plugin:event|listen') {
-          return Promise.resolve(callbackId)
+          const eventName = String(args?.event ?? '')
+          const handlerId = Number(args?.handler ?? callbackId)
+          if (eventName && !Number.isNaN(handlerId)) addListener(eventName, handlerId)
+          return Promise.resolve(handlerId)
         }
 
         if (command === 'plugin:event|unlisten') {
-          callbacks.delete(Number(args?.eventId))
+          const eventId = Number(args?.eventId)
+          callbacks.delete(eventId)
+          removeListener(eventId)
           return Promise.resolve()
+        }
+
+        if (command === 'mock:event:emit') {
+          emitEvent(String(args?.eventName ?? ''), args?.payload)
+          return Promise.resolve()
+        }
+
+        if (command === 'mock:setConnectError') {
+          connectError = typeof args?.message === 'string' ? args.message : null
+          return Promise.resolve()
+        }
+
+        if (command === 'mock:getInvocations') {
+          return Promise.resolve(invocationLog)
         }
 
         if (command === 'load_session_tree') {
@@ -40,6 +110,7 @@ export async function installTauriMock(page: Page, sessionTree = emptySessionTre
         }
 
         if (command === 'connect_ssh') {
+          if (connectError) return Promise.reject(new Error(connectError))
           return Promise.resolve(`backend-${String(args?.host ?? 'session')}`)
         }
 
@@ -72,11 +143,10 @@ export async function installTauriMock(page: Page, sessionTree = emptySessionTre
         }
 
         if (command === 'sftp_list') {
-          return Promise.resolve([
-            {name: 'logs', path: '/srv/logs', is_dir: true, size: 0, modified: Date.now()},
-            {name: 'app.tar.gz', path: '/srv/releases/app.tar.gz', is_dir: false, size: 73400320, modified: Date.now()},
-            {name: '.env', path: '/srv/app/.env', is_dir: false, size: 2048, modified: Date.now()}
-          ])
+          const offset = resolveSftpOffset(args)
+          const requestedLimit = Number(args?.limit ?? sftpEntries.length)
+          const limit = Number.isNaN(requestedLimit) || requestedLimit <= 0 ? sftpEntries.length : requestedLimit
+          return Promise.resolve(sftpEntries.slice(offset, offset + limit))
         }
 
         if (command === 'sftp_read_file') {

@@ -236,6 +236,8 @@ function assertNoLegacyUiTokens(file, source) {
     'src/widgets/session-explorer/ui/session-explorer.css',
     'src/widgets/sftp-explorer/ui/sftp-explorer.css',
     'src/shell/dock/dock.css',
+    'src/shell/styles/jetbrains-theme.css',
+    'src/shell/styles/overlays.css',
   ])
   if (!guardedFiles.has(file)) return
   const legacyTokens = ['--color-surface', '--color-surface-2', '--color-border)', '--color-text)', '--color-muted)']

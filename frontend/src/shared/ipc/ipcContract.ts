@@ -14,7 +14,7 @@ export type IpcCommandMap = {
   tcp_latency: {args: {host: string; port: number; timeoutMs?: number | null}; result: number}
   parse_ssh_config: {args: undefined; result: SshConfigHost[]}
   apply_session_tree_action: {args: SessionTreeActionPayload; result: SessionTreeActionResult}
-  sftp_list: {args: {connection: SftpConnection; path: string}; result: SftpEntry[]}
+  sftp_list: {args: {connection: SftpConnection; path: string; offset?: number | null; limit?: number | null; cursor?: string | null}; result: SftpEntry[]}
   sftp_mkdir: {args: {connection: SftpConnection; remotePath: string}; result: void}
   sftp_create_file: {args: {connection: SftpConnection; remotePath: string}; result: void}
   sftp_rename: {args: {connection: SftpConnection; oldPath: string; newPath: string}; result: void}
@@ -182,7 +182,6 @@ export interface SftpEntry {
   name: string
   path: string
   isDirectory?: boolean
-  is_dir?: boolean
   size: string | number
   sizeBytes?: number
   modified: number | null

@@ -1,4 +1,5 @@
 use crate::{
+    domain::task::BackgroundTaskSnapshot,
     domain::sftp::{SftpConnectionKey, SftpTaskSnapshot},
     domain::terminal::{TerminalOutputEvent, TerminalSession},
     infrastructure::{app_paths::AppPaths, file_store::FileStore},
@@ -14,19 +15,22 @@ use std::{
 };
 
 pub(crate) const PENDING_HOST_KEY_SESSION_TTL: Duration = Duration::from_secs(5 * 60);
+pub(crate) const DISCONNECTED_TERMINAL_TTL: Duration = Duration::from_secs(10 * 60);
 
 pub(crate) struct BackendState {
     pub paths: AppPaths,
     pub terminals: Mutex<HashMap<String, TerminalSession>>,
     pub terminal_runtimes: Mutex<HashMap<String, TerminalRuntime>>,
     pub terminal_events: Mutex<HashMap<String, Vec<TerminalOutputEvent>>>,
-    pub cancelled_sftp_tasks: Mutex<HashSet<String>>,
+    pub cancelled_tasks: Mutex<HashSet<String>>,
+    pub tasks: Mutex<HashMap<String, BackgroundTaskSnapshot>>,
     pub sftp_tasks: Mutex<HashMap<String, SftpTaskSnapshot>>,
     pub sftp_sessions: Mutex<HashMap<SftpConnectionKey, Arc<SftpSessionRuntime>>>,
     pub active_sftp_transfers: Mutex<SftpTransferCounters>,
     /// Pending SSH sessions waiting for host key acceptance
     /// Key: pending_id, Value: (host, port, username, ssh_session)
     pub pending_host_key_sessions: Mutex<HashMap<String, PendingHostKeySession>>,
+    pub disconnected_terminal_sessions: Mutex<HashMap<String, SystemTime>>,
 }
 
 /// Holds a partial SSH session (handshake done, awaiting host key acceptance)
@@ -58,6 +62,25 @@ pub(crate) fn prune_expired_pending_host_key_sessions(state: &BackendState) -> u
     before - pending.len()
 }
 
+pub(crate) fn mark_terminal_disconnected(state: &BackendState, session_id: &str) {
+    state
+        .disconnected_terminal_sessions
+        .lock()
+        .insert(session_id.to_string(), SystemTime::now());
+}
+
+pub(crate) fn prune_expired_disconnected_terminal_sessions(state: &BackendState) -> usize {
+    let now = SystemTime::now();
+    let mut disconnected = state.disconnected_terminal_sessions.lock();
+    let before = disconnected.len();
+    disconnected.retain(|_, disconnected_at| {
+        now.duration_since(*disconnected_at)
+            .map(|age| age <= DISCONNECTED_TERMINAL_TTL)
+            .unwrap_or(false)
+    });
+    before - disconnected.len()
+}
+
 impl BackendState {
     #[cfg(test)]
     pub(crate) fn new(app_data_dir: PathBuf) -> Self {
@@ -76,11 +99,13 @@ impl BackendState {
             terminals: Mutex::new(HashMap::new()),
             terminal_runtimes: Mutex::new(HashMap::new()),
             terminal_events: Mutex::new(HashMap::new()),
-            cancelled_sftp_tasks: Mutex::new(HashSet::new()),
+            cancelled_tasks: Mutex::new(HashSet::new()),
+            tasks: Mutex::new(HashMap::new()),
             sftp_tasks: Mutex::new(sftp_tasks),
             sftp_sessions: Mutex::new(HashMap::new()),
             active_sftp_transfers: Mutex::new(SftpTransferCounters::default()),
             pending_host_key_sessions: Mutex::new(HashMap::new()),
+            disconnected_terminal_sessions: Mutex::new(HashMap::new()),
         }
     }
 }
@@ -93,7 +118,10 @@ pub(crate) struct SftpTransferCounters {
 
 #[cfg(test)]
 mod tests {
-    use super::{BackendState, PENDING_HOST_KEY_SESSION_TTL};
+    use super::{
+        prune_expired_disconnected_terminal_sessions, BackendState, DISCONNECTED_TERMINAL_TTL,
+        PENDING_HOST_KEY_SESSION_TTL,
+    };
     use crate::{
         domain::sftp::{SftpTaskSnapshot, SftpTaskStatus},
         infrastructure::file_store::FileStore,
@@ -134,6 +162,32 @@ mod tests {
     #[test]
     fn pending_host_key_session_ttl_is_five_minutes() {
         assert_eq!(PENDING_HOST_KEY_SESSION_TTL, Duration::from_secs(300));
+    }
+
+    #[test]
+    fn disconnected_terminal_ttl_is_ten_minutes() {
+        assert_eq!(DISCONNECTED_TERMINAL_TTL, Duration::from_secs(600));
+    }
+
+    #[test]
+    fn prunes_expired_disconnected_terminals() {
+        let state = BackendState::new(temp_dir());
+        let now = SystemTime::now();
+        state.disconnected_terminal_sessions.lock().insert(
+            "expired".to_string(),
+            now - DISCONNECTED_TERMINAL_TTL - Duration::from_secs(1),
+        );
+        state
+            .disconnected_terminal_sessions
+            .lock()
+            .insert("fresh".to_string(), now - Duration::from_secs(60));
+
+        let pruned = prune_expired_disconnected_terminal_sessions(&state);
+
+        assert_eq!(pruned, 1);
+        let disconnected = state.disconnected_terminal_sessions.lock();
+        assert!(disconnected.contains_key("fresh"));
+        assert!(!disconnected.contains_key("expired"));
     }
 
     fn temp_dir() -> std::path::PathBuf {

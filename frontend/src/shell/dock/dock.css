@@ -1,13 +1,13 @@
 /* Dock Host */
 .dock-host {
-  --dock-surface: #101214;
-  --dock-toolbar-bg: #15181b;
-  --dock-control-bg: #202327;
-  --dock-control-active-bg: #30343a;
-  --dock-text: #b7bdc6;
-  --dock-text-strong: #d3d7dd;
+  --dock-surface: var(--color-bg-panel, #101214);
+  --dock-toolbar-bg: color-mix(in srgb, var(--color-bg-tool-window, #15181b) 88%, black);
+  --dock-control-bg: color-mix(in srgb, var(--color-bg-panel, #202327) 88%, black);
+  --dock-control-active-bg: color-mix(in srgb, var(--color-bg-hover, #30343a) 78%, var(--color-bg-panel, #202327));
+  --dock-text: var(--color-text-secondary, #b7bdc6);
+  --dock-text-strong: var(--color-text-primary, #d3d7dd);
   --dock-muted: var(--jb-muted, #8d949e);
-  --dock-link: #6aa7ff;
+  --dock-link: var(--color-info, #6aa7ff);
   --dock-caret-border: #87909c;
   --dock-divider: rgba(160, 170, 185, 0.1);
   --dock-row-divider: rgba(160, 170, 185, 0.08);

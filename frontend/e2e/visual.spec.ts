@@ -41,7 +41,7 @@ test.describe('VRShell visual states', () => {
 
   test('captures SFTP explorer', async ({page}) => {
     await page.goto('/')
-    await page.getByTitle(/SFTP/).click()
+    await page.getByRole('button', {name: 'SFTP'}).click()
     await expect(page.locator('.sftp-explorer')).toHaveScreenshot('sftp-explorer.png')
   })
 

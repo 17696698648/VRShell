@@ -71,6 +71,20 @@ test.describe('smoke', () => {
     await expect(page.getByRole('menuitem', {name: 'Upload folder'})).toBeVisible()
   })
 
+  test('loads additional SFTP pages for large directories @smoke', async ({page}) => {
+    await page.getByRole('button', {name: /New SSH Session/}).click()
+    await expect(page.getByText('.env')).toBeVisible()
+    await page.getByRole('button', {name: 'List'}).click({force: true})
+    await expect(page.getByRole('button', {name: 'Load more'})).toBeVisible()
+
+    await page.getByRole('button', {name: 'Load more'}).click()
+    await expect.poll(async () => {
+      const calls = await page.evaluate(() => window.__TAURI_INTERNALS__?.invoke('mock:getInvocations')) as Array<{command: string; args?: {cursor?: string | null}}>
+      const pagedCalls = calls.filter((entry) => entry.command === 'sftp_list')
+      return pagedCalls.some((entry) => entry.args?.cursor === 'offset:200')
+    }).toBeTruthy()
+  })
+
   test('marks remote editor files dirty and exposes save @smoke', async ({page}) => {
     await page.getByRole('button', {name: /New SSH Session/}).click()
     await expect(page.getByText('.env')).toBeVisible()
@@ -94,5 +108,17 @@ test.describe('smoke', () => {
     await expect(page.locator('.task-center')).toBeVisible()
     await expect(page.getByText('Upload app.tar.gz')).toBeVisible()
     await expect(page.getByRole('heading', {name: 'Welcome to VRShell'})).not.toBeVisible()
+  })
+
+  test('cancels running background tasks from task queue @smoke', async ({page}) => {
+    await page.keyboard.press('Control+K')
+    await page.getByTestId('command-palette-search').fill('Open Task Queue')
+    await page.keyboard.press('Enter')
+
+    const uploadTask = page.locator('.task-item', {hasText: 'Upload app.tar.gz'})
+    await expect(uploadTask).toBeVisible()
+    await uploadTask.getByRole('button', {name: 'Cancel'}).click()
+    await expect(uploadTask).toHaveClass(/task-item--cancelled/)
+    await expect(uploadTask.getByText('Retry unavailable')).toBeVisible()
   })
 })

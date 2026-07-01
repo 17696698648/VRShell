@@ -12,7 +12,10 @@ use crate::{
         ssh_client::{SshClient, SshRuntime},
     },
     services::sftp_service,
-    state::{prune_expired_pending_host_key_sessions, BackendState, PendingHostKeySession},
+    state::{
+        mark_terminal_disconnected, prune_expired_disconnected_terminal_sessions,
+        prune_expired_pending_host_key_sessions, BackendState, PendingHostKeySession,
+    },
 };
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use events::{
@@ -202,6 +205,10 @@ pub(crate) fn connect(
     state: &BackendState,
     request: ConnectTerminalRequest,
 ) -> BackendResult<TerminalSession> {
+    let pruned_disconnected = prune_expired_disconnected_terminal_sessions(state);
+    if pruned_disconnected > 0 {
+        tracing::debug!(count = pruned_disconnected, "pruned disconnected terminal session markers");
+    }
     tracing::info!(host = %request.host, port = request.port, username = %request.username, "connecting terminal");
     validate_terminal_request(&request)?;
 
@@ -391,6 +398,7 @@ pub(crate) fn disconnect(
     }
     state.terminals.lock().remove(session_id);
     state.terminal_events.lock().remove(session_id);
+    mark_terminal_disconnected(state, session_id);
 
     // 通知前端该终端已关闭
     emit_terminal_closed(event_sink, session_id);
@@ -476,6 +484,7 @@ fn close_terminal_session(window: &tauri::WebviewWindow, session_id: &str) {
     }
 
     if should_emit_closed {
+        mark_terminal_disconnected(&state, session_id);
         emit_terminal_closed(window, session_id);
     }
 }

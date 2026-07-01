@@ -24,6 +24,25 @@ npm.cmd run build
 
 Run `npm.cmd run test:e2e:smoke` when changing workbench startup, command palette, session dialogs, SFTP drawer behavior, or theme switching.
 
+## Playwright E2E
+
+Run Playwright from the frontend package:
+
+```powershell
+npm.cmd --prefix frontend run test:e2e
+npm.cmd --prefix frontend run test:e2e:smoke
+npm.cmd --prefix frontend run test:e2e:security
+npm.cmd --prefix frontend run test:e2e:visual
+```
+
+Use `test:e2e:security` for host key, cancellation, and sensitive-message regression checks. Use `test:e2e:visual` for snapshot gates only.
+
+When a PR intentionally changes UI baselines, update snapshots with:
+
+```powershell
+npm.cmd --prefix frontend run test:e2e:visual -- --update-snapshots
+```
+
 ## Rust Checks
 
 ```powershell
@@ -54,5 +73,7 @@ The release check runs the full check, production frontend build, and Playwright
 ## Notes
 
 - On Windows PowerShell, prefer `npm.cmd` over `npm` if script execution policy blocks `npm.ps1`.
+- After changing command definitions in `src-tauri/src/ipc/contract.rs`, run `npm.cmd run generate:ipc` and commit `frontend/src/shared/ipc/generated/backendCommands.ts` in the same PR.
+- Validate IPC command changes with `npm.cmd run check:ipc` before opening a PR.
 - Run `cargo check --manifest-path src-tauri/Cargo.toml --features devtools` after changing Tauri feature flags.
 - E2E tests require Playwright browsers. Install Chromium with `npx --prefix frontend playwright install chromium` if needed.

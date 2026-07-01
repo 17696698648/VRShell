@@ -1,7 +1,8 @@
 use crate::{
+    domain::task::BackgroundTaskStatus,
     domain::credential::CredentialRef,
     ipc::{dto::ConnectSshRequest, IpcResult},
-    services::terminal_service,
+    services::{task_service, terminal_service},
     state::BackendState,
 };
 use tauri::State;
@@ -96,7 +97,41 @@ pub fn test_ssh_connection(host: String, port: u16, username: String) -> IpcResu
 }
 
 #[tauri::command]
-pub fn tcp_latency(host: String, port: u16, timeout_ms: Option<u64>) -> IpcResult<u64> {
-    crate::infrastructure::ssh_client::SshClient::measure_tcp_latency(&host, port, timeout_ms)
-        .map_err(Into::into)
+pub fn tcp_latency(
+    state: State<'_, BackendState>,
+    host: String,
+    port: u16,
+    timeout_ms: Option<u64>,
+) -> IpcResult<u64> {
+    let detail = format!("{host}:{port}");
+    let result = crate::infrastructure::ssh_client::SshClient::measure_tcp_latency(
+        &host,
+        port,
+        timeout_ms,
+    );
+
+    match result {
+        Ok(latency) => {
+            task_service::record_diagnostic_task(
+                &state,
+                "tcp-latency",
+                "Measure TCP latency",
+                &detail,
+                BackgroundTaskStatus::Done,
+                None,
+            );
+            Ok(latency)
+        }
+        Err(error) => {
+            task_service::record_diagnostic_task(
+                &state,
+                "tcp-latency",
+                "Measure TCP latency",
+                &detail,
+                BackgroundTaskStatus::Failed,
+                Some(error.message.clone()),
+            );
+            Err(error.into())
+        }
+    }
 }

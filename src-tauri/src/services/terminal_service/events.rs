@@ -1,4 +1,5 @@
 use crate::infrastructure::event_bus::EventSink;
+use crate::error::scrub_sensitive_message;
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use serde::Serialize;
 
@@ -56,11 +57,12 @@ pub(super) fn emit_terminal_error(
     session_id: &str,
     error: impl Into<String>,
 ) {
+    let error = scrub_sensitive_message(error.into());
     event_sink.emit_event(
         crate::ipc::events::TERMINAL_ERROR,
         TerminalErrorEventPayload {
             session_id: session_id.to_string(),
-            error: error.into(),
+            error,
         },
     );
 }

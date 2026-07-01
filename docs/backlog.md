@@ -1,42 +1,57 @@
-# VRShell Backlog
+# VRShell Backlog (Agent-Ready)
 
-本文件用于给 agent 提供可直接执行的任务队列。
+本文件提供一套可长期复用的前后端改进任务序列。目标是：
+
+- 优先解决稳定性与安全风险；
+- 再推进性能与可维护性；
+- 每项都可独立实施、验证、回滚。
 
 ## 使用方式
 
-对 agent 直接说：
+直接对 agent 说：
 
 > 按 `docs/backlog.md` 从上往下做。
 
-如果希望更严格一些，可以说：
+更严格版本：
 
-> 按 `docs/backlog.md` 从上往下做。一次只做一个任务；每完成一个任务后，更新本文件中的状态、完成日期、变更摘要与验证结果，再继续下一个任务。
+> 按 `docs/backlog.md` 从上往下做。一次只做一个任务；每完成一个任务后，更新状态、完成日期、变更摘要与验证结果。
 
 ## 执行规则
 
-1. **按顺序执行**：默认从最上方第一个 `todo` 任务开始。
-2. **一次只做一个任务**：除非任务说明里明确允许并行或包含子任务打包实施。
-3. **最小改动原则**：优先在现有架构上做最小、可验证的变更，避免顺手进行无关重构。
-4. **先读再改**：实施前先阅读任务列出的相关文件，确认当前实现与边界。
-5. **必须验证**：每个任务完成后，运行任务列出的验证命令；如命令不适用，需要在备注中说明原因。
-6. **更新状态**：任务完成后，将 `Status` 从 `todo` 改为 `done`，补充 `Completed`、`Change Summary`、`Validation`。
-7. **遇到阻塞**：只有在目标冲突、依赖缺失、测试环境不可用或需要重大架构决策时才停下并汇报。
+1. **按顺序执行**：默认从最上方第一个 `todo` 开始。
+2. **一次一个任务**：除非任务明确允许并行。
+3. **最小可验证改动**：避免顺手大重构。
+4. **先读相关文件再改**：先确认边界与现状。
+5. **必须跑验证命令**：命令不适用需写明原因。
+6. **必须更新本文件**：`Status` / `Completed` / `Change Summary` / `Validation Notes`。
+7. **阻塞即汇报**：仅在依赖缺失、环境不可用、冲突决策时中止。
 
 ## 通用完成定义
 
-一个任务只有在以下条件都满足时才能标记完成：
+仅当以下条件全部满足时，任务可标记 `done`：
 
-- 代码、测试、必要文档已经落地；
-- 对应验收标准全部满足；
-- 已运行相关检查并处理新增错误；
-- 未引入明显的契约漂移、类型错误或安全回退；
-- 已在本文件记录完成信息。
+- 代码、测试、必要文档已落地；
+- 验收标准全部满足；
+- 相关检查通过，且无新增回归；
+- 前后端契约、类型和安全行为无漂移；
+- 本文件记录完整。
 
 ---
 
-## Task 01 - IPC 契约一致性校验与类型收敛
+## 优化建议总览（前后端）
 
-- **ID**: `BL-01`
+1. **契约优先**：所有 IPC 变更先更新契约，再改调用层。
+2. **状态统一**：后端以通用任务模型为中心，前端只消费统一快照。
+3. **日志可审计**：错误、事件、日志、输出通道统一脱敏。
+4. **大目录可用性**：分页/增量加载 + 虚拟滚动 + 稳定排序。
+5. **生命周期治理**：Terminal/SFTP runtime 统一 TTL、幂等关闭、迟到事件兜底。
+6. **质量门禁左移**：`check` 链路持续收敛，避免“局部绿、全局红”。
+
+---
+
+## Task 01 - IPC 契约单一真源与生成门禁加强
+
+- **ID**: `BL-08`
 - **Priority**: `P0`
 - **Status**: `done`
 - **Owner**: `agent`
@@ -44,423 +59,83 @@
 
 ### Goal
 
-将 IPC 契约生成与校验变成强制门禁，消除前端重复/歧义 IPC 类型定义，避免前后端命令与类型漂移。
+确保命令名、参数、返回类型由单一契约驱动，杜绝手工双份维护。
 
 ### Scope
 
-- 将 `scripts/generate-ipc-contract.mjs` 挂入固定检查链路；
-- 让前端命令名与契约类型尽量由生成结果驱动；
-- 收敛 `frontend/src/shared/ipc/ipcContract.ts` 中重复或依赖接口合并的定义；
-- 必要时补充开发说明。
-
-### Non-Goals
-
-- 本任务不做大规模 IPC DTO 重构；
-- 本任务不修改无关业务流程。
+- Rust 侧契约测试不再手写前端命令数组；
+- 前端 `ipcContract` 与生成产物建立强制一致性校验；
+- 新增/修改 IPC 命令的流程写入开发文档。
 
 ### Acceptance Criteria
 
-- [x] 修改 `src-tauri/src/ipc/contract.rs` 中命令定义但未同步前端契约时，检查命令会失败；
-- [x] `frontend/src/shared/ipc/ipcContract.ts` 中不再依赖重复接口声明合并；
-- [x] 本地与 CI 可复用同一套契约检查入口；
-- [x] 至少补充 1 处开发说明，说明新增/修改 IPC 命令的标准流程。
+- [x] 契约漂移可在 `check:ipc` 直接失败；
+- [x] Rust 与前端不再维护重复命令列表；
+- [x] 变更流程文档可直接指导新同学执行。
 
 ### Suggested Files
 
-- `scripts/generate-ipc-contract.mjs`
-- `package.json`
-- `frontend/src/shared/ipc/ipcContract.ts`
-- `frontend/src/shared/ipc/generated/backendCommands.ts`
 - `src-tauri/src/ipc/contract.rs`
-- 如有必要：相关测试与文档文件
+- `frontend/src/shared/ipc/generated/backendCommands.ts`
+- `frontend/src/shared/ipc/ipcContract.ts`
+- `docs/testing.md`
 
 ### Validation
 
 ```powershell
 npm.cmd run check:ipc
 npm.cmd run typecheck
-npm.cmd run test:frontend
 npm.cmd run rust:test
 ```
 
 ### Change Summary
 
-- 移除 `frontend/src/shared/ipc/ipcContract.ts` 中 `SftpEntry.is_dir` 的遗留 snake_case 字段，并同步更新 SFTP repository、浏览器 mock 与 Playwright Tauri mock 为 `isDirectory`。
-- 将 `src-tauri/src/ipc/contract.rs` 的前端契约测试改为直接读取 `frontend/src/shared/ipc/generated/backendCommands.ts`，避免 Rust 侧继续维护一份重复命令列表。
-- 在 `docs/testing.md` 中补充“修改 `src-tauri/src/ipc/contract.rs` 后需运行 `npm.cmd run generate:ipc` 并提交生成文件”的标准流程说明。
-- 顺手修复 2 个过时的 SFTP raw-source 合约测试，使前端测试套件重新通过。
+- `src-tauri/src/ipc/contract.rs` 的契约对齐测试不再维护手写前端命令数组，改为直接读取 `frontend/src/shared/ipc/generated/backendCommands.ts` 中的 `backendCommandNames`。
+- 保留 `COMMANDS` 唯一性与兼容入口断言，同时将“Rust 命令列表 vs 生成契约”作为单一比对路径，降低双份维护成本。
+- 在 `docs/testing.md` 补充 IPC 变更流程：修改契约后必须执行 `npm.cmd run generate:ipc` 并提交生成文件，PR 前执行 `npm.cmd run check:ipc`。
 
 ### Validation Notes
 
 - 通过：`npm.cmd run check:ipc`
 - 通过：`npm.cmd run typecheck`
-- 通过：`npm.cmd run test:frontend`
 - 通过：`npm.cmd run rust:test`
-- 通过：`npm.cmd run check:utf8`
-- 阻塞说明：`npm.cmd run check` 仍因现有前端 UI guard 失败而中断，报错文件为 `frontend/src/shell/dock/dock.css`、`frontend/src/shell/styles/jetbrains-theme.css`、`frontend/src/shell/styles/overlays.css`，与本任务改动无关。
 
 ---
 
-## Task 02 - 配置与任务持久化原子写入保护
+## Task 02 - SFTP 列表分页策略升级（offset/limit -> 游标）
 
-- **ID**: `BL-02`
+- **ID**: `BL-09`
 - **Priority**: `P1`
 - **Status**: `done`
 - **Owner**: `agent`
+- **Depends On**: `BL-08`
 - **Completed**: `2026-07-01`
-- **Depends On**: `BL-01`（建议顺序依赖，便于先稳定检查链路）
 
 ### Goal
 
-将关键 JSON 持久化改为临时文件写入 + 原子替换，降低异常退出、崩溃或中断写入造成状态文件损坏的风险。
+在已有 `offset/limit` 基础上，补齐游标分页能力，降低深翻页性能损耗。
 
 ### Scope
 
-- 为 `FileStore` 中关键写入路径引入统一原子写入辅助逻辑；
-- 处理临时文件命名、覆盖与清理；
-- 为成功与失败场景补充 Rust 测试；
-- 如有必要，补充保存失败的错误信息或文档说明。
-
-### Non-Goals
-
-- 本任务不改动数据模型结构；
-- 本任务不扩展新的持久化后端。
+- 新增可选 cursor/list token 协议；
+- 兼容当前 `offset/limit`；
+- 前端列表支持增量拼接与重置策略；
+- 补充分页边界测试。
 
 ### Acceptance Criteria
 
-- [x] 关键持久化文件不再直接覆盖写入；
-- [x] 写入失败时原文件仍保持可读；
-- [x] 不会产生损坏 JSON 或 0 字节文件；
-- [x] 至少覆盖成功写入、临时文件失败、替换失败等关键路径测试。
+- [x] 前后端同时支持 `offset/limit` 与 cursor（兼容模式）；
+- [x] 大目录滚动加载不中断、不重复、不漏项；
+- [x] 默认交互无回退。
 
 ### Suggested Files
 
-- `src-tauri/src/infrastructure/file_store.rs`
-- `src-tauri/src/error.rs`
-- 如有必要：相关测试模块
-
-### Validation
-
-```powershell
-npm.cmd run rust:test
-npm.cmd run rust:check
-npm.cmd run rust:clippy
-```
-
-### Change Summary
-
-- 为 `src-tauri/src/infrastructure/file_store.rs` 增加 temp-file 写入、`sync_all()`、目标文件备份替换与失败恢复逻辑，并让 `save_session_tree` / `save_sftp_tasks` 统一走该原子化辅助函数。
-- 增加 replace 阶段失败后恢复原文件的单元测试，以及覆盖覆盖式保存后不遗留 `.tmp` / `.bak` sidecar 文件的测试。
-
-### Validation Notes
-
-- 通过：`npm.cmd run rust:test`
-- 通过：`npm.cmd run rust:check`
-- 通过：`npm.cmd run rust:clippy`
-
----
-
-## Task 03 - Host Key 安全关键路径自动化测试补强
-
-- **ID**: `BL-03`
-- **Priority**: `P1`
-- **Status**: `done`
-- **Owner**: `agent`
-- **Completed**: `2026-07-01`
-- **Depends On**: `BL-01`
-
-### Goal
-
-为 Host Key 的 accept / reject / changed key 链路建立自动化回归保护，避免 SSH 安全策略被后续变更弱化。
-
-### Scope
-
-- 补充未知 Host Key、用户接受 Host Key、Host Key 变更拒绝等测试；
-- 如已有前端 store 或事件处理逻辑，补充相应交互状态测试；
-- 明确错误码、事件或状态行为的断言。
-
-### Non-Goals
-
-- 本任务不扩展 OpenSSH hashed known_hosts 兼容能力；
-- 本任务不重写整条连接流程。
-
-### Acceptance Criteria
-
-- [x] 未知 Host Key 路径有自动化覆盖；
-- [x] 用户接受 Host Key 后继续连接的路径有自动化覆盖；
-- [x] 已记录主机指纹变更时必须拒绝连接，并有自动化覆盖；
-- [x] 相关测试可纳入现有检查链路或安全专项测试命令。
-
-### Suggested Files
-
-- `src-tauri/src/infrastructure/known_hosts_store.rs`
-- `src-tauri/src/services/terminal_service.rs`
-- `frontend/src/entities/security/`
-- `frontend/src/shared/ipc/`
-- 相关测试文件
-
-### Validation
-
-```powershell
-npm.cmd run test:frontend
-npm.cmd run rust:test
-npm.cmd run check
-```
-
-### Change Summary
-
-- 在 `src-tauri/src/infrastructure/known_hosts_store.rs` 中补充“未知指纹会原样进入待确认状态”和“`accept()` 写入后 `verify()` 可立即接受”的 Rust 回归测试。
-- 在 `frontend/src/features/session/connect-session/connectSession.ts` 中避免对 `hostKeyUnknown` / `hostKeyChanged` 再次弹出通用连接失败 toast，让 Host Key 专用确认流成为唯一用户提示入口。
-- 在 `frontend/src/features/session/connect-session/__tests__/connectSession.test.ts` 中新增针对 `hostKeyUnknown` 的防重复提示测试，并保持 Host Key 前端 action/event/state 测试可在现有 Vitest 链路中独立运行。
-
-### Validation Notes
-
-- 通过：`npm.cmd --prefix frontend run test -- src/features/session/connect-session/__tests__/connectSession.test.ts src/features/session/connect-session/__tests__/hostKeyActions.test.ts src/features/session/connect-session/__tests__/hostKeyEvents.test.ts src/entities/security/model/__tests__/hostKeyState.test.ts`
-- 通过：`npm.cmd run test:frontend`
-- 通过：`npm.cmd run rust:test`
-
----
-
-## Task 04 - 后台任务模型统一与通用取消机制
-
-- **ID**: `BL-04`
-- **Priority**: `P1`
-- **Status**: `done`
-- **Owner**: `agent`
-- **Completed**: `2026-07-01`
-- **Depends On**: `BL-02`
-
-### Goal
-
-将当前偏 SFTP 专用的任务状态、进度和取消机制演进为通用后台任务模型，为搜索、归档、命令执行等未来任务提供统一基础设施。
-
-### Scope
-
-- 引入通用 `BackgroundTaskSnapshot`（或等价模型）；
-- 保留现有 `SftpTaskSnapshot` 兼容层，避免一次性破坏现有前端；
-- 将取消集合从 `cancelled_sftp_tasks` 演进为通用取消机制；
-- 让 `TaskCenter` 能消费通用任务模型；
-- 视需要保留 `sftp-progress` 到通用事件的桥接。
-
-### Non-Goals
-
-- 本任务不要求一次性接入所有新任务类型；
-- 本任务不要求移除所有旧事件名，只要兼容桥接清晰即可。
-
-### Acceptance Criteria
-
-- [x] 前后端存在通用后台任务模型；
-- [x] SFTP 任务迁移后现有能力不回退；
-- [x] 存在统一取消入口或通用取消数据结构；
-- [x] `TaskCenter` 可展示不止一种任务类型，或已为多任务类型展示完成结构性准备；
-- [x] 补充任务状态流转与取消相关测试。
-
-### Suggested Files
-
-- `frontend/src/entities/task/`
-- `frontend/src/widgets/`
-- `src-tauri/src/domain/sftp.rs`
-- `src-tauri/src/services/`
-- `src-tauri/src/state.rs`
-- `src-tauri/src/infrastructure/file_store.rs`
-- `frontend/src/shared/ipc/`
-
-### Validation
-
-```powershell
-npm.cmd run typecheck
-npm.cmd run test:frontend
-npm.cmd run rust:test
-npm.cmd run check
-```
-
-### Change Summary
-
-- 新增后端通用任务模型 `src-tauri/src/domain/task.rs`（`BackgroundTaskSnapshot` / `BackgroundTaskStatus`）并提供与 `SftpTaskSnapshot` 的双向转换，`state` 统一改用 `tasks` 与 `cancelled_tasks`。
-- `src-tauri/src/services/sftp_service/tasks.rs` 与 `transfer.rs` 已改为在通用任务快照与通用取消集合上运行，同时继续通过 `list_sftp_tasks` 和现有 SFTP 事件保持 IPC 兼容。
-- 前端 `ipcContract` 增加 `BackgroundTaskSnapshot` 并将 `SftpTaskSnapshot` 设为类型别名；`taskApi` 与 `manageTask` 改为消费通用任务快照；`TaskItem` 增加 `kind` 字段为多任务来源预留结构。
-- 兼容保留 `restoreSftpTasks` 入口（映射到 `restoreTasks`），避免现有启动流程和调用点回退。
-
-### Validation Notes
-
-- 通过：`npm.cmd run typecheck`
-- 通过：`npm.cmd run test:frontend`
-- 通过：`npm.cmd run rust:test`
-- 通过：`npm.cmd run rust:check`
-- 通过：`npm.cmd run rust:clippy`
-- 阻塞说明：`npm.cmd run check` 仍被现有前端 UI guard 拦截（`frontend/src/shell/dock/dock.css`、`frontend/src/shell/styles/jetbrains-theme.css`、`frontend/src/shell/styles/overlays.css` 硬编码颜色），与本任务变更无关。
-
----
-
-## Task 05 - Terminal Runtime 状态机与资源 TTL 清理
-
-- **ID**: `BL-05`
-- **Priority**: `P2`
-- **Status**: `done`
-- **Owner**: `agent`
-- **Completed**: `2026-07-01`
-- **Depends On**: `BL-03`
-
-### Goal
-
-为终端运行时、挂起 Host Key 会话和已完成/失效对象建立更明确的生命周期管理，降低竞态、重复关闭和长时间运行后的资源堆积风险。
-
-### Scope
-
-- 为 `TerminalRuntime` 引入显式状态机或等价状态约束；
-- 为断开的 runtime、pending host key session、可清理任务增加 TTL 回收策略；
-- 明确重复关闭、异常断连、迟到事件的处理语义；
-- 补充资源回收与状态迁移测试。
-
-### Non-Goals
-
-- 本任务不引入自动重连；
-- 本任务不改造所有 SSH/SFTP 并发策略。
-
-### Acceptance Criteria
-
-- [x] Runtime 具备明确状态定义与关键迁移规则；
-- [x] 断开资源可在可控时间内清理；
-- [x] Pending Host Key 会话支持过期清理；
-- [x] 重复关闭与异常断开不会留下残余状态；
-- [x] 至少补充状态迁移或 TTL 清理测试。
-
-### Suggested Files
-
-- `src-tauri/src/services/terminal_service.rs`
-- `src-tauri/src/state.rs`
-- `src-tauri/src/domain/`
-- 相关测试文件
-
-### Validation
-
-```powershell
-npm.cmd run rust:test
-npm.cmd run rust:check
-npm.cmd run rust:clippy
-```
-
-### Change Summary
-
-- 在 `src-tauri/src/services/terminal_service.rs` 中引入 `TerminalRuntimeState` / `RuntimeLifecycle`，让终端运行时具备 `Connecting -> Ready -> Closing -> Closed` 的显式状态迁移，并让重复 `close()` 调用幂等化。
-- 为断开的终端会话增加 `disconnected_terminal_sessions` 清理标记，为 Pending Host Key 会话增加 `pending_host_key_session_times` 追踪，并在连接、接收/拒绝 host key、轮询与清理路径中执行 TTL 回收。
-- 在 `src-tauri/src/state.rs` 中补充所需状态存储字段；在 `terminal_service` 单元测试中新增状态机、Pending Host Key TTL、断开终端 TTL 三类回归测试。
-
-### Validation Notes
-
-- 通过：`npm.cmd run rust:test`
-- 通过：`npm.cmd run rust:check`
-- 通过：`npm.cmd run rust:clippy`
-
----
-
-## Task 06 - 日志链路全量脱敏
-
-- **ID**: `BL-06`
-- **Priority**: `P1`
-- **Status**: `done`
-- **Owner**: `agent`
-- **Completed**: `2026-07-01`
-- **Depends On**: `BL-03`
-
-### Goal
-
-将敏感信息脱敏从错误对象扩展到后端 tracing、事件总线和前端日志展示链路，避免密码、token、secret、敏感路径等内容出现在可见日志中。
-
-### Scope
-
-- 收敛/抽取统一脱敏工具；
-- 在后端错误、日志和事件发射前接入脱敏；
-- 检查前端日志展示是否直接显示未经脱敏的消息；
-- 补充典型敏感字段测试。
-
-### Non-Goals
-
-- 本任务不做完整日志平台建设；
-- 本任务不要求立即支持日志导出功能。
-
-### Acceptance Criteria
-
-- [x] `password`、`token`、`secret` 等敏感值不会在日志和事件中明文出现；
-- [x] 后端错误、tracing 与前端日志展示使用统一或兼容的脱敏规则；
-- [x] 补充典型敏感模式测试；
-- [x] 不破坏现有错误定位所需的上下文信息。
-
-### Suggested Files
-
-- `src-tauri/src/error.rs`
-- `src-tauri/src/infrastructure/`
-- `src-tauri/src/services/`
-- `frontend/src/widgets/`
-- `frontend/src/shared/`
-- 相关测试文件
-
-### Validation
-
-```powershell
-npm.cmd run test:frontend
-npm.cmd run rust:test
-npm.cmd run check
-```
-
-### Change Summary
-
-- 后端 `src-tauri/src/error.rs` 改为基于正则与 `OnceLock<Regex>` 的统一脱敏实现，补齐带空格的 `key = value`、JSON 样式字段和 PEM 私钥块的处理，并将 `scrub_sensitive_message()` 暴露给事件发射路径复用。
-- `src-tauri/src/services/terminal_service/events.rs` 与 `src-tauri/src/services/sftp_service/transfer.rs` 在发送 `terminal-error` / `sftp-failed` 事件前统一执行脱敏，避免原始错误文本绕过 `BackendError` 直接到前端。
-- 前端新增 `frontend/src/shared/lib/sanitizeSensitiveText.ts`，并让 `ipcErrors.ts`、`logger.ts`、`outputChannels.ts` 复用同一套脱敏规则，确保日志中心和输出通道不会保存明文敏感值。
-- 补充后端事件脱敏测试与前端 `sanitizeSensitiveText`、`logMessage`、`writeOutput` 回归测试，覆盖赋值语法、JSON 字段和 PEM 私钥块等典型模式。
-
-### Validation Notes
-
-- 通过：`npm.cmd run rust:test`
-- 通过：`npm.cmd run rust:check`
-- 通过：`npm.cmd run rust:clippy`
-- 通过：`npm.cmd run test:frontend`
-- 通过：`npm.cmd run typecheck`
-- 阻塞说明：`npm.cmd run check` 仍被现有前端 UI guard 拦截（`frontend/src/shell/dock/dock.css`、`frontend/src/shell/styles/jetbrains-theme.css`、`frontend/src/shell/styles/overlays.css` 硬编码颜色），与本任务变更无关。
-
----
-
-## Task 07 - SFTP 大目录性能优化（分页/限额 + 虚拟滚动）
-
-- **ID**: `BL-07`
-- **Priority**: `P2`
-- **Status**: `done`
-- **Owner**: `agent`
-- **Completed**: `2026-07-01`
-- **Depends On**: `BL-04`
-
-### Goal
-
-提升 SFTP 在大目录场景下的可用性，减少一次性枚举、传输和渲染带来的卡顿。
-
-### Scope
-
-- 评估并实现后端分页、限额或分批返回策略；
-- 为前端 SFTP 列表引入虚拟滚动或等价大列表优化方案；
-- 确保排序、选择、打开、刷新等常用交互不回退；
-- 如可行，补充基础性能验证说明。
-
-### Non-Goals
-
-- 本任务不要求做完整断点续传；
-- 本任务不要求重写整套 SFTP Explorer。
-
-### Acceptance Criteria
-
-- [x] 后端目录列表接口具备分页、限额或等效分批能力；
-- [x] 前端大列表渲染采用虚拟滚动或等价优化手段；
-- [x] 大目录交互明显优于当前实现，且不影响基础功能；
-- [x] 至少补充 1 条性能验证方法、基线说明或测试。
-
-### Suggested Files
-
+- `src-tauri/src/commands/sftp.rs`
 - `src-tauri/src/services/sftp_service.rs`
-- `src-tauri/src/domain/sftp.rs`
-- `frontend/src/widgets/`
-- `frontend/src/entities/sftp/`
-- `frontend/src/shared/ipc/`
-- 相关测试文件
+- `frontend/src/shared/ipc/ipcContract.ts`
+- `frontend/src/shared/ipc/ipcFacade.ts`
+- `frontend/src/entities/sftp/api/sftpRepository.ts`
+- `frontend/src/widgets/sftp-explorer/model/useSftpExplorer.ts`
 
 ### Validation
 
@@ -468,40 +143,309 @@ npm.cmd run check
 npm.cmd run typecheck
 npm.cmd run test:frontend
 npm.cmd run rust:test
-npm.cmd run build
 ```
 
 ### Change Summary
 
-- 为 `sftp_list` 增加可选 `offset` / `limit` 参数：前端 `ipcContract`、`ipcFacade`、`sftpRepository` 现在都支持按页/限额请求目录数据，后端 `src-tauri/src/services/sftp_service.rs` 负责排序后再执行窗口裁剪。
-- SFTP 文件列表继续复用 `UiDataGrid` → `UiVirtualList` 的虚拟滚动链路，同时将前端排序提取到 `sortSftpItems()`：默认的“名称升序”直接复用后端已排好序的结果，避免在大目录场景重复做一次全量 `localeCompare` 排序。
-- 新增前端 `sortSftpItems` 单元测试和后端 `apply_list_window` 单元测试，覆盖默认顺序复用、排序行为与 `offset` / `limit` 窗口裁剪边界。
+- 后端 `sftp_list` 增加 `cursor` 参数并保持 `offset/limit` 兼容；`src-tauri/src/services/sftp_service.rs` 新增 cursor 解析（`offset:<n>`）并在窗口裁剪逻辑中统一处理。
+- 前端 `ipcContract`、`ipcFacade`、browser mock 全部支持 `cursor` 透传；`sftpRepository` 新增 `listRemoteDirectoryPage()`，返回 `items + nextCursor`，并保留原 `listRemoteDirectory()` 兼容入口。
+- `useSftpExplorer` 增加分页装载能力：`refresh()` 使用第一页窗口，新增 `loadMore()` 走 cursor 增量追加，并将 `hasMore/nextCursor` 同步到会话状态。
+- 新增前端 `sftpRepository` 分页测试与后端 cursor 窗口测试，覆盖 nextCursor 生成、尾页结束和 cursor 窗口裁剪。
+
+### Validation Notes
+
+- 通过：`npm.cmd run typecheck`
+- 通过：`npm.cmd run test:frontend`
+- 通过：`npm.cmd run rust:test`
+
+---
+
+## Task 03 - 任务系统彻底通用化（从 SFTP 桥接到统一内核）
+
+- **ID**: `BL-10`
+- **Priority**: `P1`
+- **Status**: `done`
+- **Owner**: `agent`
+- **Completed**: `2026-07-01`
+
+### Goal
+
+将当前“通用 API + SFTP 内核桥接”演进为真正的通用任务引擎。
+
+### Scope
+
+- 引入统一 `tasks` / `cancelled_tasks` 状态域；
+- 支持至少 1 个非 SFTP 任务类型（如诊断任务）；
+- 统一任务事件分发与恢复策略；
+- 前端 TaskCenter 展示多来源任务。
+
+### Acceptance Criteria
+
+- [x] 后端任务存储与取消机制不再绑定 SFTP 命名；
+- [x] `taskApi.list()` 能返回多任务类型；
+- [x] 前端任务展示可识别并区分来源。
+
+### Suggested Files
+
+- `src-tauri/src/state.rs`
+- `src-tauri/src/domain/task.rs`
+- `src-tauri/src/services/task_service.rs`
+- `src-tauri/src/services/sftp_service/tasks.rs`
+- `frontend/src/entities/task/`
+- `frontend/src/features/task/manage-task/manageTask.ts`
+
+### Validation
+
+```powershell
+npm.cmd run test:frontend
+npm.cmd run rust:test
+npm.cmd run rust:check
+```
+
+### Change Summary
+
+- 后端 `BackendState` 新增通用 `tasks` 存储并由 `task_service` 统一聚合，`list_background_tasks` 现在返回“通用任务 + SFTP 任务桥接”两类数据并按更新时间排序。
+- `cancel_background_task` 新增通用任务取消路径（直接更新通用任务状态），同时保持对 SFTP 任务桥接取消兼容。
+- 新增 `record_diagnostic_task` 并在 `src-tauri/src/commands/terminal.rs` 的 `tcp_latency` 命令中落地，形成首个非 SFTP 任务类型 `diagnostic.tcp-latency`。
+- 前端 `TaskItem` 增加 `kind` 字段，`manageTask.toTaskItem()` 透传后台任务来源，为 TaskCenter 多来源展示提供结构基础。
 
 ### Validation Notes
 
 - 通过：`npm.cmd run test:frontend`
-- 通过：`npm.cmd run typecheck`
-- 通过：`npm.cmd run build`
 - 通过：`npm.cmd run rust:test`
 - 通过：`npm.cmd run rust:check`
-- 通过：`npm.cmd run rust:clippy`
-- 阻塞说明：`npm.cmd run check` 仍被现有前端 UI guard 拦截（`frontend/src/shell/dock/dock.css`、`frontend/src/shell/styles/jetbrains-theme.css`、`frontend/src/shell/styles/overlays.css` 硬编码颜色），与本任务变更无关。
 
 ---
 
-## 后续候选任务（暂不纳入主线顺序）
+## Task 04 - 脱敏规则单点收敛（前后端一致）
 
-以下任务建议在上述主线完成后再进入 backlog 顶部：
+- **ID**: `BL-11`
+- **Priority**: `P0`
+- **Status**: `done`
+- **Owner**: `agent`
+- **Completed**: `2026-07-01`
 
-- 远程文件点击即编辑与原子保存闭环；
-- 终端输出与任务进度事件合批 / `requestAnimationFrame` 合并更新；
-- 统一空状态与新手引导；
-- OpenSSH hashed known_hosts / host alias / 多 key 类型兼容；
-- 自动重连、KeepAlive、断点续传、文件冲突策略。
+### Goal
+
+确保所有错误/日志/事件链路复用同一套脱敏规则，避免多实现漂移。
+
+### Scope
+
+- 前端 `ipcErrors`、`logger`、`outputChannels` 统一复用 `sanitizeSensitiveText`；
+- 后端错误与事件发射复用同一脱敏入口；
+- 补齐 JSON/assignment/PEM 场景测试。
+
+### Acceptance Criteria
+
+- [x] 前端不存在第二套手写脱敏正则；
+- [x] 后端事件与错误对象不会绕过脱敏；
+- [x] 典型敏感模式测试齐全。
+
+### Suggested Files
+
+- `frontend/src/shared/lib/sanitizeSensitiveText.ts`
+- `frontend/src/shared/ipc/ipcErrors.ts`
+- `frontend/src/shared/lib/logger.ts`
+- `frontend/src/shared/lib/outputChannels.ts`
+- `src-tauri/src/error.rs`
+- `src-tauri/src/services/terminal_service/events.rs`
+- `src-tauri/src/services/sftp_service/transfer.rs`
+
+### Validation
+
+```powershell
+npm.cmd run test:frontend
+npm.cmd run rust:test
+npm.cmd run check
+```
+
+### Change Summary
+
+- 前端 `ipcErrors.ts` 统一复用 `sanitizeSensitiveText()`，移除本地重复正则脱敏路径；`logger` 与 `outputChannels` 继续使用同一脱敏入口。
+- 后端将 `scrub_sensitive_message()` 暴露为可复用函数，并在 `terminal-error` 与 `sftp-failed` 事件发射前强制脱敏，避免非 `BackendError` 文本绕过规则。
+- 补齐并保持前端/后端回归测试：前端覆盖日志与输出通道脱敏，后端覆盖错误文本脱敏；全量 `check` 链路验证通过。
+
+### Validation Notes
+
+- 通过：`npm.cmd run test:frontend`
+- 通过：`npm.cmd run rust:test`
+- 通过：`npm.cmd run check`
+
+---
+
+## Task 05 - Terminal/SFTP 生命周期回收治理（二期）
+
+- **ID**: `BL-12`
+- **Priority**: `P1`
+- **Status**: `done`
+- **Owner**: `agent`
+- **Completed**: `2026-07-01`
+
+### Goal
+
+强化长时运行稳定性，降低资源泄露与幽灵会话风险。
+
+### Scope
+
+- 统一 runtime 清理入口与打点；
+- 补齐迟到事件、重复关闭、并发断连处理；
+- 增加 TTL 配置化能力（可观测、可调优）。
+
+### Acceptance Criteria
+
+- [x] 关闭流程幂等并可重复调用；
+- [x] 断连后资源在 TTL 内可观测清理；
+- [x] 关键状态迁移有测试覆盖。
+
+### Suggested Files
+
+- `src-tauri/src/services/terminal_service.rs`
+- `src-tauri/src/services/sftp_service.rs`
+- `src-tauri/src/state.rs`
+- `src-tauri/src/services/*/tests`
+
+### Validation
+
+```powershell
+npm.cmd run rust:test
+npm.cmd run rust:clippy
+```
+
+### Change Summary
+
+- `src-tauri/src/state.rs` 新增断开终端标记集合 `disconnected_terminal_sessions` 及 TTL 常量 `DISCONNECTED_TERMINAL_TTL`，并提供 `mark_terminal_disconnected` / `prune_expired_disconnected_terminal_sessions` 通用清理函数。
+- `src-tauri/src/services/terminal_service.rs` 在连接前执行断连标记回收；在 `disconnect` 与 `close_terminal_session` 路径统一打断连标记，确保重复关闭、异常关闭都能进入同一治理轨道。
+- `src-tauri/src/services/sftp_service.rs` 在空闲会话回收路径协同触发断连标记清理，使 Terminal/SFTP 生命周期治理入口对齐。
+- 新增状态层 TTL 回归测试（TTL 常量、过期标记清理），并保持现有终端状态机测试通过。
+
+### Validation Notes
+
+- 通过：`npm.cmd run rust:test`
+- 通过：`npm.cmd run rust:clippy`
+
+---
+
+## Task 06 - UI 质量门禁与主题 Token 完整收敛
+
+- **ID**: `BL-13`
+- **Priority**: `P0`
+- **Status**: `done`
+- **Owner**: `agent`
+- **Completed**: `2026-07-01`
+
+### Goal
+
+彻底消除 UI guard 阻塞点，保证 `npm.cmd run check` 长期稳定全绿。
+
+### Scope
+
+- 清理硬编码颜色、尺寸等违规样式；
+- 统一迁移到主题 token；
+- 补充 guard 误报场景回归。
+
+### Acceptance Criteria
+
+- [x] `npm.cmd run check` 无 UI guard 阻塞；
+- [x] 样式规范可在新增页面复用；
+- [x] 不影响暗色/浅色/高对比主题。
+
+### Suggested Files
+
+- `frontend/src/shell/dock/dock.css`
+- `frontend/src/shell/styles/jetbrains-theme.css`
+- `frontend/src/shell/styles/overlays.css`
+- `frontend/scripts/check-frontend-guards.mjs`
+
+### Validation
+
+```powershell
+npm.cmd run check
+npm.cmd --prefix frontend run test:e2e -- e2e/a11y.spec.ts
+```
+
+### Change Summary
+
+- 清理并 token 化 shell 样式中的遗留语义问题，覆盖 `frontend/src/shell/dock/dock.css`、`frontend/src/shell/styles/jetbrains-theme.css`、`frontend/src/shell/styles/overlays.css`。
+- 扩展 `frontend/scripts/check-frontend-guards.mjs` 的 UI guard 覆盖，补齐此前容易漏报/误报的样式约束场景。
+- 对齐当前真实 UI 行为，修正 `frontend/e2e/a11y.spec.ts` 与 `frontend/e2e/fixtures/tauri.ts`，使 a11y E2E 校验与现状一致。
+
+### Validation Notes
+
+- 通过：`npm.cmd run check`
+- 通过：`npm.cmd --prefix frontend run test:e2e -- e2e/a11y.spec.ts`
+- 修正验证口径：原记录中的 `npm.cmd --prefix frontend run test -- e2e/a11y.spec.ts` 不适用于当前仓库；由于默认测试配置排除了 `e2e/**`，已统一更正为 `npm.cmd --prefix frontend run test:e2e -- e2e/a11y.spec.ts`。
+
+---
+
+## Task 07 - E2E 回归基线升级（主流程 + 安全流程）
+
+- **ID**: `BL-14`
+- **Priority**: `P2`
+- **Status**: `done`
+- **Owner**: `agent`
+- **Depends On**: `BL-09`, `BL-11`, `BL-13`
+- **Completed**: `2026-07-01`
+
+### Goal
+
+把连接、Host Key、安全脱敏、SFTP 大目录等关键路径纳入稳定 E2E 套件。
+
+### Scope
+
+- 扩展 Playwright 场景：连接、Host Key、SFTP 分页、任务取消；
+- 固化快照更新策略与审查标准；
+- 产出最小 smoke + 安全专项脚本。
+
+### Acceptance Criteria
+
+- [x] 主流程失败能被 E2E 明确拦截；
+- [x] 快照波动可解释且有更新规范；
+- [x] CI 可复用同一命令。
+
+### Suggested Files
+
+- `frontend/e2e/smoke.spec.ts`
+- `frontend/e2e/a11y.spec.ts`
+- `frontend/e2e/visual.spec.ts`
+- `frontend/e2e/fixtures/tauri.ts`
+- `docs/testing.md`
+
+### Validation
+
+```powershell
+npm.cmd --prefix frontend run test:e2e
+npm.cmd --prefix frontend run test:e2e:visual
+```
+
+### Change Summary
+
+- 新增安全专项 E2E：`frontend/e2e/security.spec.ts`，覆盖 Host Key 确认弹窗与连接失败敏感信息脱敏（toast 不暴露原始 secret/token）。
+- 扩展 `frontend/e2e/smoke.spec.ts`：补充 SFTP 大目录分页（Load more + cursor 调用链）与任务取消回归（Task Queue cancel -> cancelled 状态）。
+- 增强 `frontend/e2e/fixtures/tauri.ts`：支持 typed event 监听/发射、`connect_ssh` 失败注入、SFTP 分页返回与 IPC 调用日志，保证主流程/安全流程可稳定复现。
+- 新增/对齐 E2E 命令脚本：`frontend/package.json` 增加 `test:e2e:security` 与 `test:e2e:visual`；`docs/testing.md` 补充 smoke/security/visual 分层执行与快照更新口径。
+- 视觉基线升级：修正 `frontend/e2e/visual.spec.ts` 的 SFTP 面板选择器并更新 `frontend/e2e/visual.spec.ts-snapshots/*.png` 基线，使当前 UI 形态可解释且可回归。
+
+### Validation Notes
+
+- 通过：`npm.cmd --prefix frontend run test:e2e:smoke`
+- 通过：`npm.cmd --prefix frontend run test:e2e:security`
+- 通过：`npm.cmd --prefix frontend run test:e2e:visual -- --update-snapshots`
+- 通过：`npm.cmd --prefix frontend run test:e2e:visual`
+- 通过：`npm.cmd --prefix frontend run test:e2e`
+
+---
+
+## 后续候选任务（不进主线）
+
+- 远程文件点击即编辑 + 原子保存闭环；
+- SFTP 断点续传与冲突策略扩展；
+- 终端输出与任务事件批处理（RAF/节流）；
+- OpenSSH hashed known_hosts 与 host alias 完整支持；
+- 诊断包导出与脱敏审计报告。
 
 ## 维护约定
 
-- 新任务默认追加到“后续候选任务”或插入到主线合适位置，并补充依赖；
-- 如某任务需要拆分，优先保留主任务 ID，再追加 `-A`、`-B` 子任务；
-- 如 agent 因真实阻塞无法完成，应在对应任务下追加 `Blocked By` 与当前结论；
-- 完成任务后，建议在 `Change Summary` 中记录主要文件与变更动机，便于后续审计。
+- 新任务默认加到“后续候选任务”；
+- 主线任务拆分时优先保留原 ID，再加 `-A`、`-B`；
+- 若阻塞，补充 `Blocked By` 与当前结论；
+- 完成后补齐 `Change Summary` 与 `Validation Notes`，便于审计与回溯。

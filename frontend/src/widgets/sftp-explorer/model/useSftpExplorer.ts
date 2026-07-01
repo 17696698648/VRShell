@@ -1,12 +1,13 @@
 import {computed, watch} from 'vue'
 import {sessionState, setActiveSession, type SessionHost} from '../../../entities/session'
 import {activateSftpSessionState, clearSftpState, getSftpSessionState, persistActiveSftpState, sftpState, type SftpItem} from '../../../entities/sftp'
-import {listRemoteDirectory} from '../../../entities/sftp/api/sftpRepository'
+import {listRemoteDirectoryPage} from '../../../entities/sftp/api/sftpRepository'
 import {terminalState} from '../../../entities/terminal'
 import {getErrorMessage} from '../../../shared/error/getErrorMessage'
 import {notifyFeedback} from '../../../shared/feedback'
 
 const refreshVersions = new Map<string, number>()
+const DIRECTORY_PAGE_SIZE = 200
 
 export function useSftpExplorer() {
   const activeSession = computed(() => sessionState.sessions.find((session) => session.id === sessionState.activeSessionId) ?? null)
@@ -59,9 +60,40 @@ export function useSftpExplorer() {
     sftpState.error = ''
     persistActiveSftpState()
     try {
-      const items = await listRemoteDirectory(session, path)
+      const page = await listRemoteDirectoryPage(session, path, {offset: 0, limit: DIRECTORY_PAGE_SIZE})
       if (refreshVersions.get(session.id) !== version) return
-      applyDirectoryState(session.id, path, items)
+      applyDirectoryState(session.id, path, page.items, page.nextCursor, false)
+      if (activeSession.value?.id === session.id) syncActiveDirectoryState(session.id)
+    } catch (error) {
+      if (refreshVersions.get(session.id) !== version) return
+      applyDirectoryError(session.id, getErrorMessage(error))
+    } finally {
+      if (refreshVersions.get(session.id) !== version) return
+      sessionState.loading = false
+      sftpState.loading = false
+      persistActiveSftpState()
+    }
+  }
+
+  async function loadMore() {
+    const session = activeSession.value
+    if (!session || !sftpState.hasMore || !sftpState.nextCursor || sftpState.loading) return
+    if (!isSessionReadyForSftp(session)) return
+
+    const sessionState = getSftpSessionState(session.id)
+    const version = (refreshVersions.get(session.id) ?? 0) + 1
+    refreshVersions.set(session.id, version)
+    sessionState.loading = true
+    sftpState.loading = true
+    persistActiveSftpState()
+
+    try {
+      const page = await listRemoteDirectoryPage(session, sftpState.path, {
+        cursor: sftpState.nextCursor,
+        limit: DIRECTORY_PAGE_SIZE,
+      })
+      if (refreshVersions.get(session.id) !== version) return
+      applyDirectoryState(session.id, sftpState.path, page.items, page.nextCursor, true)
       if (activeSession.value?.id === session.id) syncActiveDirectoryState(session.id)
     } catch (error) {
       if (refreshVersions.get(session.id) !== version) return
@@ -80,20 +112,25 @@ export function useSftpExplorer() {
     return refresh(parentPath ? `/${parentPath}` : '/')
   }
 
-  return {sftpState, activeSession, hasConnectedTerminal, refresh, openParentDirectory}
+  return {sftpState, activeSession, hasConnectedTerminal, refresh, loadMore, openParentDirectory}
 }
 
 function isSessionReadyForSftp(session: SessionHost) {
   return session.status === 'connected' && Boolean(session.backendSessionId) && terminalState.tabs.some((tab) => tab.sessionId === session.id && tab.status === 'connected')
 }
 
-function applyDirectoryState(sessionId: string, path: string, items: SftpItem[]) {
+function applyDirectoryState(sessionId: string, path: string, items: SftpItem[], nextCursor: string | null, append: boolean) {
+  const sessionState = getSftpSessionState(sessionId)
+  const mergedItems = append ? [...sessionState.items, ...items] : items
+
   Object.assign(getSftpSessionState(sessionId), {
     connectedSessionId: sessionId,
     error: '',
+    hasMore: Boolean(nextCursor),
     initialized: true,
-    items,
+    items: mergedItems,
     loading: false,
+    nextCursor,
     path,
   })
 }
@@ -108,8 +145,10 @@ function syncActiveDirectoryState(sessionId: string) {
   Object.assign(sftpState, {
     connectedSessionId: sessionState.connectedSessionId,
     error: sessionState.error,
+    hasMore: sessionState.hasMore,
     initialized: sessionState.initialized,
     items: sessionState.items,
+    nextCursor: sessionState.nextCursor,
     path: sessionState.path,
   })
 }
